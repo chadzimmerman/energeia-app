@@ -22,6 +22,14 @@ export default function SettingsStackLayout() {
           // The back button text now correctly inherits the title of the 'index' screen ("Settings")
         }}
       />
+      {/* 3. Define the Market Screen */}
+      <Stack.Screen
+        name="market" // Points to settings/about.tsx
+        options={{
+          title: "Market", // Sets the title of the About page header
+          // The back button text now correctly inherits the title of the 'index' screen ("Settings")
+        }}
+      />
     </Stack>
   );
 }

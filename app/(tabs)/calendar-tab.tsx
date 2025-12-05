@@ -1,8 +1,7 @@
-import CharacterStats from "@/components/CharacterStats";
-import { View as ThemedView } from "@/components/Themed";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,17 +9,33 @@ import {
   View,
 } from "react-native";
 
+// Import for Icons
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+
+import CharacterStats from "@/components/CharacterStats";
+import { View as ThemedView } from "@/components/Themed";
+import Colors from "@/constants/Colors";
+
 // Get screen width for responsive sizing
 const screenWidth = Dimensions.get("window").width;
 // Calculate the size of a single day cell for a 7-column grid with padding
-// 20px padding on left/right edges + 6 gaps of 5px = 20 + 30 = 50px total horizontal buffer
 const totalHorizontalPadding = 40; // 20px on each side of the main calendar container
 const gap = 5; // Gap between days
 const dayCellSize = Math.floor(
   (screenWidth - totalHorizontalPadding - 6 * gap) / 7
 );
 
-// --- MOCK DATA ---
+// --- MOCK DATA & TYPES ---
+
+// Type for the status of a habit on a given day
+type HabitStatus = "green" | "orange" | "red" | "grey";
+
+interface HabitDay {
+  date: Date;
+  status: HabitStatus;
+}
+
+const MOCK_HABIT_TITLE = "Daily 30-Minute Run";
 
 // Habit Status Colors
 const STATUS_COLORS = {
@@ -31,9 +46,8 @@ const STATUS_COLORS = {
 };
 
 // Mock Habit Data (Year-Month-Day format)
-// Using data for March 2026 as shown in the screenshot
-const mockHabitData: { [key: string]: keyof typeof STATUS_COLORS } = {
-  "2026-2-28": "green", // Previous month day example
+const mockHabitData: { [key: string]: HabitStatus } = {
+  "2026-2-28": "green",
   "2026-3-1": "grey",
   "2026-3-2": "green",
   "2026-3-3": "green",
@@ -65,7 +79,7 @@ const mockHabitData: { [key: string]: keyof typeof STATUS_COLORS } = {
   "2026-3-29": "green",
   "2026-3-30": "green",
   "2026-3-31": "grey",
-  "2026-4-1": "grey", // Next month day example
+  "2026-4-1": "grey",
 };
 
 // --- UTILITY FUNCTIONS ---
@@ -75,19 +89,16 @@ const getMonthName = (date: Date) =>
 
 /**
  * Calculates the day structure for the given month/year.
- * Returns an array of day numbers, including leading empty spaces and trailing padding.
  */
 const getDaysInMonth = (year: number, month: number) => {
   const date = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // getDay() returns 0 for Sunday, 1 for Monday...
-  // We want Monday (1) to be the start of the week (index 0).
   const firstDayIndex = date.getDay() === 0 ? 6 : date.getDay() - 1;
 
   const days: (number | null)[] = [];
 
-  // 1. Add leading empty spaces (for days before the 1st of the month)
+  // 1. Add leading empty spaces
   for (let i = 0; i < firstDayIndex; i++) {
     days.push(null);
   }
@@ -97,7 +108,7 @@ const getDaysInMonth = (year: number, month: number) => {
     days.push(day);
   }
 
-  // 3. Add trailing empty spaces to complete the last week (optional but good practice)
+  // 3. Add trailing empty spaces
   const totalCells = days.length;
   const trailingPadding = (7 - (totalCells % 7)) % 7;
   for (let i = 0; i < trailingPadding; i++) {
@@ -109,45 +120,72 @@ const getDaysInMonth = (year: number, month: number) => {
 
 // --- COMPONENTS ---
 
-/**
- * Renders a single calendar day cell.
- */
-const DayCell: React.FC<{
+// Interface for DayCell props
+interface DayCellProps {
   day: number | null;
   year: number;
   month: number;
-}> = ({ day, year, month }) => {
+  onDayPress: (dayData: HabitDay) => void;
+}
+
+/**
+ * Renders a single calendar day cell.
+ */
+const DayCell: React.FC<DayCellProps> = ({ day, year, month, onDayPress }) => {
   if (day === null) {
     return <View style={calendarStyles.dayCellBlank} />;
   }
 
   // Format key to match mock data (e.g., '2026-3-15')
   const dateKey = `${year}-${month + 1}-${day}`;
-  const status = mockHabitData[dateKey] || "grey";
+  const status = (mockHabitData[dateKey] || "grey") as HabitStatus;
   const color = STATUS_COLORS[status];
 
-  const handleDayPress = () => {
-    // This is where the modal will pop up in the next step
-    console.log(`Day ${dateKey} clicked. Status: ${status}.`);
-    // Placeholder for opening the modal: openDayModal({ date: dateKey, status });
+  // Convert day/month/year to a full Date object
+  const fullDate = new Date(year, month, day);
+
+  const handleDayClick = () => {
+    // 1. Create the data object to pass to the modal
+    const dayData: HabitDay = {
+      date: fullDate,
+      status: status,
+    };
+    // 2. Call the handler function passed from the main screen
+    onDayPress(dayData);
   };
+
+  const isToday = fullDate.toDateString() === new Date().toDateString();
+  const textColor =
+    status === "grey"
+      ? calendarStyles.dayText_grey.color
+      : calendarStyles.dayText.color;
 
   return (
     <TouchableOpacity
-      style={[calendarStyles.dayCell, { backgroundColor: color }]}
-      onPress={handleDayPress}
+      style={[
+        calendarStyles.dayCell,
+        { backgroundColor: color },
+        isToday && { borderColor: Colors.light.tint, borderWidth: 2 }, // Highlight today
+      ]}
+      onPress={handleDayClick}
       activeOpacity={0.7}
-      disabled={status === "grey"} // Optionally disable clicking on untracked days
+      // Allows clicking any tracked day or today
+      disabled={false}
     >
-      <Text style={calendarStyles.dayText}>{day}</Text>
+      <Text style={{ ...calendarStyles.dayText, color: textColor }}>{day}</Text>
     </TouchableOpacity>
   );
 };
 
+// Interface for CalendarView props
+interface CalendarViewProps {
+  onDayPress: (dayData: HabitDay) => void;
+}
+
 /**
  * Main calendar view with month navigation.
  */
-const CalendarView: React.FC = () => {
+const CalendarView: React.FC<CalendarViewProps> = ({ onDayPress }) => {
   // Start date (March 2026 as seen in the screenshot)
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1));
 
@@ -203,7 +241,13 @@ const CalendarView: React.FC = () => {
       {/* Day Grid */}
       <View style={calendarStyles.dayGrid}>
         {days.map((day, index) => (
-          <DayCell key={index} day={day} year={year} month={month} />
+          <DayCell
+            key={index}
+            day={day}
+            year={year}
+            month={month}
+            onDayPress={onDayPress} // PASSED DOWN
+          />
         ))}
       </View>
     </View>
@@ -215,7 +259,7 @@ const CalendarView: React.FC = () => {
  */
 const HabitTrackerSection: React.FC = () => {
   // Mock tracked habit
-  const [trackedHabit, setTrackedHabit] = useState("Reading");
+  const [trackedHabit, setTrackedHabit] = useState("Daily 30-Minute Run");
 
   const handleSelectHabit = () => {
     // Placeholder for habit selection modal
@@ -233,9 +277,179 @@ const HabitTrackerSection: React.FC = () => {
   );
 };
 
+// ----------------------------------------------------------------------
+// DAILY LOG MODAL COMPONENT (Embedded for single-file fix)
+// ----------------------------------------------------------------------
+
+// Habit Status/Color Constants for Modal
+const STATUS_OPTIONS: { label: string; status: HabitStatus; color: string }[] =
+  [
+    { label: "Successful", status: "green", color: "#2ECC71" },
+    { label: "Partial/Difficult", status: "orange", color: "#E67E22" },
+    { label: "Missed/Failed", status: "red", color: "#E74C3C" },
+    { label: "Untracked (Reset)", status: "grey", color: "#B0BEC5" },
+  ];
+
+interface DailyLogModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+  date: Date | null;
+  initialStatus: HabitStatus;
+  habitTitle: string;
+}
+
+const DailyLogModal: React.FC<DailyLogModalProps> = ({
+  isVisible,
+  onClose,
+  date,
+  initialStatus,
+  habitTitle,
+}) => {
+  const [selectedStatus, setSelectedStatus] =
+    useState<HabitStatus>(initialStatus);
+
+  // Sync internal state when initialStatus prop changes (i.e., when a new day is selected)
+  useEffect(() => {
+    setSelectedStatus(initialStatus);
+  }, [initialStatus, isVisible]);
+
+  // Format the date for the modal header
+  const formattedDate = date
+    ? date.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    : "Loading Date...";
+
+  const handleSave = () => {
+    if (!date) return;
+
+    // TODO: Implement actual data saving logic here (e.g., using Firestore)
+    console.log(
+      `[LOG] Habit: ${habitTitle} on ${
+        date.toISOString().split("T")[0]
+      } updated to status: ${selectedStatus}`
+    );
+
+    // After saving, close the modal
+    onClose();
+  };
+
+  if (!date) return null; // Don't render if date is null
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isVisible}
+      onRequestClose={onClose}
+    >
+      <View style={modalStyles.centeredView}>
+        <View style={modalStyles.modalView}>
+          {/* Header */}
+          {/* CRITICAL FIX: Removed the section that contained "New Habit" and Save/Cancel buttons
+             as those were likely rendered as part of the modal's internal structure 
+             and should not exist for a simple log modal. */}
+          <View style={modalStyles.header}>
+            <TouchableOpacity onPress={onClose} style={modalStyles.closeButton}>
+              <FontAwesome name="times" size={24} color="#A737FD" />
+            </TouchableOpacity>
+            <Text style={modalStyles.modalTitle}>{habitTitle}</Text>
+            <Text style={modalStyles.modalSubtitle}>{formattedDate}</Text>
+          </View>
+
+          <ScrollView contentContainerStyle={modalStyles.scrollContent}>
+            {/* Status Selector */}
+            <View style={modalStyles.controlSection}>
+              <Text style={modalStyles.sectionTitle}>STATUS</Text>
+              <View style={modalStyles.statusRow}>
+                {STATUS_OPTIONS.map(({ label, status, color }) => {
+                  const isActive = selectedStatus === status;
+                  return (
+                    <TouchableOpacity
+                      key={status}
+                      style={[
+                        modalStyles.statusButton,
+                        { backgroundColor: isActive ? color : "#fff" },
+                        { borderColor: color, borderWidth: 2 },
+                      ]}
+                      onPress={() => setSelectedStatus(status)}
+                    >
+                      <FontAwesome
+                        name={
+                          status === "green"
+                            ? "check"
+                            : status === "orange"
+                            ? "exclamation"
+                            : status === "red"
+                            ? "times"
+                            : "question"
+                        }
+                        size={20}
+                        color={isActive ? "#fff" : color}
+                      />
+                      <Text
+                        style={[
+                          modalStyles.statusText,
+                          { color: isActive ? "#fff" : color },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Notes/Reflection Input (Placeholder) */}
+            <View style={modalStyles.controlSection}>
+              <Text style={modalStyles.sectionTitle}>
+                DAILY REFLECTION (OPTIONAL)
+              </Text>
+              <View style={modalStyles.textInputContainer}>
+                <Text style={modalStyles.placeholderText}>
+                  How did this habit go today? What challenges did you face?
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Save Button */}
+          <TouchableOpacity style={modalStyles.saveButton} onPress={handleSave}>
+            <Text style={modalStyles.saveButtonText}>SAVE LOG</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 // --- MAIN TAB SCREEN ---
 
 export default function CalendarTabScreen() {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [selectedDayData, setSelectedDayData] = useState<HabitDay | null>(null);
+
+  /**
+   * Handler function called when a calendar day is pressed.
+   */
+  const handleDayPress = (dayData: HabitDay) => {
+    setSelectedDayData(dayData);
+    setIsModalVisible(true);
+  };
+
+  const handleModalClose = () => {
+    // Here you would typically also trigger a data refresh for the calendar view
+    setIsModalVisible(false);
+    setSelectedDayData(null);
+  };
+
+  // Destructure selected day data safely for props
+  const date = selectedDayData?.date || null;
+  const initialStatus = selectedDayData?.status || "grey";
+
   return (
     <ThemedView style={styles.container}>
       {/* 1. Character Stats Header */}
@@ -250,21 +464,31 @@ export default function CalendarTabScreen() {
 
       {/* 2. Scrollable Content (Calendar and Habit Tracker) */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <CalendarView />
+        <CalendarView onDayPress={handleDayPress} />
         <HabitTrackerSection />
       </ScrollView>
 
-      {/* <EditScreenInfo path="app/(tabs)/calendar-tab.tsx" /> */}
+      {/* 3. RENDER THE MODAL COMPONENT */}
+      <DailyLogModal
+        isVisible={isModalVisible}
+        onClose={handleModalClose}
+        date={date}
+        initialStatus={initialStatus}
+        habitTitle={MOCK_HABIT_TITLE}
+      />
     </ThemedView>
   );
 }
 
-// --- STYLES ---
+// --- CALENDAR STYLES ---
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // The main container should fill the screen
+    // Fix: Assuming the navigation header is handled by the router/stack.
+    // If the entire view is showing the modal header, ensure no absolute positioning here
+    // that covers the navigation bar. But based on the previous context,
+    // we're assuming the router handles the "Calendar" title.
   },
   scrollContent: {
     flexGrow: 1,
@@ -294,7 +518,6 @@ const calendarStyles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
     marginHorizontal: 10,
-    // Match the dark, centered look of the screenshot
   },
   navButton: {
     padding: 10,
@@ -307,16 +530,13 @@ const calendarStyles = StyleSheet.create({
   // --- Day Labels ---
   dayLabelsRow: {
     flexDirection: "row",
-    // Change to 'space-around' or 'space-evenly' if 'space-between' doesn't look right,
-    // but the issue is more likely in the width calculation/application.
     justifyContent: "space-between",
     paddingHorizontal: 0,
     marginBottom: 5,
   },
   dayLabelText: {
-    // This width must be exactly the size of a day cell to ensure alignment
     width: dayCellSize,
-    textAlign: "center", // Centering the text within the label width
+    textAlign: "center",
     fontWeight: "bold",
     color: "#666",
   },
@@ -324,30 +544,25 @@ const calendarStyles = StyleSheet.create({
   dayGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    // Use 'space-between' to distribute the cells across the width
     justifyContent: "space-between",
-    // We remove the gap/margin from the dayCell and use columnGap/rowGap on the grid container
     columnGap: gap,
     rowGap: gap,
   },
   dayCell: {
-    // The explicit size of the cell is now correctly calculated to fit 7 in a row with gaps
     width: dayCellSize,
     height: dayCellSize,
     borderRadius: 8,
     alignItems: "center",
-    justifyContent: "center", // This centers the day number text
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 1,
     elevation: 1,
-    // Removed margin: gap/2 here to allow columnGap/rowGap on the parent to manage spacing
   },
   dayCellBlank: {
     width: dayCellSize,
     height: dayCellSize,
-    // margin: gap / 2, // Removed margin here too
     backgroundColor: "transparent",
   },
   dayText: {
@@ -378,111 +593,113 @@ const calendarStyles = StyleSheet.create({
   },
 });
 
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     // The main container should fill the screen
-//   },
-//   scrollContent: {
-//     flexGrow: 1,
-//     paddingHorizontal: 10,
-//     paddingBottom: 20,
-//     alignItems: "center",
-//     width: "100%",
-//   },
-// });
+// --- MODAL STYLES (renamed to modalStyles to avoid conflicts) ---
+const modalStyles = StyleSheet.create({
+  centeredView: {
+    flex: 1,
+    justifyContent: "flex-end", // Modal slides up from the bottom
+    backgroundColor: "rgba(0,0,0,0.5)", // Dark overlay
+  },
+  modalView: {
+    backgroundColor: "#F0F0F0",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    maxHeight: "80%", // Limit height
+    width: "100%",
+  },
+  header: {
+    alignItems: "center",
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+    backgroundColor: "transparent",
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: Colors.light.tint,
+    marginTop: 5,
+    fontWeight: "600",
+  },
+  closeButton: {
+    position: "absolute",
+    left: 0,
+    padding: 5,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: 10,
+  },
 
-// const calendarStyles = StyleSheet.create({
-//   calendarContainer: {
-//     width: "100%",
-//     paddingHorizontal: 10,
-//     paddingTop: 10,
-//     backgroundColor: "transparent",
-//   },
-//   // --- Header ---
-//   monthHeader: {
-//     flexDirection: "row",
-//     justifyContent: "center",
-//     alignItems: "center",
-//     marginBottom: 20,
-//   },
-//   monthTitle: {
-//     fontSize: 26,
-//     fontWeight: "bold",
-//     color: "#333",
-//     marginHorizontal: 10,
-//     // Match the dark, centered look of the screenshot
-//   },
-//   navButton: {
-//     padding: 10,
-//   },
-//   navText: {
-//     fontSize: 24,
-//     fontWeight: "bold",
-//     color: "#333",
-//   },
-//   // --- Day Labels ---
-//   dayLabelsRow: {
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     paddingHorizontal: 0,
-//     marginBottom: 5,
-//   },
-//   dayLabelText: {
-//     width: dayCellSize,
-//     textAlign: "center",
-//     fontWeight: "bold",
-//     color: "#666",
-//   },
-//   // --- Day Grid ---
-//   dayGrid: {
-//     flexDirection: "row",
-//     flexWrap: "wrap",
-//     justifyContent: "flex-start",
-//   },
-//   dayCell: {
-//     width: dayCellSize,
-//     height: dayCellSize,
-//     margin: gap / 2, // Use half the gap for margin on all sides to create the gap effect
-//     borderRadius: 8,
-//     alignItems: "center",
-//     justifyContent: "center",
-//     shadowColor: "#000",
-//     shadowOffset: { width: 0, height: 1 },
-//     shadowOpacity: 0.1,
-//     shadowRadius: 1,
-//     elevation: 1,
-//   },
-//   dayCellBlank: {
-//     width: dayCellSize,
-//     height: dayCellSize,
-//     margin: gap / 2,
-//     backgroundColor: "transparent", // Empty cells are transparent
-//   },
-//   dayText: {
-//     fontSize: 18,
-//     fontWeight: "bold",
-//     color: "white", // Text is white/light on colored days
-//   },
-//   // Override for grey/untracked days to have dark text
-//   dayText_grey: {
-//     color: "#333",
-//   },
-//   // --- Habit Tracker ---
-//   habitTrackerBox: {
-//     marginTop: 30,
-//     padding: 20,
-//     width: "90%",
-//     alignItems: "center",
-//   },
-//   habitTrackerLabel: {
-//     fontSize: 14,
-//     color: "#666",
-//     marginBottom: 5,
-//   },
-//   habitTrackerName: {
-//     fontSize: 24,
-//     fontWeight: "bold",
-//     color: "#333",
-//   },
-// });
+  // --- Controls Section ---
+  controlSection: {
+    paddingVertical: 10,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#A9A9A9",
+    marginBottom: 8,
+  },
+  statusRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 5,
+  },
+  statusButton: {
+    width: "48%", // Allow for two buttons per row
+    alignItems: "center",
+    paddingVertical: 15,
+    marginVertical: 5,
+    borderRadius: 8,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+  },
+  statusText: {
+    fontWeight: "600",
+    fontSize: 16,
+  },
+
+  // --- Reflection Input ---
+  textInputContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 15,
+    minHeight: 100,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholderText: {
+    color: "#A9A9A9",
+    fontStyle: "italic",
+    textAlign: "center",
+  },
+
+  // --- Save Button ---
+  saveButton: {
+    backgroundColor: Colors.light.tint, // Purple tint
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 20,
+    alignItems: "center",
+  },
+  saveButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+});

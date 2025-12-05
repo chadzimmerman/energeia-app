@@ -87,6 +87,8 @@ const SettingsSection = ({ section, navigation }) => {
   const handlePress = (itemId) => {
     if (itemId === "about") {
       navigation.navigate("about");
+    } else if (itemId == "market") {
+      navigation.navigate("market");
     } else {
       console.log(`Navigating to ${itemId}`);
       // Add other navigation logic here (e.g., navigation.navigate(itemId))
