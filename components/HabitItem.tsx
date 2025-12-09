@@ -1,0 +1,192 @@
+import React from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+// Note: Using expo-vector-icons which should be available
+import Colors from "@/constants/Colors"; // Assuming this path is correct for color definitions
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+
+// Define the Habit data structure based on the new SQL table
+// This interface describes the DATA object only.
+interface Habit {
+  id: string;
+  title: string;
+  is_positive: boolean;
+  is_negative: boolean;
+  streak_level: number;
+  // Difficulty is useful for calculating the score change (later)
+  difficulty: number;
+}
+
+// Define the Props for the HabitItem component.
+// This interface correctly combines the habit data object with the onScore function prop.
+interface HabitItemProps {
+  habit: Habit;
+  // The onScore function prop accepts the habit ID and a direction ('up' or 'down')
+  onScore: (habitId: string, direction: "up" | "down") => void;
+}
+
+/**
+ * Maps the habit's streak_level to a color based on the Habitica style:
+ * Red (negative streak) -> Yellow (neutral/starting) -> Green (positive streak)
+ * @param streakLevel The streak_level integer from the database.
+ * @returns A hex color string.
+ */
+const getStreakColor = (streakLevel: number): string => {
+  // Define simple thresholds for the color gradient
+  const GREEN_THRESHOLD = 2;
+  const YELLOW_THRESHOLD = 1;
+  const RED_THRESHOLD = 0;
+
+  // Note: We use the local fallback colors since we can't be sure of the Colors.ts content
+  const colorMap = {
+    red: "#E85A4F", // Darker Red
+    yellow: "#F4D35E", // Mustard Yellow
+    green: "#4CAF50", // Standard Green
+    neutral: "#A737FD", // Default app tint for mid-range positive
+  };
+
+  if (streakLevel >= GREEN_THRESHOLD) {
+    return colorMap.green;
+  }
+  if (streakLevel >= YELLOW_THRESHOLD) {
+    // Use the primary app tint color for a good, but not perfect, streak
+    // @ts-ignore: Assuming Colors.light.tint exists or defaults will apply
+    return Colors?.light?.tint || colorMap.neutral;
+  }
+  if (streakLevel >= RED_THRESHOLD) {
+    return colorMap.yellow;
+  }
+  // If streakLevel is negative (i.e., less than RED_THRESHOLD)
+  return colorMap.red;
+};
+
+// Use the new HabitItemProps interface here
+const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore }) => {
+  // Determine the color based on the habit's streak level
+  const buttonColor = getStreakColor(habit.streak_level);
+
+  return (
+    <View style={styles.card}>
+      {/* 1. Negative Button (Far Left) */}
+      {habit.is_negative && (
+        <TouchableOpacity
+          style={[
+            styles.scoreButton,
+            styles.leftButton,
+            { backgroundColor: buttonColor },
+          ]}
+          onPress={() => onScore(habit.id, "down")}
+        >
+          <FontAwesome name="minus" size={20} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      {/* 2. Flexible Text Container (Middle) - includes horizontal padding */}
+      <View style={styles.textContainer}>
+        <Text style={styles.title} numberOfLines={1}>
+          {habit.title}
+        </Text>
+        {/* Optional: Show Difficulty (e.g., small stars) */}
+        <View style={styles.difficultyContainer}>
+          {Array(habit.difficulty)
+            .fill(0)
+            .map((_, i) => (
+              <FontAwesome
+                key={i}
+                name="star"
+                size={10}
+                color="#DCDCDC"
+                style={{ marginHorizontal: 1 }}
+              />
+            ))}
+        </View>
+      </View>
+
+      {/* 3. Positive Button (Far Right) */}
+      {habit.is_positive && (
+        <TouchableOpacity
+          style={[
+            styles.scoreButton,
+            styles.rightButton,
+            { backgroundColor: buttonColor },
+          ]}
+          onPress={() => onScore(habit.id, "up")}
+        >
+          <FontAwesome name="plus" size={20} color="#fff" />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+// Fallback for Colors object if not present in the project structure
+const fallbackColors = {
+  red: "#E85A4F",
+  yellow: "#F4D35E",
+  green: "#4CAF50",
+  light: { tint: "#A737FD" },
+};
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 0,
+    width: "100%",
+    // FIX: Removed marginHorizontal: 15 to allow the card to take up the full width of the screen.
+    // The ScrollView in HabitList will handle horizontal spacing between the card and screen edge.
+    // We keep marginBottom for spacing between cards.
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  textContainer: {
+    flex: 1,
+    width: 0,
+    // CRITICAL: This padding creates the necessary space between the text and the buttons.
+    paddingHorizontal: 15,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  difficultyContainer: {
+    flexDirection: "row",
+    marginTop: 4,
+  },
+  // Base button style remains the same
+  scoreButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0, // Ensure buttons don't shrink
+    // Add a slight shadow to make buttons pop
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+    elevation: 2,
+  },
+  // New style for the button on the left (negative habit)
+  leftButton: {
+    // FIX: Re-added a small margin to push the button slightly off the left edge of the screen
+    marginLeft: 15,
+    marginRight: 0,
+  },
+  // New style for the button on the right (positive habit)
+  rightButton: {
+    // FIX: Re-added a small margin to push the button slightly off the right edge of the screen
+    marginRight: 15,
+    marginLeft: 0,
+  },
+});
+
+export default HabitItem;

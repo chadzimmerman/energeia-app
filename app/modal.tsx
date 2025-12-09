@@ -1,3 +1,6 @@
+import { Text, View } from "@/components/Themed";
+import Colors from "@/constants/Colors"; // Assuming you have a Colors file
+import { supabase } from "@/utils/supabase";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -9,9 +12,6 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-import { Text, View } from "@/components/Themed";
-import Colors from "@/constants/Colors"; // Assuming you have a Colors file
-
 // --- Constants for Difficulty and Reset Counter ---
 const DIFFICULTIES = [
   { label: "Easy", value: 1, icon: "star-o", stars: 1 },
@@ -22,10 +22,51 @@ const DIFFICULTIES = [
 const RESET_OPTIONS = ["Daily", "Weekly", "Monthly"];
 
 export default function ModalScreen() {
+  const [title, setTitle] = React.useState("");
+  const [notes, setNotes] = React.useState("");
   const [isPositive, setIsPositive] = React.useState(true); // Start with positive selected
   const [isNegative, setIsNegative] = React.useState(false);
   const [reset, setReset] = React.useState("Weekly");
   const [difficulty, setDifficulty] = React.useState(1);
+
+  async function createHabit() {
+    if (!title.trim()) {
+      alert("Title is required.");
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("You must be logged in.");
+      return;
+    }
+
+    const { error } = await supabase.from("user_habits").insert([
+      {
+        user_id: user.id,
+        title,
+        notes,
+        is_positive: isPositive,
+        is_negative: isNegative,
+        difficulty: difficulty,
+        reset_frequency: reset,
+        streak_count: 0,
+        streak_level: 1,
+      },
+    ]);
+
+    if (error) {
+      console.log("Supabase insert error:", error);
+      alert("Failed to create habit.");
+      return;
+    }
+
+    router.back();
+  }
+
   return (
     <View style={styles.container}>
       {/* 1. Header Navigation Options */}
@@ -40,11 +81,7 @@ export default function ModalScreen() {
             </TouchableOpacity>
           ),
           headerRight: () => (
-            <TouchableOpacity
-              onPress={() => {
-                /* Add habit creation logic here */ router.back();
-              }}
-            >
+            <TouchableOpacity onPress={createHabit}>
               <Text
                 style={{
                   color: Colors.light.tint,
@@ -69,11 +106,16 @@ export default function ModalScreen() {
       {/* 2. Title and Notes Inputs */}
       <View style={styles.inputSection}>
         <TextInput
+          value={title}
+          onChangeText={setTitle}
           placeholder="Title"
           placeholderTextColor="#D0C2F2"
           style={[styles.textInput, styles.titleInput]}
         />
+
         <TextInput
+          value={notes}
+          onChangeText={setNotes}
           placeholder="Notes"
           placeholderTextColor="#D0C2F2"
           style={styles.textInput}
