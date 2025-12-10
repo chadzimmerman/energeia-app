@@ -42,7 +42,7 @@ const settingsSections = [
         badge: "Winter",
         action: "navigate",
       },
-      { id: "cathedral", label: "Cathedral", action: "navigate" },
+      { id: "temple", label: "Temple", action: "navigate" },
     ],
   },
   {
@@ -89,6 +89,8 @@ const SettingsSection = ({ section, navigation }) => {
       navigation.navigate("about");
     } else if (itemId == "market") {
       navigation.navigate("market");
+    } else if (itemId == "achievements") {
+      navigation.navigate("achievements");
     } else {
       console.log(`Navigating to ${itemId}`);
       // Add other navigation logic here (e.g., navigation.navigate(itemId))

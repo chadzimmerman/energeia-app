@@ -1,7 +1,8 @@
 import CharacterStats from "@/components/CharacterStats";
 import HabitList from "@/components/HabitList";
 import { View } from "@/components/Themed";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ImageSourcePropType,
@@ -9,6 +10,7 @@ import {
   Text,
 } from "react-native";
 import { supabase } from "../../utils/supabase";
+import HabitEditModal from "../HabitEditModal";
 
 interface Profile {
   id: string;
@@ -50,13 +52,51 @@ export default function HabitScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [habits, setHabits] = useState<Habit[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
 
-  const fetchHabits = async (userId: string) => {
+  const fetchProfile = useCallback(async (currentUserId: string) => {
+    try {
+      let { data: profileData, error: fetchError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", currentUserId)
+        .single();
+
+      if (fetchError && fetchError.code === "PGRST116") {
+        const { data: newProfileData, error: insertError } = await supabase
+          .from("profiles")
+          .insert([
+            {
+              id: currentUserId,
+              username: `Novice-${currentUserId.substring(0, 4)}`,
+            },
+          ])
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        profileData = newProfileData;
+      } else if (fetchError) {
+        throw fetchError;
+      }
+
+      if (profileData) {
+        setProfile(profileData as Profile);
+      }
+    } catch (e: any) {
+      console.error("Profile Fetch/Create Error:", e.message);
+      setError(`Profile Setup Error: ${e.message}`);
+    }
+  }, []);
+
+  const fetchHabits = useCallback(async (currentUserId: string) => {
     try {
       const { data, error } = await supabase
         .from("user_habits")
         .select("*")
-        .eq("user_id", userId)
+        .eq("user_id", currentUserId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -64,118 +104,155 @@ export default function HabitScreen() {
       setHabits(data as Habit[]);
     } catch (e: any) {
       console.error("Habit Fetch Error:", e.message);
+      setError(`Habit Fetch Error: ${e.message}`);
     }
-  };
+  }, []);
 
-  // SCORE HABIT
-  const handleScoreHabit = async (
-    habitId: string,
-    direction: "up" | "down"
-  ) => {
-    try {
-      const delta = direction === "up" ? 1 : -1;
-
-      const { error } = await supabase
-        .from("user_habits")
-        .update({
-          streak_level: supabase.sql`streak_level + ${delta}`,
-        })
-        .eq("id", habitId);
-
-      if (error) throw error;
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        await fetchHabits(user.id);
-      }
-    } catch (e: any) {
-      console.error("Score Error:", e.message);
-    }
-  };
-
+  // --- Authentication (Run only once on mount) ---
   useEffect(() => {
-    // 1. Initial Authentication Check (Using anonymous sign-in for simplicity now)
-    const authenticateAndFetch = async () => {
+    const authenticate = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        let userId: string | null = null;
+        let currentUserId: string | null = null;
         const {
           data: { session },
         } = await supabase.auth.getSession();
         const user = session?.user;
 
         if (user) {
-          // Already signed in
-          userId = user.id;
+          currentUserId = user.id;
         } else {
-          // Sign in anonymously if no session exists (for development testing)
           const { data, error: signInError } =
             await supabase.auth.signInAnonymously();
           if (signInError) throw signInError;
-          userId = data.user?.id || null;
+          currentUserId = data.user?.id || null;
         }
 
-        if (userId) {
-          // 2. Fetch or Create Profile
-          await fetchProfile(userId);
-          await fetchHabits(userId);
+        if (currentUserId) {
+          setUserId(currentUserId);
+          await fetchProfile(currentUserId);
         } else {
           setError("Authentication failed: No user ID found.");
-          setLoading(false);
         }
       } catch (e: any) {
         console.error("Authentication Error:", e.message);
         setError(`Authentication Error: ${e.message}`);
-        setLoading(false);
-      }
-    };
-
-    // Helper function to fetch the profile data
-    const fetchProfile = async (userId: string) => {
-      try {
-        // Try to fetch existing profile
-        let { data: profileData, error: fetchError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", userId)
-          .single();
-
-        if (fetchError && fetchError.code === "PGRST116") {
-          // PGRST116: No rows found
-          // If no profile exists, create a new one with default values
-          const { data: newProfileData, error: insertError } = await supabase
-            .from("profiles")
-            .insert([
-              { id: userId, username: `Novice-${userId.substring(0, 4)}` },
-            ])
-            .select()
-            .single();
-
-          if (insertError) throw insertError;
-          profileData = newProfileData;
-        } else if (fetchError) {
-          // Handle other fetch errors (like RLS issues)
-          throw fetchError;
-        }
-
-        if (profileData) {
-          setProfile(profileData as Profile);
-        }
-      } catch (e: any) {
-        console.error("Profile Fetch/Create Error:", e.message);
-        setError(`Profile Setup Error: ${e.message}`);
       } finally {
         setLoading(false);
       }
     };
+    authenticate();
+  }, [fetchProfile]);
 
-    authenticateAndFetch();
-  }, []); // Run only once on mount
+  // --- Habit Refresh (Run on Mount AND when the screen comes into focus) ---
+  // This is the core fix for auto-refreshing the list after the modal closes.
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const runFetch = async () => {
+        if (userId && isActive) {
+          await fetchHabits(userId);
+        }
+      };
+
+      runFetch();
+
+      return () => {
+        isActive = false;
+      };
+    }, [userId, fetchHabits])
+  );
+
+  // SCORE HABIT
+  const handleScoreHabit = async (
+    habitId: string,
+    direction: "up" | "down"
+  ) => {
+    if (!userId) {
+      console.error("Cannot score habit: User ID not available.");
+      return;
+    }
+
+    try {
+      // 1. Get the current habit state
+      const { data: habitData, error: fetchError } = await supabase
+        .from("user_habits")
+        .select("is_positive, is_negative, streak_level")
+        .eq("id", habitId)
+        .single();
+
+      if (fetchError || !habitData)
+        throw fetchError || new Error("Habit not found.");
+
+      const { is_positive, is_negative, streak_level } = habitData;
+      let newStreakLevel = streak_level;
+      let change = 0;
+
+      // --- Core Streak Logic ---
+      if (is_positive && !is_negative) {
+        // Positive Habit: + button increases streak, - button decreases streak.
+        change = direction === "up" ? 1 : -1;
+        newStreakLevel = streak_level + change;
+      } else if (is_negative && !is_positive) {
+        // Negative Habit: - button increases streak (successful avoidance), + button decreases streak (failure).
+        // This is the opposite of a positive habit.
+        change = direction === "down" ? 1 : -1;
+        newStreakLevel = streak_level + change;
+      } else {
+        // Mixed Habit (Dual, like Habitica):
+        // Treat 'up' as positive, 'down' as negative, but they affect the same streak.
+        change = direction === "up" ? 1 : -1;
+        newStreakLevel = streak_level + change;
+      }
+
+      // Safety Check: Prevent the streak from going below a specific floor (e.g., 0)
+      // Adjust this logic if you want to track negative streaks (e.g., set floor to -3)
+      // For simplicity, let's ensure the streak never dips below -1.
+      if (newStreakLevel < -1) {
+        newStreakLevel = -1;
+      }
+
+      // 2. Update the streak in the database
+      const { error: updateError } = await supabase
+        .from("user_habits")
+        .update({
+          streak_level: newStreakLevel,
+          // OPTIONAL: You may want to record the last score date here too
+          // last_scored_at: new Date().toISOString(),
+        })
+        .eq("id", habitId);
+
+      if (updateError) throw updateError;
+
+      // 3. Re-fetch habits immediately after scoring to update the list and color
+      await fetchHabits(userId);
+    } catch (e: any) {
+      console.error("Score Error:", e.message);
+      // Display an alert to the user if needed
+      // Alert.alert("Error Scoring", "Could not update habit score.");
+    }
+  };
+
+  //Habit editing and deletion
+  const handleEditHabit = useCallback((habit: Habit) => {
+    setHabitToEdit(habit);
+    setIsEditModalVisible(true);
+  }, []);
+
+  const handleCloseEditModal = useCallback(() => {
+    setIsEditModalVisible(false);
+    setHabitToEdit(null);
+  }, []);
+
+  // When the modal closes after a save/delete, we need to refresh the habit list
+  const handleHabitChange = async () => {
+    if (userId) {
+      await fetchHabits(userId);
+    }
+  };
 
   // --- Render Logic ---
 
@@ -215,7 +292,17 @@ export default function HabitScreen() {
         currentEnergy={profile.current_energeia}
         maxEnergy={profile.max_energeia}
       />
-      <HabitList habits={habits} onScore={handleScoreHabit} />
+      <HabitList
+        habits={habits}
+        onScore={handleScoreHabit}
+        onEdit={handleEditHabit}
+      />
+      <HabitEditModal
+        isVisible={isEditModalVisible}
+        onClose={handleCloseEditModal}
+        habitToEdit={habitToEdit}
+        onHabitChange={handleHabitChange}
+      />
     </View>
   );
 }

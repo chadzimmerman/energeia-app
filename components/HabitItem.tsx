@@ -22,6 +22,7 @@ interface HabitItemProps {
   habit: Habit;
   // The onScore function prop accepts the habit ID and a direction ('up' or 'down')
   onScore: (habitId: string, direction: "up" | "down") => void;
+  onEdit: (habit: Habit) => void;
 }
 
 /**
@@ -60,12 +61,13 @@ const getStreakColor = (streakLevel: number): string => {
 };
 
 // Use the new HabitItemProps interface here
-const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore }) => {
+const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit }) => {
   // Determine the color based on the habit's streak level
   const buttonColor = getStreakColor(habit.streak_level);
 
   return (
-    <View style={styles.card}>
+    // Wrap the entire visual card in a View
+    <View style={styles.cardWrapper}>
       {/* 1. Negative Button (Far Left) */}
       {habit.is_negative && (
         <TouchableOpacity
@@ -80,8 +82,15 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore }) => {
         </TouchableOpacity>
       )}
 
-      {/* 2. Flexible Text Container (Middle) - includes horizontal padding */}
-      <View style={styles.textContainer}>
+      {/* 2. Flexible Text Container (Middle) 
+        CRITICAL CHANGE: Use a TouchableOpacity here and apply the onEdit prop.
+        It will fill the available space between the score buttons.
+      */}
+      <TouchableOpacity
+        style={styles.textContainer}
+        onPress={() => onEdit(habit)} // Apply the onEdit handler
+        activeOpacity={0.7} // Optional: Gives feedback when touching
+      >
         <Text style={styles.title} numberOfLines={1}>
           {habit.title}
         </Text>
@@ -99,7 +108,7 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore }) => {
               />
             ))}
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* 3. Positive Button (Far Right) */}
       {habit.is_positive && (
@@ -127,7 +136,8 @@ const fallbackColors = {
 };
 
 const styles = StyleSheet.create({
-  card: {
+  // New wrapper style to contain the whole card. Renamed from 'card' to 'cardWrapper'.
+  cardWrapper: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -136,9 +146,6 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 0,
     width: "100%",
-    // FIX: Removed marginHorizontal: 15 to allow the card to take up the full width of the screen.
-    // The ScrollView in HabitList will handle horizontal spacing between the card and screen edge.
-    // We keep marginBottom for spacing between cards.
     marginBottom: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -146,6 +153,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 3,
   },
+  // textContainer is now a TouchableOpacity, but its styles remain the same for layout
   textContainer: {
     flex: 1,
     width: 0,
@@ -160,30 +168,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 4,
   },
-  // Base button style remains the same
   scoreButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    flexShrink: 0, // Ensure buttons don't shrink
-    // Add a slight shadow to make buttons pop
+    flexShrink: 0,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 1,
     elevation: 2,
   },
-  // New style for the button on the left (negative habit)
   leftButton: {
-    // FIX: Re-added a small margin to push the button slightly off the left edge of the screen
     marginLeft: 15,
     marginRight: 0,
   },
-  // New style for the button on the right (positive habit)
   rightButton: {
-    // FIX: Re-added a small margin to push the button slightly off the right edge of the screen
     marginRight: 15,
     marginLeft: 0,
   },

@@ -1,4 +1,4 @@
-// app/(tabs)/settings/_layout.tsx - THE DEFINITIVE FIX
+// app/(tabs)/settings/_layout.tsx
 
 import { Stack } from "expo-router";
 
@@ -7,16 +7,16 @@ export default function SettingsStackLayout() {
     <Stack>
       {/* 1. Define the Index Screen */}
       <Stack.Screen
-        name="index" // Points to settings/index.tsx
+        name="index"
         options={{
-          title: "Settings", // ✅ FORCES THE TITLE TO "Settings"
+          title: "Settings",
           //headerShown: false, // Hides the header so your custom header is used
         }}
       />
 
       {/* 2. Define the About Screen */}
       <Stack.Screen
-        name="about" // Points to settings/about.tsx
+        name="about"
         options={{
           title: "About", // Sets the title of the About page header
           // The back button text now correctly inherits the title of the 'index' screen ("Settings")
@@ -24,9 +24,16 @@ export default function SettingsStackLayout() {
       />
       {/* 3. Define the Market Screen */}
       <Stack.Screen
-        name="market" // Points to settings/about.tsx
+        name="market"
         options={{
           title: "Market", // Sets the title of the About page header
+          // The back button text now correctly inherits the title of the 'index' screen ("Settings")
+        }}
+      />
+      <Stack.Screen
+        name="achievements"
+        options={{
+          title: "Achievements", // Sets the title of the About page header
           // The back button text now correctly inherits the title of the 'index' screen ("Settings")
         }}
       />
