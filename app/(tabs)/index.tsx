@@ -166,6 +166,63 @@ export default function HabitScreen() {
     }, [userId, fetchHabits])
   );
 
+  // --- Helper: Calculate Stat Changes based on Difficulty ---
+  const calculateStatChanges = (
+    difficulty: number,
+    direction: "up" | "down"
+  ): { healthChange: number; energeiaChange: number } => {
+    // Safety check: Clamp difficulty between 1 and 10
+    const clampedDifficulty = Math.min(Math.max(difficulty, 1), 10);
+
+    // --- Configuration Constants ---
+    const healthDamageMultiplier = 1.5;
+
+    // 1. DETERMINE REWARD MAGNITUDE (Positive Press)
+    let rewardMagnitude = 0;
+
+    if (clampedDifficulty <= 5) {
+      // Low/Medium Difficulty (D=1 gives 1, D=5 gives 5)
+      // Note: Your goal was D=1 -> 0.5. We will use D/2 to get 0.5 at D=1, and 2.5 at D=5.
+      // Let's aim closer to 1-to-5 scale for 1-to-5 difficulty, and use decimals.
+      rewardMagnitude = clampedDifficulty * 1; // Example: D=5 gives 5.0
+    } else {
+      // High Difficulty (D=6 to D=10). Ramps up quickly to 15 at D=10.
+      // We need a steep ramp from 5 to 15. The ramp height is 10, over 5 steps.
+      rewardMagnitude = 5 + (clampedDifficulty - 5) * 2;
+    }
+
+    // 2. DETERMINE PENALTY MAGNITUDE (Negative Press)
+
+    // We want the penalty to be MIN(5, linear_scale).
+    // Let's scale linearly from 1 to 5.
+    // Penalty scales linearly from D=1 (1) to D=5 (5), then is capped at 5.
+
+    // Scaling factor (D=1 gives 1, D=5 gives 5, D=10 gives 5)
+    let penaltyMagnitude = clampedDifficulty;
+
+    // Cap the maximum penalty at 5, fulfilling the "max 5" requirement for failure.
+    penaltyMagnitude = Math.min(penaltyMagnitude, 5);
+
+    let healthChange = 0;
+    let energeiaChange = 0;
+
+    if (direction === "up") {
+      // RULE: Plus press always grants Energeia based on REWARD Magnitude.
+      energeiaChange = rewardMagnitude;
+    } else if (direction === "down") {
+      // RULE: Minus press always incurs penalty based on PENALTY Magnitude.
+
+      // Health Penalty (More severe loss than Energeia)
+      // Use the capped penalty magnitude
+      healthChange = -Math.round(penaltyMagnitude * healthDamageMultiplier);
+
+      // Energeia Penalty
+      energeiaChange = -penaltyMagnitude;
+    }
+
+    return { healthChange, energeiaChange };
+  };
+
   // SCORE HABIT
   const handleScoreHabit = async (
     habitId: string,
@@ -177,62 +234,89 @@ export default function HabitScreen() {
     }
 
     try {
-      // 1. Get the current habit state
-      const { data: habitData, error: fetchError } = await supabase
+      // 1. Fetch Habit Details (for difficulty and type)
+      const { data: habitData, error: habitFetchError } = await supabase
         .from("user_habits")
-        .select("is_positive, is_negative, streak_level")
+        .select("is_positive, is_negative, streak_level, difficulty")
         .eq("id", habitId)
         .single();
 
-      if (fetchError || !habitData)
-        throw fetchError || new Error("Habit not found.");
+      if (habitFetchError || !habitData)
+        throw habitFetchError || new Error("Habit not found.");
 
-      const { is_positive, is_negative, streak_level } = habitData;
+      const { is_positive, is_negative, streak_level, difficulty } = habitData;
+
+      // 2. Calculate Streak Update (This logic remains the same for streak tracking)
       let newStreakLevel = streak_level;
       let change = 0;
-
-      // --- Core Streak Logic ---
       if (is_positive && !is_negative) {
-        // Positive Habit: + button increases streak, - button decreases streak.
         change = direction === "up" ? 1 : -1;
-        newStreakLevel = streak_level + change;
       } else if (is_negative && !is_positive) {
-        // Negative Habit: - button increases streak (successful avoidance), + button decreases streak (failure).
-        // This is the opposite of a positive habit.
-        change = direction === "down" ? 1 : -1;
-        newStreakLevel = streak_level + change;
+        change = direction === "down" ? 1 : -1; // Negative habit success is 'down' press
       } else {
-        // Mixed Habit (Dual, like Habitica):
-        // Treat 'up' as positive, 'down' as negative, but they affect the same streak.
+        // Mixed/Dual habit
         change = direction === "up" ? 1 : -1;
-        newStreakLevel = streak_level + change;
       }
-
-      // Safety Check: Prevent the streak from going below a specific floor (e.g., 0)
-      // Adjust this logic if you want to track negative streaks (e.g., set floor to -3)
-      // For simplicity, let's ensure the streak never dips below -1.
+      newStreakLevel = streak_level + change;
       if (newStreakLevel < -1) {
         newStreakLevel = -1;
       }
 
-      // 2. Update the streak in the database
-      const { error: updateError } = await supabase
+      // 3. Calculate Stat Changes (Uses the simplified logic)
+      const { healthChange, energeiaChange } = calculateStatChanges(
+        difficulty,
+        direction // is_negative is no longer passed
+      );
+
+      // 4. Fetch Profile Details (for current stats)
+      const { data: profileData, error: profileFetchError } = await supabase
+        .from("profiles")
+        .select("current_health, max_health, current_energeia, max_energeia")
+        .eq("id", userId)
+        .single();
+
+      if (profileFetchError || !profileData)
+        throw profileFetchError || new Error("Profile not found.");
+
+      const { current_health, max_health, current_energeia, max_energeia } =
+        profileData;
+
+      // 5. Apply Stat Changes (with max/min caps)
+      let newHealth = current_health + healthChange;
+      let newEnergeia = current_energeia + energeiaChange;
+
+      // Cap checks
+      newHealth = Math.min(Math.max(newHealth, 0), max_health);
+      newEnergeia = Math.min(Math.max(newEnergeia, 0), max_energeia);
+
+      // --- TRANSACTION: Perform both updates ---
+
+      // A. Update Habit Streak
+      const { error: streakError } = await supabase
         .from("user_habits")
         .update({
           streak_level: newStreakLevel,
-          // OPTIONAL: You may want to record the last score date here too
-          // last_scored_at: new Date().toISOString(),
         })
         .eq("id", habitId);
 
-      if (updateError) throw updateError;
+      if (streakError) throw streakError;
 
-      // 3. Re-fetch habits immediately after scoring to update the list and color
+      // B. Update Profile Stats
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          current_health: newHealth,
+          current_energeia: newEnergeia,
+        })
+        .eq("id", userId);
+
+      if (profileError) throw profileError;
+
+      // 6. Refresh ALL data (Habits list color and Character Stats display)
       await fetchHabits(userId);
+      await fetchProfile(userId);
     } catch (e: any) {
-      console.error("Score Error:", e.message);
-      // Display an alert to the user if needed
-      // Alert.alert("Error Scoring", "Could not update habit score.");
+      console.error("Score & Stat Update Error:", e.message);
     }
   };
 

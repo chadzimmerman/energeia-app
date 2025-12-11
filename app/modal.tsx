@@ -15,8 +15,8 @@ import {
 // --- Constants for Difficulty and Reset Counter ---
 const DIFFICULTIES = [
   { label: "Easy", value: 1, icon: "star-o", stars: 1 },
-  { label: "Medium", value: 2, icon: "star", stars: 2 },
-  { label: "Hard", value: 3, icon: "star", stars: 3 },
+  { label: "Medium", value: 5, icon: "star", stars: 2 },
+  { label: "Hard", value: 10, icon: "star", stars: 3 },
 ];
 
 const RESET_OPTIONS = ["Daily", "Weekly", "Monthly"];
