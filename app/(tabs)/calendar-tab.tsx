@@ -10,11 +10,12 @@ import {
 } from "react-native";
 
 // Import for Icons
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import CharacterStats from "@/components/CharacterStats";
 import { View as ThemedView } from "@/components/Themed";
 import Colors from "@/constants/Colors";
+import { supabase } from "@/utils/supabase";
+import DailyLogModal from "../calendar-modal";
 
 // Get screen width for responsive sizing
 const screenWidth = Dimensions.get("window").width;
@@ -22,7 +23,7 @@ const screenWidth = Dimensions.get("window").width;
 const totalHorizontalPadding = 40; // 20px on each side of the main calendar container
 const gap = 5; // Gap between days
 const dayCellSize = Math.floor(
-  (screenWidth - totalHorizontalPadding - 6 * gap) / 7
+  (screenWidth - totalHorizontalPadding - 6 * gap) / 7,
 );
 
 // --- MOCK DATA & TYPES ---
@@ -33,6 +34,7 @@ type HabitStatus = "green" | "orange" | "red" | "grey";
 interface HabitDay {
   date: Date;
   status: HabitStatus;
+  notes?: string;
 }
 
 const MOCK_HABIT_TITLE = "Daily 30-Minute Run";
@@ -43,43 +45,6 @@ const STATUS_COLORS = {
   orange: "#E67E22", // Difficult/Partial
   red: "#E74C3C", // Failure/Missed
   grey: "#ECF0F1", // Untracked/Blank
-};
-
-// Mock Habit Data (Year-Month-Day format)
-const mockHabitData: { [key: string]: HabitStatus } = {
-  "2026-2-28": "green",
-  "2026-3-1": "grey",
-  "2026-3-2": "green",
-  "2026-3-3": "green",
-  "2026-3-4": "green",
-  "2026-3-5": "green",
-  "2026-3-6": "grey",
-  "2026-3-7": "orange",
-  "2026-3-8": "orange",
-  "2026-3-9": "red",
-  "2026-3-10": "green",
-  "2026-3-11": "green",
-  "2026-3-12": "green",
-  "2026-3-13": "green",
-  "2026-3-14": "orange",
-  "2026-3-15": "orange",
-  "2026-3-16": "green",
-  "2026-3-17": "orange",
-  "2026-3-18": "green",
-  "2026-3-19": "green",
-  "2026-3-20": "green",
-  "2026-3-21": "red",
-  "2026-3-22": "red",
-  "2026-3-23": "orange",
-  "2026-3-24": "green",
-  "2026-3-25": "green",
-  "2026-3-26": "green",
-  "2026-3-27": "orange",
-  "2026-3-28": "orange",
-  "2026-3-29": "green",
-  "2026-3-30": "green",
-  "2026-3-31": "grey",
-  "2026-4-1": "grey",
 };
 
 // --- UTILITY FUNCTIONS ---
@@ -125,20 +90,26 @@ interface DayCellProps {
   day: number | null;
   year: number;
   month: number;
+  status: HabitStatus;
   onDayPress: (dayData: HabitDay) => void;
 }
 
 /**
  * Renders a single calendar day cell.
  */
-const DayCell: React.FC<DayCellProps> = ({ day, year, month, onDayPress }) => {
+const DayCell: React.FC<DayCellProps> = ({
+  day,
+  year,
+  month,
+  status,
+  onDayPress,
+}) => {
   if (day === null) {
     return <View style={calendarStyles.dayCellBlank} />;
   }
 
   // Format key to match mock data (e.g., '2026-3-15')
   const dateKey = `${year}-${month + 1}-${day}`;
-  const status = (mockHabitData[dateKey] || "grey") as HabitStatus;
   const color = STATUS_COLORS[status];
 
   // Convert day/month/year to a full Date object
@@ -180,12 +151,16 @@ const DayCell: React.FC<DayCellProps> = ({ day, year, month, onDayPress }) => {
 // Interface for CalendarView props
 interface CalendarViewProps {
   onDayPress: (dayData: HabitDay) => void;
+  habitLogs: { [key: string]: { status: HabitStatus; notes: string } };
 }
 
 /**
  * Main calendar view with month navigation.
  */
-const CalendarView: React.FC<CalendarViewProps> = ({ onDayPress }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({
+  onDayPress,
+  habitLogs,
+}) => {
   // Start date (March 2026 as seen in the screenshot)
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1));
 
@@ -194,13 +169,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDayPress }) => {
 
   const handlePrevMonth = () => {
     setCurrentDate(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
     );
   };
 
   const handleNextMonth = () => {
     setCurrentDate(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
     );
   };
 
@@ -240,15 +215,24 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDayPress }) => {
 
       {/* Day Grid */}
       <View style={calendarStyles.dayGrid}>
-        {days.map((day, index) => (
-          <DayCell
-            key={index}
-            day={day}
-            year={year}
-            month={month}
-            onDayPress={onDayPress} // PASSED DOWN
-          />
-        ))}
+        {days.map((day, index) => {
+          const dateKey = day
+            ? `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+            : "";
+          const savedData = habitLogs[dateKey];
+
+          return (
+            <DayCell
+              key={index}
+              day={day}
+              year={year}
+              month={month}
+              // Access .status from the object, or default to "grey"
+              status={savedData ? savedData.status : "grey"}
+              onDayPress={onDayPress}
+            />
+          );
+        })}
       </View>
     </View>
   );
@@ -256,23 +240,19 @@ const CalendarView: React.FC<CalendarViewProps> = ({ onDayPress }) => {
 
 /**
  * Habit Tracking Selector
+ * 🔥 Updated to accept a 'title' prop
  */
-const HabitTrackerSection: React.FC = () => {
-  // Mock tracked habit
-  const [trackedHabit, setTrackedHabit] = useState("Daily 30-Minute Run");
-
-  const handleSelectHabit = () => {
-    // Placeholder for habit selection modal
-    console.log("Open habit selection screen.");
-  };
-
+const HabitTrackerSection: React.FC<{ title: string; onPress: () => void }> = ({
+  title,
+  onPress,
+}) => {
   return (
-    <TouchableOpacity
-      style={calendarStyles.habitTrackerBox}
-      onPress={handleSelectHabit}
-    >
+    <TouchableOpacity style={calendarStyles.habitTrackerBox} onPress={onPress}>
       <Text style={calendarStyles.habitTrackerLabel}>Tracking Habit:</Text>
-      <Text style={calendarStyles.habitTrackerName}>{trackedHabit}</Text>
+      <Text style={calendarStyles.habitTrackerName}>{title}</Text>
+      <Text style={{ color: Colors.light.tint, marginTop: 5, fontSize: 12 }}>
+        Tap to change
+      </Text>
     </TouchableOpacity>
   );
 };
@@ -296,147 +276,121 @@ interface DailyLogModalProps {
   date: Date | null;
   initialStatus: HabitStatus;
   habitTitle: string;
+  onSave: (status: HabitStatus, notes: string, logDate: Date) => void;
 }
-
-const DailyLogModal: React.FC<DailyLogModalProps> = ({
-  isVisible,
-  onClose,
-  date,
-  initialStatus,
-  habitTitle,
-}) => {
-  const [selectedStatus, setSelectedStatus] =
-    useState<HabitStatus>(initialStatus);
-
-  // Sync internal state when initialStatus prop changes (i.e., when a new day is selected)
-  useEffect(() => {
-    setSelectedStatus(initialStatus);
-  }, [initialStatus, isVisible]);
-
-  // Format the date for the modal header
-  const formattedDate = date
-    ? date.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "long",
-        day: "numeric",
-      })
-    : "Loading Date...";
-
-  const handleSave = () => {
-    if (!date) return;
-
-    // TODO: Implement actual data saving logic here (e.g., using Firestore)
-    console.log(
-      `[LOG] Habit: ${habitTitle} on ${
-        date.toISOString().split("T")[0]
-      } updated to status: ${selectedStatus}`
-    );
-
-    // After saving, close the modal
-    onClose();
-  };
-
-  if (!date) return null; // Don't render if date is null
-
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={isVisible}
-      onRequestClose={onClose}
-    >
-      <View style={modalStyles.centeredView}>
-        <View style={modalStyles.modalView}>
-          {/* Header */}
-          {/* CRITICAL FIX: Removed the section that contained "New Habit" and Save/Cancel buttons
-             as those were likely rendered as part of the modal's internal structure 
-             and should not exist for a simple log modal. */}
-          <View style={modalStyles.header}>
-            <TouchableOpacity onPress={onClose} style={modalStyles.closeButton}>
-              <FontAwesome name="times" size={24} color="#A737FD" />
-            </TouchableOpacity>
-            <Text style={modalStyles.modalTitle}>{habitTitle}</Text>
-            <Text style={modalStyles.modalSubtitle}>{formattedDate}</Text>
-          </View>
-
-          <ScrollView contentContainerStyle={modalStyles.scrollContent}>
-            {/* Status Selector */}
-            <View style={modalStyles.controlSection}>
-              <Text style={modalStyles.sectionTitle}>STATUS</Text>
-              <View style={modalStyles.statusRow}>
-                {STATUS_OPTIONS.map(({ label, status, color }) => {
-                  const isActive = selectedStatus === status;
-                  return (
-                    <TouchableOpacity
-                      key={status}
-                      style={[
-                        modalStyles.statusButton,
-                        { backgroundColor: isActive ? color : "#fff" },
-                        { borderColor: color, borderWidth: 2 },
-                      ]}
-                      onPress={() => setSelectedStatus(status)}
-                    >
-                      <FontAwesome
-                        name={
-                          status === "green"
-                            ? "check"
-                            : status === "orange"
-                            ? "exclamation"
-                            : status === "red"
-                            ? "times"
-                            : "question"
-                        }
-                        size={20}
-                        color={isActive ? "#fff" : color}
-                      />
-                      <Text
-                        style={[
-                          modalStyles.statusText,
-                          { color: isActive ? "#fff" : color },
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Notes/Reflection Input (Placeholder) */}
-            <View style={modalStyles.controlSection}>
-              <Text style={modalStyles.sectionTitle}>
-                DAILY REFLECTION (OPTIONAL)
-              </Text>
-              <View style={modalStyles.textInputContainer}>
-                <Text style={modalStyles.placeholderText}>
-                  How did this habit go today? What challenges did you face?
-                </Text>
-              </View>
-            </View>
-          </ScrollView>
-
-          {/* Save Button */}
-          <TouchableOpacity style={modalStyles.saveButton} onPress={handleSave}>
-            <Text style={modalStyles.saveButtonText}>SAVE LOG</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
 
 // --- MAIN TAB SCREEN ---
 
 export default function CalendarTabScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDayData, setSelectedDayData] = useState<HabitDay | null>(null);
+  const [myHabits, setMyHabits] = useState<any[]>([]);
+  const [selectedHabit, setSelectedHabit] = useState<any>(null);
+  const [habitLogs, setHabitLogs] = useState<{
+    [key: string]: { status: HabitStatus; notes: string };
+  }>({});
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isPickerVisible, setIsPickerVisible] = useState(false);
+
+  //loads any changes from modal on change
+  useEffect(() => {
+    if (selectedHabit) {
+      fetchLogs();
+    }
+  }, [selectedHabit]);
+
+  //fetch the user on load
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUserId(session.user.id);
+      }
+    };
+    getUser();
+  }, []);
+
+  //handles save logs
+  const handleSaveLog = async (
+    status: HabitStatus,
+    notes: string,
+    logDate: Date,
+  ) => {
+    if (!selectedHabit || !userId) return;
+
+    // This creates "2026-03-13" regardless of what time it is in Moscow
+    const year = logDate.getFullYear();
+    const month = String(logDate.getMonth() + 1).padStart(2, "0");
+    const day = String(logDate.getDate()).padStart(2, "0");
+    const dateString = `${year}-${month}-${day}`;
+
+    const { error } = await supabase.from("habit_logs").upsert(
+      {
+        habit_id: selectedHabit.id,
+        user_id: userId,
+        log_date: dateString,
+        status: status,
+        notes: notes,
+      },
+      { onConflict: "habit_id, log_date" },
+    );
+
+    if (!error) {
+      await fetchLogs();
+      setIsModalVisible(false);
+    }
+  };
+
+  //fetch logs
+  const fetchLogs = async () => {
+    if (!selectedHabit) return;
+    const { data } = await supabase
+      .from("habit_logs")
+      .select("log_date, status, notes") // 👈 Add notes here
+      .eq("habit_id", selectedHabit.id);
+
+    const logMap = data?.reduce((acc: any, curr: any) => {
+      // Store the whole object so we have status AND notes
+      acc[curr.log_date] = { status: curr.status, notes: curr.notes };
+      return acc;
+    }, {});
+    setHabitLogs(logMap || {});
+  };
+
+  //Fetch your habits on mount
+  useEffect(() => {
+    const loadHabits = async () => {
+      const { data } = await supabase.from("user_habits").select("*");
+      if (data && data.length > 0) {
+        setMyHabits(data);
+        setSelectedHabit(data[0]); // Default to the first habit (e.g., "Kiss Wife")
+      }
+    };
+    loadHabits();
+  }, []);
 
   /**
    * Handler function called when a calendar day is pressed.
    */
   const handleDayPress = (dayData: HabitDay) => {
-    setSelectedDayData(dayData);
+    // 1. Create the same YYYY-MM-DD key we use in the database
+    const year = dayData.date.getFullYear();
+    const month = String(dayData.date.getMonth() + 1).padStart(2, "0");
+    const day = String(dayData.date.getDate()).padStart(2, "0");
+    const dateKey = `${year}-${month}-${day}`;
+
+    // 2. Look up the saved data for this specific day
+    const savedData = habitLogs[dateKey];
+
+    // 3. Pass both the status AND the notes into the state
+    setSelectedDayData({
+      date: dayData.date,
+      status: savedData?.status || "grey",
+      notes: savedData?.notes || "", // 👈 This is the "Magic Link"
+    });
+
     setIsModalVisible(true);
   };
 
@@ -464,8 +418,12 @@ export default function CalendarTabScreen() {
 
       {/* 2. Scrollable Content (Calendar and Habit Tracker) */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <CalendarView onDayPress={handleDayPress} />
-        <HabitTrackerSection />
+        <CalendarView onDayPress={handleDayPress} habitLogs={habitLogs} />
+        <HabitTrackerSection
+          // This ensures the title at the bottom matches the habit you're actually viewing
+          title={selectedHabit?.title || "Daily 30-Minute Run"}
+          onPress={() => setIsPickerVisible(true)}
+        />
       </ScrollView>
 
       {/* 3. RENDER THE MODAL COMPONENT */}
@@ -474,8 +432,47 @@ export default function CalendarTabScreen() {
         onClose={handleModalClose}
         date={date}
         initialStatus={initialStatus}
-        habitTitle={MOCK_HABIT_TITLE}
+        // 🔥 FIX: Pass the notes from your state to the modal
+        initialNotes={selectedDayData?.notes || ""}
+        habitTitle={selectedHabit?.title || MOCK_HABIT_TITLE}
+        onSave={handleSaveLog}
       />
+      {/* Habit Selection Modal */}
+      <Modal visible={isPickerVisible} animationType="slide" transparent={true}>
+        <View style={modalStyles.centeredView}>
+          <View style={[modalStyles.modalView, { maxHeight: "50%" }]}>
+            <Text style={[modalStyles.modalTitle, { marginBottom: 20 }]}>
+              Select Habit
+            </Text>
+            <ScrollView>
+              {myHabits.map((habit) => (
+                <TouchableOpacity
+                  key={habit.id}
+                  style={{
+                    paddingVertical: 15,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#EEE",
+                  }}
+                  onPress={() => {
+                    setSelectedHabit(habit);
+                    setIsPickerVisible(false);
+                  }}
+                >
+                  <Text style={{ fontSize: 18, color: "#333" }}>
+                    {habit.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              onPress={() => setIsPickerVisible(false)}
+              style={{ marginTop: 20, alignItems: "center" }}
+            >
+              <Text style={{ color: "red", fontWeight: "bold" }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }

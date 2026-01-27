@@ -1,8 +1,15 @@
-import { Text, View } from "@/components/Themed";
+import { Text } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import React, { useEffect, useState } from "react";
-import { Modal, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 // Habit Status/Color Constants
 type HabitStatus = "green" | "orange" | "red" | "grey";
@@ -21,6 +28,8 @@ interface DailyLogModalProps {
   date: Date | null;
   initialStatus: HabitStatus;
   habitTitle: string;
+  onSave: (status: HabitStatus, notes: string, date: Date) => void;
+  initialNotes?: string;
 }
 
 const DailyLogModal: React.FC<DailyLogModalProps> = ({
@@ -29,14 +38,18 @@ const DailyLogModal: React.FC<DailyLogModalProps> = ({
   date,
   initialStatus,
   habitTitle,
+  onSave,
+  initialNotes = "", // 👈 ADD THIS HERE TOO
 }) => {
   const [selectedStatus, setSelectedStatus] =
     useState<HabitStatus>(initialStatus);
+  const [notes, setNotes] = useState(initialNotes);
 
-  // Sync internal state when initialStatus prop changes (i.e., when a new day is selected)
+  // Sync internal state when props change
   useEffect(() => {
     setSelectedStatus(initialStatus);
-  }, [initialStatus, isVisible]);
+    setNotes(initialNotes); // 👈 THIS ensures the note loads when you click the day
+  }, [date, isVisible, initialStatus, initialNotes]);
 
   // Format the date for the modal header
   const formattedDate = date
@@ -50,15 +63,7 @@ const DailyLogModal: React.FC<DailyLogModalProps> = ({
   const handleSave = () => {
     if (!date) return;
 
-    // TODO: Implement actual data saving logic here (e.g., using Firestore)
-    console.log(
-      `[LOG] Habit: ${habitTitle} on ${
-        date.toISOString().split("T")[0]
-      } updated to status: ${selectedStatus}`
-    );
-
-    // After saving, close the modal
-    onClose();
+    onSave(selectedStatus, notes, date);
   };
 
   if (!date) return null; // Don't render if date is null
@@ -103,10 +108,10 @@ const DailyLogModal: React.FC<DailyLogModalProps> = ({
                           status === "green"
                             ? "check"
                             : status === "orange"
-                            ? "exclamation"
-                            : status === "red"
-                            ? "times"
-                            : "question"
+                              ? "exclamation"
+                              : status === "red"
+                                ? "times"
+                                : "question"
                         }
                         size={20}
                         color={isActive ? "#fff" : color}
@@ -125,15 +130,23 @@ const DailyLogModal: React.FC<DailyLogModalProps> = ({
               </View>
             </View>
 
-            {/* Notes/Reflection Input (Placeholder) */}
+            {/* Notes/Reflection Input */}
             <View style={styles.controlSection}>
               <Text style={styles.sectionTitle}>
                 DAILY REFLECTION (OPTIONAL)
               </Text>
               <View style={styles.textInputContainer}>
-                <Text style={styles.placeholderText}>
-                  How did this habit go today? What challenges did you face?
-                </Text>
+                <TextInput
+                  style={{
+                    width: "100%",
+                    minHeight: 80,
+                    textAlignVertical: "top",
+                  }}
+                  placeholder="How did this habit go today?"
+                  multiline
+                  value={notes}
+                  onChangeText={setNotes}
+                />
               </View>
             </View>
           </ScrollView>
@@ -256,6 +269,14 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  actualInput: {
+    width: "100%",
+    minHeight: 100,
+    color: "#333",
+    fontSize: 16,
+    textAlignVertical: "top", // Ensures text starts at the top on Android
+    padding: 10,
   },
 });
 
