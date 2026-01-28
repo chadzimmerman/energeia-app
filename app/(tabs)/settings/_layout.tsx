@@ -37,6 +37,13 @@ export default function SettingsStackLayout() {
           // The back button text now correctly inherits the title of the 'index' screen ("Settings")
         }}
       />
+      <Stack.Screen
+        name="seasonal_stories"
+        options={{
+          title: "Seasonal Stories", // Sets the title of the About page header
+          // The back button text now correctly inherits the title of the 'index' screen ("Settings")
+        }}
+      />
     </Stack>
   );
 }

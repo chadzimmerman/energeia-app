@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
+  ImageSourcePropType,
   Modal,
   ScrollView,
   StyleSheet,
@@ -46,6 +47,34 @@ const STATUS_COLORS = {
   red: "#E74C3C", // Failure/Missed
   grey: "#ECF0F1", // Untracked/Blank
 };
+
+interface Profile {
+  id: string;
+  username: string;
+  current_health: number;
+  max_health: number;
+  current_energeia: number;
+  max_energeia: number;
+  character_image_path: string;
+  // ... add other columns as needed
+}
+
+// Helper function to resolve the image source correctly
+const resolveImageSource = (
+  path: string | null | undefined,
+): ImageSourcePropType => {
+  // 1. If path is null, empty, or contains our default filename
+  if (!path || path.includes("novice-monk-male.png")) {
+    // 🔥 FIX: Use the literal string inside require()
+    return require("../../assets/sprites/characters/monk/novice-monk-male.png");
+  }
+
+  // 2. Otherwise, assume it's a remote URL from Supabase
+  return { uri: path };
+};
+
+const DEFAULT_IMAGE_PATH =
+  "../../assets/sprites/characters/monk/novice-monk-male.png";
 
 // --- UTILITY FUNCTIONS ---
 
@@ -291,6 +320,24 @@ export default function CalendarTabScreen() {
   }>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  const fetchProfile = async (currentUserId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", currentUserId)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setProfile(data as Profile);
+      }
+    } catch (e: any) {
+      console.error("Error fetching profile on Calendar Tab:", e.message);
+    }
+  };
 
   //loads any changes from modal on change
   useEffect(() => {
@@ -306,7 +353,10 @@ export default function CalendarTabScreen() {
         data: { session },
       } = await supabase.auth.getSession();
       if (session?.user) {
-        setUserId(session.user.id);
+        const id = session.user.id;
+        setUserId(id);
+        // 🔥 ADD THIS LINE BELOW
+        await fetchProfile(id);
       }
     };
     getUser();
@@ -409,11 +459,12 @@ export default function CalendarTabScreen() {
       {/* 1. Character Stats Header */}
       <CharacterStats
         backgroundImageSource={require("../../assets/sprites/ui-elements/winter-background.png")}
-        characterImageSource={require("../../assets/sprites/characters/monk/novice-monk-male.png")}
-        currentHealth={75}
-        maxHealth={100}
-        currentEnergy={50}
-        maxEnergy={100}
+        // 🔥 The ?. prevents the crash if profile is null
+        characterImageSource={resolveImageSource(profile?.character_image_path)}
+        currentHealth={profile?.current_health ?? 0}
+        maxHealth={profile?.max_health ?? 100}
+        currentEnergy={profile?.current_energeia ?? 0}
+        maxEnergy={profile?.max_energeia ?? 100}
       />
 
       {/* 2. Scrollable Content (Calendar and Habit Tracker) */}

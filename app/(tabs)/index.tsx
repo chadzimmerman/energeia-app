@@ -37,14 +37,60 @@ const DEFAULT_IMAGE_PATH =
   "../../assets/sprites/characters/monk/novice-monk-male.png";
 
 // Helper function to resolve the image source correctly
-const resolveImageSource = (path: string): ImageSourcePropType => {
-  // If the path matches the default local path from the DB
-  if (path.includes("novice-monk-male.png")) {
-    // Use require() for the local static asset
-    return require(DEFAULT_IMAGE_PATH);
+const resolveImageSource = (
+  path: string | null | undefined,
+): ImageSourcePropType => {
+  // 1. If path is null, empty, or contains our default filename
+  if (!path || path.includes("novice-monk-male.png")) {
+    // 🔥 FIX: Use the literal string inside require()
+    return require("../../assets/sprites/characters/monk/novice-monk-male.png");
   }
-  // Otherwise, assume it's a remote URL (like from Supabase Storage)
+
+  // 2. Otherwise, assume it's a remote URL from Supabase
   return { uri: path };
+};
+
+//item drop percents for seasonal stories
+const checkStoryDrop = async (userId: string) => {
+  const DROP_CHANCE = 0.3; // 30% chance per task
+
+  try {
+    const { data: activeProgress, error: fetchError } = await supabase
+      .from("user_story_progress")
+      .select("*, seasonal_stories!inner(*)")
+      .eq("user_id", userId)
+      .eq("is_completed", false)
+      .eq("is_paused", false)
+      .single();
+
+    if (fetchError || !activeProgress) {
+      console.log("No active progress found", fetchError);
+      return;
+    }
+
+    // Roll for drop
+    const didDrop = Math.random() < DROP_CHANCE;
+    if (!didDrop) return; // Nothing found this time
+
+    const newCount = activeProgress.current_count + 1;
+    const goal = activeProgress.seasonal_stories.required_items_count;
+
+    const { error: updateError } = await supabase
+      .from("user_story_progress")
+      .update({
+        current_count: newCount,
+        is_completed: newCount >= goal,
+        completed_at: newCount >= goal ? new Date().toISOString() : null,
+      })
+      .eq("id", activeProgress.id);
+
+    if (!updateError) {
+      const itemName = activeProgress.seasonal_stories.required_item_name;
+      alert(`✨ You found a ${itemName}! (${newCount}/${goal})`);
+    }
+  } catch (e) {
+    console.error("Story drop error:", e);
+  }
 };
 
 export default function HabitScreen() {
@@ -163,13 +209,13 @@ export default function HabitScreen() {
       return () => {
         isActive = false;
       };
-    }, [userId, fetchHabits])
+    }, [userId, fetchHabits]),
   );
 
   // --- Helper: Calculate Stat Changes based on Difficulty ---
   const calculateStatChanges = (
     difficulty: number,
-    direction: "up" | "down"
+    direction: "up" | "down",
   ): { healthChange: number; energeiaChange: number } => {
     // Safety check: Clamp difficulty between 1 and 10
     const clampedDifficulty = Math.min(Math.max(difficulty, 1), 10);
@@ -226,7 +272,7 @@ export default function HabitScreen() {
   // SCORE HABIT
   const handleScoreHabit = async (
     habitId: string,
-    direction: "up" | "down"
+    direction: "up" | "down",
   ) => {
     if (!userId) {
       console.error("Cannot score habit: User ID not available.");
@@ -265,7 +311,7 @@ export default function HabitScreen() {
       // 3. Calculate Stat Changes (Uses the simplified logic)
       const { healthChange, energeiaChange } = calculateStatChanges(
         difficulty,
-        direction // is_negative is no longer passed
+        direction, // is_negative is no longer passed
       );
 
       // 4. Fetch Profile Details (for current stats)
@@ -311,6 +357,8 @@ export default function HabitScreen() {
         .eq("id", userId);
 
       if (profileError) throw profileError;
+
+      await checkStoryDrop(userId); //random drop call
 
       // 6. Refresh ALL data (Habits list color and Character Stats display)
       await fetchHabits(userId);
@@ -370,7 +418,6 @@ export default function HabitScreen() {
       <CharacterStats
         backgroundImageSource={require("../../assets/sprites/ui-elements/winter-background.png")}
         characterImageSource={resolveImageSource(profile.character_image_path)}
-        //characterImageSource={require("../../assets/sprites/characters/monk/novice-monk-male.png")}
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}
         currentEnergy={profile.current_energeia}
