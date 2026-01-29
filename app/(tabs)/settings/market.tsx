@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import { supabase } from "@/utils/supabase";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   Dimensions,
   Image,
@@ -137,10 +139,10 @@ const MarketDetailsModal: React.FC<{
 
     // TODO: Implement actual purchase logic (deduct currency, add item to inventory)
     console.log(
-      `[PURCHASE] Successfully bought ${item.name} for ${item.price} Energeia!`
+      `[PURCHASE] Successfully bought ${item.name} for ${item.price} Energeia!`,
     );
     console.log(
-      `Hidden bonus: ${item.hiddenBonus.stat} +${item.hiddenBonus.buff}`
+      `Hidden bonus: ${item.hiddenBonus.stat} +${item.hiddenBonus.buff}`,
     );
     onClose();
   };
@@ -280,14 +282,10 @@ const MarketItemCard: React.FC<{
 /**
  * Renders the main item grid structure including the shop header.
  */
-const MarketGrid: React.FC<{ onSelectItem: (item: MarketItem) => void }> = ({
-  onSelectItem,
-}) => {
-  // Hardcoded player currency for display (Using a high value so buying works)
-  const mockPlayerEnergeia = 150;
-  // Hardcoded player Gems (if they were used)
-  const mockPlayerGems = 20;
-
+const MarketGrid: React.FC<{
+  onSelectItem: (item: MarketItem) => void;
+  playerEnergeia: number; // 🌟 Add this
+}> = ({ onSelectItem, playerEnergeia }) => {
   return (
     <ScrollView
       style={marketStyles.gridContainer}
@@ -318,9 +316,8 @@ const MarketGrid: React.FC<{ onSelectItem: (item: MarketItem) => void }> = ({
 export default function MarketScreen() {
   const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-
-  // Mock player currency for the modal display
-  const playerEnergeia = 150; // Increased mock currency for testing purchases
+  const [playerEnergeia, setPlayerEnergeia] = useState(0);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const handleSelectItem = (item: MarketItem) => {
     setSelectedItem(item);
@@ -332,6 +329,38 @@ export default function MarketScreen() {
     setSelectedItem(null);
   };
 
+  // Fetch the actual profile data
+  const fetchPlayerCurrency = useCallback(async (currentUserId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("current_energeia")
+        .eq("id", currentUserId)
+        .single();
+
+      if (error) throw error;
+      if (data) setPlayerEnergeia(data.current_energeia);
+    } catch (e: any) {
+      console.error("Error fetching market currency:", e.message);
+    }
+  }, []);
+
+  // 3. Setup Auth and Focus listener
+  useFocusEffect(
+    useCallback(() => {
+      const getSession = async () => {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUserId(session.user.id);
+          fetchPlayerCurrency(session.user.id);
+        }
+      };
+      getSession();
+    }, [fetchPlayerCurrency]),
+  );
+
   return (
     <ThemedView style={marketStyles.container}>
       {/* 1. Static Shop Header Image */}
@@ -341,7 +370,7 @@ export default function MarketScreen() {
           style={marketStyles.headerImage}
           resizeMode="cover"
         />
-        {/* Current Currency Overlay (Top Right) */}
+        {/* 🌟 Updated to show live playerEnergeia state */}
         <View style={marketStyles.currencyOverlay}>
           <View style={marketStyles.currencyChip}>
             <FontAwesome name="flash" size={16} color="#FFC800" />
@@ -352,15 +381,18 @@ export default function MarketScreen() {
         </View>
       </View>
 
-      {/* 2. Item Grid */}
-      <MarketGrid onSelectItem={handleSelectItem} />
+      {/* 2. Item Grid (Pass live state here if needed for dialogue/logic) */}
+      <MarketGrid
+        onSelectItem={handleSelectItem}
+        playerEnergeia={playerEnergeia}
+      />
 
-      {/* 3. Item Details Modal */}
+      {/* 3. Item Details Modal (Passing live playerEnergeia) */}
       <MarketDetailsModal
         isVisible={isModalVisible}
         item={selectedItem}
         onClose={handleCloseModal}
-        playerEnergeia={playerEnergeia}
+        playerEnergeia={playerEnergeia} // 🌟 This ensures "Cannot Afford" works live
       />
     </ThemedView>
   );

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
   ImageSourcePropType,
@@ -16,6 +16,7 @@ import CharacterStats from "@/components/CharacterStats";
 import { View as ThemedView } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
+import { useFocusEffect } from "expo-router";
 import DailyLogModal from "../calendar-modal";
 
 // Get screen width for responsive sizing
@@ -322,7 +323,7 @@ export default function CalendarTabScreen() {
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  const fetchProfile = async (currentUserId: string) => {
+  const fetchProfile = useCallback(async (currentUserId: string) => {
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -337,30 +338,47 @@ export default function CalendarTabScreen() {
     } catch (e: any) {
       console.error("Error fetching profile on Calendar Tab:", e.message);
     }
-  };
+  }, []);
 
-  //loads any changes from modal on change
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const refreshData = async () => {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const id = session?.user?.id;
+
+        if (id && isActive) {
+          setUserId(id);
+          await fetchProfile(id); // Updates the Energy Header
+
+          const { data: habits } = await supabase
+            .from("user_habits")
+            .select("*");
+          if (habits && habits.length > 0) {
+            setMyHabits(habits);
+            // Only set default if we don't have one selected yet
+            const currentHabit = selectedHabit || habits[0];
+            setSelectedHabit(currentHabit);
+          }
+        }
+      };
+
+      refreshData();
+
+      return () => {
+        isActive = false;
+      };
+    }, [fetchProfile, selectedHabit]), // Added selectedHabit here
+  );
+
   useEffect(() => {
     if (selectedHabit) {
       fetchLogs();
     }
-  }, [selectedHabit]);
-
-  //fetch the user on load
-  useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        const id = session.user.id;
-        setUserId(id);
-        // 🔥 ADD THIS LINE BELOW
-        await fetchProfile(id);
-      }
-    };
-    getUser();
-  }, []);
+  }, [selectedHabit]); // This runs every time you "Tap to change" a habit
 
   //handles save logs
   const handleSaveLog = async (

@@ -52,7 +52,7 @@ const resolveImageSource = (
 
 //item drop percents for seasonal stories
 const checkStoryDrop = async (userId: string) => {
-  const DROP_CHANCE = 0.3; // 30% chance per task
+  const DROP_CHANCE = 0.3;
 
   try {
     const { data: activeProgress, error: fetchError } = await supabase
@@ -63,30 +63,76 @@ const checkStoryDrop = async (userId: string) => {
       .eq("is_paused", false)
       .single();
 
-    if (fetchError || !activeProgress) {
-      console.log("No active progress found", fetchError);
-      return;
-    }
+    if (fetchError || !activeProgress) return;
 
-    // Roll for drop
     const didDrop = Math.random() < DROP_CHANCE;
-    if (!didDrop) return; // Nothing found this time
+    if (!didDrop) return;
 
     const newCount = activeProgress.current_count + 1;
     const goal = activeProgress.seasonal_stories.required_items_count;
+    const isNowFinished = newCount >= goal;
 
     const { error: updateError } = await supabase
       .from("user_story_progress")
       .update({
         current_count: newCount,
-        is_completed: newCount >= goal,
-        completed_at: newCount >= goal ? new Date().toISOString() : null,
+        is_completed: isNowFinished,
+        completed_at: isNowFinished ? new Date().toISOString() : null,
       })
       .eq("id", activeProgress.id);
 
     if (!updateError) {
-      const itemName = activeProgress.seasonal_stories.required_item_name;
-      alert(`✨ You found a ${itemName}! (${newCount}/${goal})`);
+      const storyData = activeProgress.seasonal_stories;
+
+      // --- NEW LOGIC START ---
+      if (isNowFinished) {
+        // 1. Reward Energeia
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("current_energeia, max_energeia")
+          .eq("id", userId)
+          .single();
+
+        if (profile) {
+          const reward = storyData.reward_energeia || 0;
+          const newEnergeia = Math.min(
+            profile.current_energeia + reward,
+            profile.max_energeia,
+          );
+
+          await supabase
+            .from("profiles")
+            .update({ current_energeia: newEnergeia })
+            .eq("id", userId);
+        }
+
+        // 2. Unlock Next Part (if it exists)
+        const { data: nextStory } = await supabase
+          .from("seasonal_stories")
+          .select("id")
+          .eq("season", storyData.season)
+          .eq("part_number", storyData.part_number + 1)
+          .single();
+
+        if (nextStory) {
+          await supabase
+            .from("user_story_progress")
+            .insert([
+              { user_id: userId, story_id: nextStory.id, current_count: 0 },
+            ]);
+        }
+
+        // Final completion message
+        alert(
+          `🏆 Quest Part Complete!\nYou earned ${storyData.reward_energeia} Energeia. Check your Storyline tab!`,
+        );
+      } else {
+        // Standard item find message
+        alert(
+          `✨ You found a ${storyData.required_item_name}! (${newCount}/${goal})`,
+        );
+      }
+      // --- NEW LOGIC END ---
     }
   } catch (e) {
     console.error("Story drop error:", e);

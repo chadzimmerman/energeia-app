@@ -1,23 +1,28 @@
-import { Text, View } from "@/components/Themed"; // Assuming Themed components handle dark/light mode
+import { Text, View } from "@/components/Themed";
+import { supabase } from "@/utils/supabase";
 import { useNavigation } from "@react-navigation/native";
-import { Image, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
-
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
 // --- EXPORT THE STACK OPTIONS HERE ---
 export const options = {
   title: "Settings",
   headerShown: false,
 };
 
-// --- Your MOCK_USER and settingsSections remain the same ---
-const MOCK_USER = {
-  name: "Novice Seraphim",
-  username: "@NoviceSeraphim",
-  level: 2,
-  title: "Novice",
-  avatarUrl: "https://placehold.co/100x100/6A5ACD/ffffff?text=W", // Placeholder for your avatar
-  currentUsername: "NoviceSeraphim",
-  currentPassword: "•".repeat(10),
-};
+interface Profile {
+  username: string;
+  handle: string;
+  level: number;
+  player_class: string;
+  character_image_path: string;
+}
 
 const settingsSections = [
   {
@@ -66,36 +71,58 @@ const cautionSection = [
   },
 ];
 
-// --- Component 1: User Header ---
-const UserHeader = ({ user }) => (
-  <View style={headerStyles.headerContainer}>
-    <View style={headerStyles.userInfo}>
-      <Image source={{ uri: user.avatarUrl }} style={headerStyles.avatar} />
-      <View style={headerStyles.textContainer}>
-        <Text style={headerStyles.name}>{user.name}</Text>
-        <Text style={headerStyles.username}>{user.username}</Text>
+// --- Component 1: Dynamic User Header ---
+const UserHeader = ({ profile }: { profile: Profile }) => {
+  // Reuse your image resolver logic
+  const resolveAvatar = (path: string) => {
+    if (!path || path.includes("novice-monk-male.png")) {
+      return require("../../../assets/sprites/characters/monk/novice-monk-male.png");
+    }
+    return { uri: path };
+  };
+
+  return (
+    <View style={headerStyles.headerContainer}>
+      <View style={headerStyles.userInfo}>
+        <Image
+          source={resolveAvatar(profile.character_image_path)}
+          style={headerStyles.avatar}
+        />
+        <View style={headerStyles.textContainer}>
+          <Text style={headerStyles.name}>{profile.username}</Text>
+          {/* Fallback to @username if handle is null */}
+          <Text style={headerStyles.username}>
+            @
+            {profile.handle ||
+              profile.username.toLowerCase().replace(/\s/g, "")}
+          </Text>
+        </View>
+      </View>
+      <View style={headerStyles.iconRow}>
+        <Text style={headerStyles.levelBadge}>
+          Lv. {profile.level} {profile.player_class}
+        </Text>
       </View>
     </View>
-    <View style={headerStyles.iconRow}>
-      <Text style={headerStyles.name}>Level 2. Novice</Text>{" "}
-    </View>
-  </View>
-);
+  );
+};
 
 // --- Component 2: Settings Section (Grouped List) ---
-const SettingsSection = ({ section, navigation }) => {
-  const handlePress = (itemId) => {
-    if (itemId === "about") {
-      navigation.navigate("about");
-    } else if (itemId == "market") {
-      navigation.navigate("market");
-    } else if (itemId == "achievements") {
-      navigation.navigate("achievements");
-    } else if (itemId == "seasonal_stories") {
-      navigation.navigate("seasonal_stories");
+const SettingsSection = ({
+  section,
+  navigation,
+}: {
+  section: any;
+  navigation: any;
+}) => {
+  const handlePress = (itemId: string) => {
+    // Basic navigation logic
+    if (
+      ["about", "market", "achievements", "seasonal_stories"].includes(itemId)
+    ) {
+      navigation.navigate(itemId);
     } else {
       console.log(`Navigating to ${itemId}`);
-      // Add other navigation logic here (e.g., navigation.navigate(itemId))
     }
   };
 
@@ -105,7 +132,7 @@ const SettingsSection = ({ section, navigation }) => {
         <Text style={sectionStyles.sectionTitle}>{section.title}</Text>
       )}
       <View style={sectionStyles.list}>
-        {section.items.map((item, index) => (
+        {section.items.map((item: any, index: number) => (
           <TouchableOpacity
             key={item.id}
             style={[
@@ -129,15 +156,14 @@ const SettingsSection = ({ section, navigation }) => {
 };
 
 // --- Component 3: Caution Section ---
-const CautionSection = ({ section }) => {
+const CautionSection = ({ section }: { section: any }) => {
   return (
     <View style={sectionStyles.sectionContainer}>
-      {/* Renders "Caution" title with normal section title styling */}
       {section.title && (
         <Text style={sectionStyles.sectionTitle}>{section.title}</Text>
       )}
       <View style={sectionStyles.list}>
-        {section.items.map((item, index) => (
+        {section.items.map((item: any, index: number) => (
           <TouchableOpacity
             key={item.id}
             style={[
@@ -146,9 +172,7 @@ const CautionSection = ({ section }) => {
             ]}
             onPress={() => console.log(`Action for ${item.id}`)}
           >
-            {/* Use the new red text style, and do NOT include flex: 1 */}
             <Text style={sectionStyles.cautionLabel}>{item.label}</Text>
-            {/* Note: The arrow and badge are intentionally omitted here */}
           </TouchableOpacity>
         ))}
       </View>
@@ -159,9 +183,43 @@ const CautionSection = ({ section }) => {
 // --- Main Screen Component ---
 export default function SettingsTabScreen() {
   const navigation = useNavigation();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSettingsProfile = useCallback(async () => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("username, handle, level, player_class, character_image_path")
+        .eq("id", session.user.id)
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (e) {
+      console.error("Settings fetch error:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchSettingsProfile();
+    }, [fetchSettingsProfile]),
+  );
+
+  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  if (!profile) return <Text>Error loading profile</Text>;
+
   return (
     <View style={styles.container}>
-      <UserHeader user={MOCK_USER} />
+      <UserHeader profile={profile} />
       <ScrollView style={styles.listContainer}>
         {settingsSections.map((section, index) => (
           <SettingsSection
@@ -222,6 +280,15 @@ const headerStyles = StyleSheet.create({
     fontSize: 20,
     color: "#ffffff",
     marginLeft: 15,
+  },
+  levelBadge: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#ffffff",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
 });
 
