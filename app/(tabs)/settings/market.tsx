@@ -45,75 +45,6 @@ const cardGap = 10; // Gap between cards
 // Calculate card size for 2 columns: (Screen Width - Total Side Padding - Gap between cards) / 2
 const cardSize = (screenWidth - cardPadding * 2 - cardGap) / 2;
 
-const mockMarketItems: MarketItem[] = [
-  {
-    id: "1",
-    name: "Bear Companion",
-    imageSource: require("../../../assets/sprites/animals/baby-bear.png"),
-    price: 25,
-    isLocked: false,
-    type: "equippable",
-    flavorText: "A furry friend in the monastic tradition.",
-    description: "Instantly restores 5 Energeia.",
-    hiddenBonus: { stat: "energeia", buff: 5 },
-  },
-  {
-    id: "2",
-    name: "Icon of the Theotokos",
-    imageSource: require("../../../assets/sprites/icons/theotokos-icon.png"),
-    price: 100,
-    isLocked: false,
-    type: "equippable",
-    flavorText: "A holy relic inspiring steadfast devotion.",
-    description: "Grants +15 Energeia passively when equipped.",
-    hiddenBonus: { stat: "energeia", buff: 15 },
-  },
-  {
-    id: "3",
-    name: "Novice Sword",
-    imageSource: require("../../../assets/sprites/items/sword.png"),
-    price: 20,
-    isLocked: true,
-    type: "equippable",
-    flavorText: "Simple and true, for a novice's journey.",
-    description: "A minor physical damage buff to combat tasks.",
-    hiddenBonus: { stat: "energeia", buff: 8 },
-  },
-  {
-    id: "4",
-    name: "Warrior Helmet",
-    imageSource: require("../../../assets/sprites/items/warrior-helmet.png"),
-    price: 30,
-    isLocked: true,
-    type: "equippable",
-    flavorText: "Sturdy headgear for the trials ahead.",
-    description: "Grants +10 Defense.",
-    hiddenBonus: { stat: "defense", buff: 10 },
-  },
-  {
-    id: "5",
-    name: "Great Schema Robes",
-    imageSource: require("../../../assets/sprites/items/great-schema-robes.png"),
-    price: 15,
-    isLocked: false,
-    type: "equippable",
-    flavorText: "The tattered habit of a fully committed monk.",
-    description: "Slightly increases Energeia regeneration rate.",
-    hiddenBonus: { stat: "energeia", buff: 3 },
-  },
-  {
-    id: "6",
-    name: "Crusader Shield",
-    imageSource: require("../../../assets/sprites/items/shield.png"),
-    price: 20,
-    isLocked: true,
-    type: "equippable",
-    flavorText: "Used to deflect both physical and spiritual attacks.",
-    description: "Grants +4 Defense.",
-    hiddenBonus: { stat: "defense", buff: 4 },
-  },
-];
-
 // --- COMPONENTS ---
 
 /**
@@ -123,28 +54,39 @@ const MarketDetailsModal: React.FC<{
   isVisible: boolean;
   item: MarketItem | null;
   onClose: () => void;
-  // Mock player currency for display and validation
   playerEnergeia: number;
-}> = ({ isVisible, item, onClose, playerEnergeia }) => {
+  userId: string | null;
+  onPurchaseSuccess: () => void;
+}> = ({
+  isVisible,
+  item,
+  onClose,
+  playerEnergeia,
+  userId,
+  onPurchaseSuccess,
+}) => {
   if (!item) return null;
 
   const canAfford = playerEnergeia >= item.price;
 
-  const handleBuy = () => {
-    if (!canAfford) {
-      // In a real app, this would show an in-app message, not console log.
-      console.log("Not enough Energeia to buy this item!");
-      return;
-    }
+  const handleBuy = async () => {
+    if (!item || !userId || playerEnergeia < item.price) return;
 
-    // TODO: Implement actual purchase logic (deduct currency, add item to inventory)
-    console.log(
-      `[PURCHASE] Successfully bought ${item.name} for ${item.price} Energeia!`,
-    );
-    console.log(
-      `Hidden bonus: ${item.hiddenBonus.stat} +${item.hiddenBonus.buff}`,
-    );
-    onClose();
+    const { error } = await supabase.from("user_inventory").insert({
+      user_id: userId,
+      item_master_id: item.id,
+    });
+
+    if (!error) {
+      // Deduct money
+      await supabase
+        .from("profiles")
+        .update({ current_energeia: playerEnergeia - item.price })
+        .eq("id", userId);
+
+      onPurchaseSuccess(); // This triggers the refresh in the main screen
+      onClose();
+    }
   };
 
   return (
@@ -181,9 +123,9 @@ const MarketDetailsModal: React.FC<{
           {/* Item Image */}
           <Image
             source={
-              item.imageSource || {
-                uri: "https://placehold.co/100x100/A0A0A0/FFFFFF/png?text=Item",
-              }
+              item.imageSource
+                ? { uri: item.imageSource }
+                : { uri: "https://placehold.co/60x60/png?text=Item" }
             }
             style={modalStyles.itemImage}
             resizeMode="contain"
@@ -251,9 +193,9 @@ const MarketItemCard: React.FC<{
     >
       <Image
         source={
-          item.imageSource || {
-            uri: "https://placehold.co/60x60/A0A0A0/FFFFFF/png?text=Item",
-          }
+          item.imageSource
+            ? { uri: item.imageSource }
+            : { uri: "https://placehold.co/60x60/png?text=Item" }
         }
         style={marketStyles.itemImage}
         resizeMode="contain"
@@ -284,8 +226,9 @@ const MarketItemCard: React.FC<{
  */
 const MarketGrid: React.FC<{
   onSelectItem: (item: MarketItem) => void;
-  playerEnergeia: number; // 🌟 Add this
-}> = ({ onSelectItem, playerEnergeia }) => {
+  playerEnergeia: number;
+  items: MarketItem[];
+}> = ({ onSelectItem, playerEnergeia, items }) => {
   return (
     <ScrollView
       style={marketStyles.gridContainer}
@@ -300,7 +243,7 @@ const MarketGrid: React.FC<{
 
       {/* Item Grid - This wrapper now correctly applies the grid layout */}
       <View style={marketStyles.itemGrid}>
-        {mockMarketItems.map((item) => (
+        {items.map((item) => (
           <MarketItemCard key={item.id} item={item} onPress={onSelectItem} />
         ))}
       </View>
@@ -318,6 +261,7 @@ export default function MarketScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [playerEnergeia, setPlayerEnergeia] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
+  const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
 
   const handleSelectItem = (item: MarketItem) => {
     setSelectedItem(item);
@@ -328,6 +272,51 @@ export default function MarketScreen() {
     setIsModalVisible(false);
     setSelectedItem(null);
   };
+
+  // 2. The fetch logic is now INSIDE the component where it can see userId
+  const fetchMarketItems = useCallback(async (currentUserId: string) => {
+    try {
+      // Get items in market
+      const { data: items, error: marketError } = await supabase
+        .from("items_master")
+        .select("*")
+        .eq("is_in_market", true);
+
+      if (marketError) throw marketError;
+
+      // Get user inventory to filter unique items
+      const { data: userInv } = await supabase
+        .from("user_inventory")
+        .select("item_master_id")
+        .eq("user_id", currentUserId);
+
+      const ownedIds = userInv?.map((i) => i.item_master_id) || [];
+
+      // Map DB columns to your MarketItem interface
+      const availableItems: MarketItem[] = items
+        .filter((item) => !item.is_unique || !ownedIds.includes(item.id))
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          // Use your ResolvedImageSourceMap logic here if needed,
+          // or a helper to turn the path into a require()
+          imageSource: item.image_path,
+          price: item.base_energeia_cost,
+          isLocked: false,
+          type: item.type,
+          flavorText: item.flavor_text,
+          description: item.description,
+          hiddenBonus: {
+            stat: item.hidden_stat_type,
+            buff: item.hidden_buff_value,
+          },
+        }));
+
+      setMarketItems(availableItems);
+    } catch (e: any) {
+      console.error("Error loading shop:", e.message);
+    }
+  }, []);
 
   // Fetch the actual profile data
   const fetchPlayerCurrency = useCallback(async (currentUserId: string) => {
@@ -348,17 +337,19 @@ export default function MarketScreen() {
   // 3. Setup Auth and Focus listener
   useFocusEffect(
     useCallback(() => {
-      const getSession = async () => {
+      const loadData = async () => {
         const {
           data: { session },
         } = await supabase.auth.getSession();
         if (session?.user) {
-          setUserId(session.user.id);
-          fetchPlayerCurrency(session.user.id);
+          const id = session.user.id;
+          setUserId(id);
+          fetchPlayerCurrency(id);
+          fetchMarketItems(id); // 👈 Load the items too!
         }
       };
-      getSession();
-    }, [fetchPlayerCurrency]),
+      loadData();
+    }, [fetchPlayerCurrency, fetchMarketItems]),
   );
 
   return (
@@ -385,14 +376,21 @@ export default function MarketScreen() {
       <MarketGrid
         onSelectItem={handleSelectItem}
         playerEnergeia={playerEnergeia}
+        items={marketItems}
       />
 
-      {/* 3. Item Details Modal (Passing live playerEnergeia) */}
       <MarketDetailsModal
         isVisible={isModalVisible}
         item={selectedItem}
         onClose={handleCloseModal}
-        playerEnergeia={playerEnergeia} // 🌟 This ensures "Cannot Afford" works live
+        playerEnergeia={playerEnergeia}
+        userId={userId}
+        onPurchaseSuccess={() => {
+          if (userId) {
+            fetchPlayerCurrency(userId); // Refresh money
+            fetchMarketItems(userId); // Refresh the shop items
+          }
+        }}
       />
     </ThemedView>
   );

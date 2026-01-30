@@ -50,8 +50,6 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               style={styles.statIcon} // New style for icons outside the bar
             />
             <View style={styles.barWrapper}>
-              {" "}
-              // New container for the bar itself
               <View
                 style={[
                   styles.barBackground,

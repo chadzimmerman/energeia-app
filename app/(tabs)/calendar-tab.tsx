@@ -34,7 +34,8 @@ const dayCellSize = Math.floor(
 type HabitStatus = "green" | "orange" | "red" | "grey";
 
 interface HabitDay {
-  date: Date;
+  date?: Date; // Keep this optional just in case
+  dateString: string; // Add this as the primary identifier
   status: HabitStatus;
   notes?: string;
 }
@@ -146,12 +147,13 @@ const DayCell: React.FC<DayCellProps> = ({
   const fullDate = new Date(year, month, day);
 
   const handleDayClick = () => {
-    // 1. Create the data object to pass to the modal
-    const dayData: HabitDay = {
-      date: fullDate,
+    // Create the string immediately where the numbers are pure
+    const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+    const dayData: any = {
+      dateString: dateKey, // Use a string, not a Date object
       status: status,
     };
-    // 2. Call the handler function passed from the main screen
     onDayPress(dayData);
   };
 
@@ -352,26 +354,26 @@ export default function CalendarTabScreen() {
 
         if (id && isActive) {
           setUserId(id);
-          await fetchProfile(id); // Updates the Energy Header
+          fetchProfile(id);
 
-          const { data: habits } = await supabase
-            .from("user_habits")
-            .select("*");
-          if (habits && habits.length > 0) {
-            setMyHabits(habits);
-            // Only set default if we don't have one selected yet
-            const currentHabit = selectedHabit || habits[0];
-            setSelectedHabit(currentHabit);
+          // ONLY fetch habits if we don't have them yet
+          if (myHabits.length === 0) {
+            const { data: habits } = await supabase
+              .from("user_habits")
+              .select("*");
+            if (habits && habits.length > 0 && isActive) {
+              setMyHabits(habits);
+              setSelectedHabit(habits[0]);
+            }
           }
         }
       };
 
       refreshData();
-
       return () => {
         isActive = false;
       };
-    }, [fetchProfile, selectedHabit]), // Added selectedHabit here
+    }, [fetchProfile]), // Remove selectedHabit from here!
   );
 
   useEffect(() => {
@@ -381,19 +383,18 @@ export default function CalendarTabScreen() {
   }, [selectedHabit]); // This runs every time you "Tap to change" a habit
 
   //handles save logs
-  const handleSaveLog = async (
-    status: HabitStatus,
-    notes: string,
-    logDate: Date,
-  ) => {
-    if (!selectedHabit || !userId) return;
+  const handleSaveLog = async (status: HabitStatus, notes: string) => {
+    if (!selectedHabit || !userId || !selectedDayData) return;
 
-    // This creates "2026-03-13" regardless of what time it is in Moscow
-    const year = logDate.getFullYear();
-    const month = String(logDate.getMonth() + 1).padStart(2, "0");
-    const day = String(logDate.getDate()).padStart(2, "0");
-    const dateString = `${year}-${month}-${day}`;
+    const dateString = selectedDayData.dateString; // Pure string from our state
 
+    // 1. OPTIMISTIC UPDATE: Update UI immediately
+    setHabitLogs((prev) => ({
+      ...prev,
+      [dateString]: { status, notes },
+    }));
+
+    // 2. Background Sync
     const { error } = await supabase.from("habit_logs").upsert(
       {
         habit_id: selectedHabit.id,
@@ -405,8 +406,10 @@ export default function CalendarTabScreen() {
       { onConflict: "habit_id, log_date" },
     );
 
-    if (!error) {
+    if (error) {
+      // If it fails, refresh from DB to revert the UI
       await fetchLogs();
+    } else {
       setIsModalVisible(false);
     }
   };
@@ -442,21 +445,16 @@ export default function CalendarTabScreen() {
   /**
    * Handler function called when a calendar day is pressed.
    */
-  const handleDayPress = (dayData: HabitDay) => {
-    // 1. Create the same YYYY-MM-DD key we use in the database
-    const year = dayData.date.getFullYear();
-    const month = String(dayData.date.getMonth() + 1).padStart(2, "0");
-    const day = String(dayData.date.getDate()).padStart(2, "0");
-    const dateKey = `${year}-${month}-${day}`;
-
-    // 2. Look up the saved data for this specific day
+  const handleDayPress = (dayData: any) => {
+    const dateKey = dayData.dateString; // No more getFullYear() calls here!
     const savedData = habitLogs[dateKey];
+    const modalDate = new Date(`${dateKey}T00:00:00`);
 
-    // 3. Pass both the status AND the notes into the state
     setSelectedDayData({
-      date: dayData.date,
+      dateString: dateKey,
+      date: modalDate, // Fallback so 'date' isn't missing
       status: savedData?.status || "grey",
-      notes: savedData?.notes || "", // 👈 This is the "Magic Link"
+      notes: savedData?.notes || "",
     });
 
     setIsModalVisible(true);
