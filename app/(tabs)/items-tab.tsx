@@ -22,6 +22,7 @@ import {
 interface Item {
   id: string; // The user_inventory row ID (UUID)
   item_id: string; // The actual item type ID (e.g., "1", "2")
+  quantity: number; //number of items
   name: string;
   energeiaNumber: number; // Base value (base_energeia_cost from DB)
   is_equipped: boolean; // Tracking equipped state (from user_inventory)
@@ -236,18 +237,14 @@ const ItemCard: React.FC<{ item: Item; onPress: (item: Item) => void }> = ({
   item,
   onPress,
 }) => {
-  // Add a visual indicator if the item is equipped
-  const isEquippedStyle = item.is_equipped ? styles.equippedBorder : {};
-
   return (
     <TouchableOpacity
       style={[
         styles.itemCard,
         { width: cardSize, height: cardSize * 1.5 },
-        isEquippedStyle, // Apply green border if equipped
+        item.is_equipped && styles.equippedBorder,
       ]}
       onPress={() => onPress(item)}
-      activeOpacity={0.7}
     >
       <Image
         source={item.imageSource}
@@ -255,18 +252,17 @@ const ItemCard: React.FC<{ item: Item; onPress: (item: Item) => void }> = ({
         resizeMode="contain"
       />
 
-      {/* Item Price/Energeia */}
+      {/* 🌟 NEW: Stack Quantity Badge */}
+      {item.quantity > 1 && (
+        <View style={styles.stackBadge}>
+          <Text style={styles.stackText}>{item.quantity}x</Text>
+        </View>
+      )}
+
       <ThemedView style={styles.priceContainer}>
         <View style={styles.coinIcon} />
         <ThemedText style={styles.priceText}>{item.energeiaNumber}</ThemedText>
       </ThemedView>
-
-      {/* Lock Icon (if locked) */}
-      {item.isLocked && (
-        <View style={styles.lockIconContainer}>
-          <Text style={styles.lockIcon}>🔒</Text>
-        </View>
-      )}
     </TouchableOpacity>
   );
 };
@@ -333,71 +329,74 @@ export default function ItemsTabScreen() {
   // --- FETCH INVENTORY (LIVE QUERY IMPLEMENTED) ---
   const fetchInventory = useCallback(async (currentUserId: string) => {
     try {
-      // Supabase JOIN query: user_inventory (id, is_equipped) JOIN items_master
       const { data, error } = await supabase
         .from("user_inventory")
         .select(
           `
-    id,                 
-    is_equipped,        
-    is_locked,
-    item:item_master_id ( 
-        id, 
-        name, 
-        flavor_text, 
-        description, 
-        base_energeia_cost, 
-        type, 
-        image_path,
-        hidden_stat_type,   
-        hidden_buff_value,
-        required_class
-    )
-`
+        id,                 
+        is_equipped,        
+        is_locked,
+        item:item_master_id ( 
+            id, 
+            name, 
+            flavor_text, 
+            description, 
+            base_energeia_cost, 
+            type, 
+            image_path,
+            hidden_stat_type,   
+            hidden_buff_value,
+            required_class
+        )
+      `,
         )
         .eq("user_id", currentUserId);
 
       if (error) throw error;
 
-      const liveInventory: Item[] = data
-        .map((record) => {
-          const itemMaster = record.item as any;
+      // --- GROUPING LOGIC START ---
+      const groupedItems: { [key: string]: Item } = {};
 
-          // ... (check itemMaster is not null) ...
+      data.forEach((record) => {
+        const itemMaster = record.item as any;
+        if (!itemMaster) return;
 
-          return {
-            // ... user_inventory data ...
+        const itemId = itemMaster.id;
+
+        // We group by item_id ONLY for consumables.
+        // Equippables (sword, etc.) usually stay unique so you can equip one and not the other.
+        const isStackable = itemMaster.type === "consumable";
+        const groupKey = isStackable ? itemId : record.id;
+
+        if (groupedItems[groupKey]) {
+          groupedItems[groupKey].quantity += 1;
+        } else {
+          groupedItems[groupKey] = {
             id: record.id,
-            is_equipped: record.is_equipped,
-            isLocked: record.is_locked,
-
-            // items_master data
-            item_id: itemMaster.id,
+            item_id: itemId,
+            quantity: 1,
             name: itemMaster.name,
+            imageSource: { uri: itemMaster.image_path }, // Directly use the Supabase URL
             energeiaNumber: itemMaster.base_energeia_cost,
             type: itemMaster.type,
             flavorText: itemMaster.flavor_text,
             description: itemMaster.description,
             requiredClass: itemMaster.required_class,
-
-            // 🌟 ADD THIS LINE 🌟
-            imageSource:
-              ResolvedImageSourceMap[itemMaster.id] || DEFAULT_IMAGE_SOURCE,
-
-            // ... You also need the hiddenBonus data mapped here ...
             hiddenBonus: {
               stat: itemMaster.hidden_stat_type,
               buff: itemMaster.hidden_buff_value,
             },
           } as Item;
-        })
-        .filter((item) => item !== null) as Item[];
+        }
+      });
 
-      setInventory(liveInventory);
+      // Convert our map back into an array for the state
+      setInventory(Object.values(groupedItems));
+      // --- GROUPING LOGIC END ---
     } catch (e: any) {
       console.error("Inventory Fetch Error:", e.message);
     }
-  }, []); // Dependencies are stable
+  }, []);
 
   // --- AUTH & REFRESH (KEPT) ---
   useEffect(() => {
@@ -426,7 +425,7 @@ export default function ItemsTabScreen() {
         fetchInventory(userId);
       }
       return () => {};
-    }, [userId, fetchProfile, fetchInventory])
+    }, [userId, fetchProfile, fetchInventory]),
   );
 
   // --- HANDLERS (KEPT, BUT NOW PASSED AS PROPS) ---
@@ -447,7 +446,7 @@ export default function ItemsTabScreen() {
       const sellPrice = Math.floor(item.energeiaNumber / 2);
       const finalEnergeia = Math.min(
         profile.current_energeia + sellPrice,
-        profile.max_energeia
+        profile.max_energeia,
       );
 
       await supabase
@@ -482,7 +481,7 @@ export default function ItemsTabScreen() {
           const buff = item.hiddenBonus.buff;
           const newEnergeia = Math.min(
             profile.current_energeia + buff,
-            profile.max_energeia
+            profile.max_energeia,
           );
 
           await supabase
@@ -560,7 +559,6 @@ const styles = StyleSheet.create({
     shadowColor: "#2ECC71",
     shadowOpacity: 0.8,
   },
-  // ... (rest of the styles are the same)
   gridContainer: {
     flex: 1,
     paddingHorizontal: 10,
@@ -659,6 +657,29 @@ const styles = StyleSheet.create({
   },
   lockIcon: {
     fontSize: 14,
+  },
+  loading: {
+    marginTop: 50,
+  },
+  text: {
+    marginTop: 10,
+    fontSize: 16,
+    textAlign: "center",
+    color: "#666",
+  },
+  stackBadge: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  stackText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "bold",
   },
 });
 

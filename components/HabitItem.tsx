@@ -32,31 +32,27 @@ interface HabitItemProps {
  * @returns A hex color string.
  */
 const getStreakColor = (streakLevel: number): string => {
-  // Define simple thresholds for the color gradient
-  const GREEN_THRESHOLD = 2;
-  const YELLOW_THRESHOLD = 1;
-  const RED_THRESHOLD = 0;
-
-  // Note: We use the local fallback colors since we can't be sure of the Colors.ts content
   const colorMap = {
-    red: "#E85A4F", // Darker Red
-    yellow: "#F4D35E", // Mustard Yellow
-    green: "#4CAF50", // Standard Green
-    neutral: "#A737FD", // Default app tint for mid-range positive
+    red: "#E85A4F", // Negative streak
+    yellow: "#F4D35E", // Neutral (0)
+    green: "#4CAF50", // High positive streak
+    neutral: Colors?.light?.tint || "#A737FD", // Default positive
   };
 
-  if (streakLevel >= GREEN_THRESHOLD) {
-    return colorMap.green;
+  if (streakLevel > 0) {
+    // If it's a very strong streak (2+), use full green
+    if (streakLevel >= 2) {
+      return colorMap.green;
+    }
+    // If it's just starting (1), use your app's purple tint
+    return colorMap.neutral;
   }
-  if (streakLevel >= YELLOW_THRESHOLD) {
-    // Use the primary app tint color for a good, but not perfect, streak
-    // @ts-ignore: Assuming Colors.light.tint exists or defaults will apply
-    return Colors?.light?.tint || colorMap.neutral;
-  }
-  if (streakLevel >= RED_THRESHOLD) {
+
+  if (streakLevel === 0) {
     return colorMap.yellow;
   }
-  // If streakLevel is negative (i.e., less than RED_THRESHOLD)
+
+  // If streakLevel is negative (< 0)
   return colorMap.red;
 };
 

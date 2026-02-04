@@ -338,20 +338,31 @@ export default function HabitScreen() {
 
       const { is_positive, is_negative, streak_level, difficulty } = habitData;
 
-      // 2. Calculate Streak Update (This logic remains the same for streak tracking)
+      // 2. Calculate Streak Update (Reset to Yellow Logic)
       let newStreakLevel = streak_level;
-      let change = 0;
-      if (is_positive && !is_negative) {
-        change = direction === "up" ? 1 : -1;
-      } else if (is_negative && !is_positive) {
-        change = direction === "down" ? 1 : -1; // Negative habit success is 'down' press
+
+      if (direction === "up") {
+        // If we are in the red, a single '+' brings us back to neutral yellow (0)
+        if (streak_level < 0) {
+          newStreakLevel = 0;
+        } else {
+          // If already yellow or green, just increment
+          newStreakLevel = streak_level + 1;
+        }
       } else {
-        // Mixed/Dual habit
-        change = direction === "up" ? 1 : -1;
+        // direction === "down"
+        // If we are in the green, a single '-' resets us to neutral yellow (0)
+        if (streak_level > 0) {
+          newStreakLevel = 0;
+        } else {
+          // If already yellow or red, go deeper into red
+          newStreakLevel = streak_level - 1;
+        }
       }
-      newStreakLevel = streak_level + change;
-      if (newStreakLevel < -1) {
-        newStreakLevel = -1;
+
+      // Keep the floor to keep it manageable
+      if (newStreakLevel < -3) {
+        newStreakLevel = -3;
       }
 
       // 3. Calculate Stat Changes (Uses the simplified logic)
@@ -403,6 +414,35 @@ export default function HabitScreen() {
         .eq("id", userId);
 
       if (profileError) throw profileError;
+
+      // --- CALENDAR LOG UPDATE START ---
+      // 1. Map streak to calendar status
+      let calendarStatus: "green" | "orange" | "red" = "orange";
+      if (newStreakLevel > 0) {
+        calendarStatus = "green";
+      } else if (newStreakLevel < 0) {
+        calendarStatus = "red";
+      } else {
+        calendarStatus = "orange"; // Yellow/Neutral
+      }
+
+      // 2. Format date for Moscow/Local (YYYY-MM-DD)
+      const now = new Date();
+      const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+      // 3. Upsert the log for this specific habit today
+      const { error: logError } = await supabase.from("habit_logs").upsert(
+        {
+          habit_id: habitId,
+          user_id: userId,
+          log_date: dateKey,
+          status: calendarStatus,
+          notes: `Auto-logged via button press. Streak: ${newStreakLevel}`,
+        },
+        { onConflict: "habit_id, log_date" },
+      );
+
+      if (logError) console.error("Calendar Log Error:", logError.message);
 
       await checkStoryDrop(userId); //random drop call
 

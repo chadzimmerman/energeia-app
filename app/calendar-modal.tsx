@@ -16,10 +16,10 @@ type HabitStatus = "green" | "orange" | "red" | "grey";
 
 const STATUS_OPTIONS: { label: string; status: HabitStatus; color: string }[] =
   [
-    { label: "Successful", status: "green", color: "#2ECC71" },
-    { label: "Partial/Difficult", status: "orange", color: "#E67E22" },
-    { label: "Missed/Failed", status: "red", color: "#E74C3C" },
-    { label: "Untracked (Reset)", status: "grey", color: "#B0BEC5" },
+    { label: "Bright", status: "green", color: "#2ECC71" },
+    { label: "Dimming", status: "orange", color: "#E67E22" },
+    { label: "Darkened", status: "red", color: "#E74C3C" },
+    { label: "Untracked", status: "grey", color: "#B0BEC5" },
   ];
 
 interface DailyLogModalProps {

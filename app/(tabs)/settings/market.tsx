@@ -70,22 +70,47 @@ const MarketDetailsModal: React.FC<{
   const canAfford = playerEnergeia >= item.price;
 
   const handleBuy = async () => {
-    if (!item || !userId || playerEnergeia < item.price) return;
+    console.log("Starting purchase...");
 
-    const { error } = await supabase.from("user_inventory").insert({
-      user_id: userId,
-      item_master_id: item.id,
-    });
+    try {
+      // 1. Insert into inventory
+      const { data: invData, error: invError } = await supabase
+        .from("user_inventory")
+        .insert({
+          user_id: userId,
+          item_master_id: item.id,
+        })
+        .select(); // Add .select() to verify data return
 
-    if (!error) {
-      // Deduct money
-      await supabase
+      if (invError) {
+        console.error("INVENTORY ERROR:", invError.message);
+        alert("Inventory Error: " + invError.message);
+        return;
+      }
+
+      console.log("Item added to inventory table.");
+
+      // 2. Deduct money from profile
+      const { error: profileError } = await supabase
         .from("profiles")
         .update({ current_energeia: playerEnergeia - item.price })
         .eq("id", userId);
 
-      onPurchaseSuccess(); // This triggers the refresh in the main screen
+      if (profileError) {
+        console.error("PROFILE ERROR:", profileError.message);
+        alert("Currency Error: " + profileError.message);
+        return;
+      }
+
+      console.log("Money deducted successfully.");
+
+      // 3. Success
+      onPurchaseSuccess();
       onClose();
+      alert("Purchase Successful!");
+    } catch (err: any) {
+      console.error("CATCH ERROR:", err);
+      alert("System Error: " + err.message);
     }
   };
 
@@ -122,11 +147,7 @@ const MarketDetailsModal: React.FC<{
 
           {/* Item Image */}
           <Image
-            source={
-              item.imageSource
-                ? { uri: item.imageSource }
-                : { uri: "https://placehold.co/60x60/png?text=Item" }
-            }
+            source={{ uri: item.imageSource }} // item.imageSource is the full Supabase URL
             style={modalStyles.itemImage}
             resizeMode="contain"
           />
@@ -294,13 +315,17 @@ export default function MarketScreen() {
 
       // Map DB columns to your MarketItem interface
       const availableItems: MarketItem[] = items
-        .filter((item) => !item.is_unique || !ownedIds.includes(item.id))
+        .filter((item) => {
+          // ONLY hide it if it's unique AND you already own it.
+          if (item.is_unique && ownedIds.includes(item.id)) {
+            return false;
+          }
+          return true; // Consumables (like candles) stay in the shop forever!
+        })
         .map((item) => ({
           id: item.id,
           name: item.name,
-          // Use your ResolvedImageSourceMap logic here if needed,
-          // or a helper to turn the path into a require()
-          imageSource: item.image_path,
+          imageSource: item.image_path, // This is now a full public URL
           price: item.base_energeia_cost,
           isLocked: false,
           type: item.type,

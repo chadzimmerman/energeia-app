@@ -1,5 +1,11 @@
 import { Text, View } from "@/components/Themed";
-import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
 
 // MOCK DATA for the About page
 const ABOUT_DATA = [
@@ -34,7 +40,7 @@ const ABOUT_DATA = [
       {
         id: "linkedin",
         label: "LinkedIn",
-        detail: "@chadzimmerman",
+        detail: "chad-zimmerman-codes",
         action: "link",
       },
       {
@@ -49,6 +55,41 @@ const ABOUT_DATA = [
 
 // Helper component for the list sections (similar to SettingsSection)
 const AboutSection = ({ section }) => {
+  const handlePress = (item) => {
+    // 1. Handle Email/Support actions
+    if (item.id === "feedback" || item.id === "bug") {
+      handleContactSupport(item.id);
+      return;
+    }
+
+    // 2. Handle External Links (Website, Socials)
+    if (item.action === "link" && item.detail) {
+      let url = "";
+      if (item.id === "website") url = `https://${item.detail}`;
+      if (item.id === "twitter")
+        url = `https://twitter.com/${item.detail.replace("@", "")}`;
+      if (item.id === "github")
+        url = `https://github.com/${item.detail.replace("@", "")}`;
+      if (item.id === "linkedin")
+        url = `https://www.linkedin.com/in/${item.detail}`;
+
+      if (url) {
+        Linking.openURL(url).catch((err) =>
+          console.error("Couldn't load page", err),
+        );
+      }
+      return;
+    }
+
+    // 3. Handle Leave Review (Placeholder)
+    if (item.id === "review") {
+      Alert.alert(
+        "Coming Soon",
+        "App Store review link will be added once we're live!",
+      );
+    }
+  };
+
   return (
     <View style={aboutStyles.sectionContainer}>
       <View style={aboutStyles.list}>
@@ -59,7 +100,7 @@ const AboutSection = ({ section }) => {
               aboutStyles.item,
               index < section.items.length - 1 && aboutStyles.separator,
             ]}
-            onPress={() => console.log(`Action for ${item.id}`)}
+            onPress={() => handlePress(item)} // 🔥 Now calls our routing logic
           >
             <Text style={aboutStyles.label}>{item.label}</Text>
             {item.detail && (
@@ -78,6 +119,31 @@ export const options = {
   // ✅ This uses the previous screen's title ("Settings")
   headerBackTitle: "Settings",
   headerBackTitleVisible: true,
+};
+
+const handleContactSupport = (type: "feedback" | "bug") => {
+  const email = "chadzimmerman.codes@gmail.com";
+  const subject =
+    type === "bug"
+      ? "🐛 Bug Report - Energe.ia App"
+      : "✨ Feedback - Energe.ia App";
+
+  const body =
+    type === "bug"
+      ? "Describe the bug:\n\nSteps to reproduce:\n\nDevice/OS:"
+      : "Your feedback:";
+
+  const url = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  Linking.canOpenURL(url)
+    .then((supported) => {
+      if (supported) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert("Error", "No email app found on this device.");
+      }
+    })
+    .catch((err) => console.error("An error occurred", err));
 };
 
 export default function AboutScreen() {
