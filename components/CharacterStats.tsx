@@ -4,6 +4,7 @@ import {
   Image,
   ImageSourcePropType,
   StyleSheet,
+  Text,
   View,
 } from "react-native";
 
@@ -17,6 +18,7 @@ interface CharacterStatsProps {
   maxHealth: number;
   currentEnergy: number;
   maxEnergy: number;
+  level?: number;
 }
 
 const CharacterStats: React.FC<CharacterStatsProps> = ({
@@ -26,6 +28,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   maxHealth,
   currentEnergy,
   maxEnergy,
+  level = 1,
 }) => {
   // Calculate bar percentages
   const healthPercent = (currentHealth / maxHealth) * 100;
@@ -77,13 +80,16 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               </View>
             </View>
           </View>
+
+          {/* Level Display */}
+          <Text style={styles.levelText}>Level {level}</Text>
         </View>
       </View>
     </View>
   );
 };
 
-const CARD_HEIGHT = 150; // Total height of the card area
+const CARD_HEIGHT = 170; // Total height of the card area
 
 const styles = StyleSheet.create({
   container: {
@@ -123,10 +129,10 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   statsContainer: {
-    position: "absolute", // Keep this to position the entire stat block relative to the card
+    position: "absolute",
     left: 115,
     top: 10,
-    height: 100,
+    height: 120,
     justifyContent: "space-between",
     paddingVertical: 5,
     zIndex: 10,
@@ -191,6 +197,11 @@ const styles = StyleSheet.create({
     height: 20,
     marginLeft: 5,
     //tintColor: "#EEDD82", // Light gold for the bolt icon
+  },
+  levelText: {
+    fontSize: 13,
+    fontWeight: "bold",
+    color: "#A737FD",
   },
 });
 

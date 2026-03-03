@@ -43,8 +43,10 @@ interface Profile {
   username: string;
   current_health: number;
   max_health: number;
-  current_energeia: number; // This is the currency
+  current_energeia: number;
   max_energeia: number;
+  energeia_currency: number;
+  level: number;
   character_image_path: string;
 }
 
@@ -444,14 +446,10 @@ export default function ItemsTabScreen() {
     // ... (Sell logic remains the same) ...
     try {
       const sellPrice = Math.floor(item.energeiaNumber / 2);
-      const finalEnergeia = Math.min(
-        profile.current_energeia + sellPrice,
-        profile.max_energeia,
-      );
 
       await supabase
         .from("profiles")
-        .update({ current_energeia: finalEnergeia })
+        .update({ energeia_currency: profile.energeia_currency + sellPrice })
         .eq("id", userId);
 
       await supabase.from("user_inventory").delete().eq("id", item.id);
@@ -479,14 +477,31 @@ export default function ItemsTabScreen() {
       } else if (item.type === "consumable") {
         if (item.hiddenBonus.stat === "energeia") {
           const buff = item.hiddenBonus.buff;
-          const newEnergeia = Math.min(
-            profile.current_energeia + buff,
-            profile.max_energeia,
-          );
+          let newEnergeia = profile.current_energeia + buff;
+          let newLevel = profile.level;
+          const newCurrency = profile.energeia_currency + buff;
+          let didLevelUp = false;
+
+          let levelThreshold = 100 + (newLevel - 1) * 20;
+          while (newEnergeia >= levelThreshold) {
+            newEnergeia -= levelThreshold;
+            newLevel += 1;
+            didLevelUp = true;
+            levelThreshold = 100 + (newLevel - 1) * 20;
+          }
+
+          const updateData: any = {
+            current_energeia: newEnergeia,
+            energeia_currency: newCurrency,
+            level: newLevel,
+          };
+          if (didLevelUp) {
+            updateData.current_health = profile.max_health;
+          }
 
           await supabase
             .from("profiles")
-            .update({ current_energeia: newEnergeia })
+            .update(updateData)
             .eq("id", userId);
 
           await supabase.from("user_inventory").delete().eq("id", item.id);
@@ -523,14 +538,15 @@ export default function ItemsTabScreen() {
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}
         currentEnergy={profile.current_energeia}
-        maxEnergy={profile.max_energeia}
+        maxEnergy={100 + (profile.level - 1) * 20}
+        level={profile.level}
       />
 
       {/* 2. Item Grid (Passing live inventory and currency) */}
       <ItemGrid
         onSelectItem={handleSelectItem}
         inventory={inventory}
-        playerEnergeia={profile.current_energeia}
+        playerEnergeia={profile.energeia_currency}
       />
 
       {/* 3. Item Details Modal (Passing live item and live handlers) */}
@@ -538,7 +554,7 @@ export default function ItemsTabScreen() {
         isVisible={isModalVisible}
         item={selectedItem}
         onClose={handleCloseModal}
-        playerEnergeia={profile.current_energeia}
+        playerEnergeia={profile.energeia_currency}
         handleSell={handleSell}
         handleUseEquip={handleUseEquip}
       />
@@ -576,6 +592,7 @@ const styles = StyleSheet.create({
   currencyRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
+    marginTop: 12,
     marginBottom: 15,
     marginRight: 10,
   },

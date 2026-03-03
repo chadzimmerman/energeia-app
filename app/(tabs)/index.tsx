@@ -19,8 +19,9 @@ interface Profile {
   max_health: number;
   current_energeia: number;
   max_energeia: number;
+  energeia_currency: number;
+  level: number;
   character_image_path: string;
-  // ... add other columns as needed
 }
 
 interface Habit {
@@ -89,20 +90,37 @@ const checkStoryDrop = async (userId: string) => {
         // 1. Reward Energeia
         const { data: profile } = await supabase
           .from("profiles")
-          .select("current_energeia, max_energeia")
+          .select("current_energeia, level, energeia_currency, max_health")
           .eq("id", userId)
           .single();
 
         if (profile) {
           const reward = storyData.reward_energeia || 0;
-          const newEnergeia = Math.min(
-            profile.current_energeia + reward,
-            profile.max_energeia,
-          );
+          let newEnergeia = profile.current_energeia + reward;
+          let newLevel = profile.level;
+          const newCurrency = profile.energeia_currency + reward;
+          let didLevelUp = false;
+
+          let levelThreshold = 100 + (newLevel - 1) * 20;
+          while (newEnergeia >= levelThreshold) {
+            newEnergeia -= levelThreshold;
+            newLevel += 1;
+            didLevelUp = true;
+            levelThreshold = 100 + (newLevel - 1) * 20;
+          }
+
+          const updateData: any = {
+            current_energeia: newEnergeia,
+            level: newLevel,
+            energeia_currency: newCurrency,
+          };
+          if (didLevelUp) {
+            updateData.current_health = profile.max_health;
+          }
 
           await supabase
             .from("profiles")
-            .update({ current_energeia: newEnergeia })
+            .update(updateData)
             .eq("id", userId);
         }
 
@@ -216,10 +234,9 @@ export default function HabitScreen() {
         if (user) {
           currentUserId = user.id;
         } else {
-          const { data, error: signInError } =
-            await supabase.auth.signInAnonymously();
-          if (signInError) throw signInError;
-          currentUserId = data.user?.id || null;
+          // No session — _layout.tsx will redirect to login, so nothing to do here
+          setError("Not logged in.");
+          return;
         }
 
         if (currentUserId) {
@@ -270,18 +287,9 @@ export default function HabitScreen() {
     const healthDamageMultiplier = 1.5;
 
     // 1. DETERMINE REWARD MAGNITUDE (Positive Press)
-    let rewardMagnitude = 0;
-
-    if (clampedDifficulty <= 5) {
-      // Low/Medium Difficulty (D=1 gives 1, D=5 gives 5)
-      // Note: Your goal was D=1 -> 0.5. We will use D/2 to get 0.5 at D=1, and 2.5 at D=5.
-      // Let's aim closer to 1-to-5 scale for 1-to-5 difficulty, and use decimals.
-      rewardMagnitude = clampedDifficulty * 1; // Example: D=5 gives 5.0
-    } else {
-      // High Difficulty (D=6 to D=10). Ramps up quickly to 15 at D=10.
-      // We need a steep ramp from 5 to 15. The ramp height is 10, over 5 steps.
-      rewardMagnitude = 5 + (clampedDifficulty - 5) * 2;
-    }
+    // Easy (1) = 1pt, Medium (5) = 3pts, Hard (10) = 5pts
+    const REWARD_BY_DIFFICULTY: { [key: number]: number } = { 1: 1, 5: 3, 10: 5 };
+    const rewardMagnitude = REWARD_BY_DIFFICULTY[clampedDifficulty] ?? 1;
 
     // 2. DETERMINE PENALTY MAGNITUDE (Negative Press)
 
@@ -374,23 +382,42 @@ export default function HabitScreen() {
       // 4. Fetch Profile Details (for current stats)
       const { data: profileData, error: profileFetchError } = await supabase
         .from("profiles")
-        .select("current_health, max_health, current_energeia, max_energeia")
+        .select("current_health, max_health, current_energeia, level, energeia_currency")
         .eq("id", userId)
         .single();
 
       if (profileFetchError || !profileData)
         throw profileFetchError || new Error("Profile not found.");
 
-      const { current_health, max_health, current_energeia, max_energeia } =
+      const { current_health, max_health, current_energeia, level, energeia_currency } =
         profileData;
 
-      // 5. Apply Stat Changes (with max/min caps)
-      let newHealth = current_health + healthChange;
+      // 5. Apply Stat Changes
+      let newHealth = Math.min(Math.max(current_health + healthChange, 0), max_health);
       let newEnergeia = current_energeia + energeiaChange;
+      let newLevel = level;
+      let newCurrency = energeia_currency;
+      let didLevelUp = false;
 
-      // Cap checks
-      newHealth = Math.min(Math.max(newHealth, 0), max_health);
-      newEnergeia = Math.min(Math.max(newEnergeia, 0), max_energeia);
+      if (energeiaChange > 0) {
+        // Earning: tick up the wallet and handle level-up with overflow carry-forward
+        newCurrency = energeia_currency + energeiaChange;
+        let levelThreshold = 100 + (newLevel - 1) * 20;
+        while (newEnergeia >= levelThreshold) {
+          newEnergeia -= levelThreshold;
+          newLevel += 1;
+          didLevelUp = true;
+          levelThreshold = 100 + (newLevel - 1) * 20;
+        }
+      } else {
+        // Penalty: XP bar goes down but floors at 0 (never lose a level)
+        newEnergeia = Math.max(newEnergeia, 0);
+      }
+
+      // Level up restores health to full
+      if (didLevelUp) {
+        newHealth = max_health;
+      }
 
       // --- TRANSACTION: Perform both updates ---
 
@@ -410,10 +437,16 @@ export default function HabitScreen() {
         .update({
           current_health: newHealth,
           current_energeia: newEnergeia,
+          level: newLevel,
+          energeia_currency: newCurrency,
         })
         .eq("id", userId);
 
       if (profileError) throw profileError;
+
+      if (didLevelUp) {
+        alert(`You have reached Level ${newLevel}! Your health has been fully restored.`);
+      }
 
       // --- CALENDAR LOG UPDATE START ---
       // 1. Map streak to calendar status
@@ -426,7 +459,7 @@ export default function HabitScreen() {
         calendarStatus = "orange"; // Yellow/Neutral
       }
 
-      // 2. Format date for Moscow/Local (YYYY-MM-DD)
+      // 2. Format date for Local (YYYY-MM-DD)
       const now = new Date();
       const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
@@ -499,6 +532,14 @@ export default function HabitScreen() {
     );
   }
 
+  if (!profile) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" style={styles.loading} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <CharacterStats
@@ -507,7 +548,8 @@ export default function HabitScreen() {
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}
         currentEnergy={profile.current_energeia}
-        maxEnergy={profile.max_energeia}
+        maxEnergy={100 + (profile.level - 1) * 20}
+        level={profile.level}
       />
       <HabitList
         habits={habits}

@@ -2,7 +2,6 @@ import { Text, View } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import Slider from "@react-native-community/slider";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
@@ -26,18 +25,22 @@ interface Habit {
 interface HabitEditModalProps {
   isVisible: boolean;
   onClose: () => void;
-  // The habit object to edit. Null if no habit is selected.
   habitToEdit: Habit | null;
-  // Function to call after successful save or delete, to trigger a refresh of the list
   onHabitChange: () => void;
 }
 
-// --- Effort Scale Constants (Reused for Difficulty) ---
-const DIFFICULTY_LABELS = {
-  1: "Easy (1)",
-  5: "Medium (5)",
-  10: "Hard (10)",
-};
+const DIFFICULTIES = [
+  { label: "Easy", value: 1, stars: 1 },
+  { label: "Medium", value: 5, stars: 2 },
+  { label: "Hard", value: 10, stars: 3 },
+];
+
+// Snap a 1-10 stored value to the nearest Easy/Medium/Hard tier
+function snapDifficulty(value: number): number {
+  if (value <= 3) return 1;
+  if (value <= 7) return 5;
+  return 10;
+}
 
 export default function HabitEditModal({
   isVisible,
@@ -45,26 +48,23 @@ export default function HabitEditModal({
   habitToEdit,
   onHabitChange,
 }: HabitEditModalProps) {
-  // State for the editable habit properties
   const [title, setTitle] = useState("");
   const [isPositive, setIsPositive] = useState(true);
   const [isNegative, setIsNegative] = useState(false);
-  const [difficulty, setDifficulty] = useState(5);
+  const [difficulty, setDifficulty] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Effect to populate state when a new habit is passed in
   useEffect(() => {
     if (isVisible && habitToEdit) {
       setTitle(habitToEdit.title);
       setIsPositive(habitToEdit.is_positive);
       setIsNegative(habitToEdit.is_negative);
-      setDifficulty(habitToEdit.difficulty);
+      setDifficulty(snapDifficulty(habitToEdit.difficulty));
     } else if (isVisible && !habitToEdit) {
-      // Should ideally not happen if only opened from HabitItem click
       setTitle("");
       setIsPositive(true);
       setIsNegative(false);
-      setDifficulty(5);
+      setDifficulty(1);
     }
   }, [isVisible, habitToEdit]);
 
@@ -99,7 +99,6 @@ export default function HabitEditModal({
 
       if (error) throw error;
 
-      // Success: Trigger refresh and close
       onHabitChange();
       onClose();
     } catch (e: any) {
@@ -118,10 +117,7 @@ export default function HabitEditModal({
       "Confirm Deletion",
       `Are you sure you want to delete the habit: "${habitToEdit.title}"? This cannot be undone.`,
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
@@ -135,7 +131,6 @@ export default function HabitEditModal({
 
               if (error) throw error;
 
-              // Success: Trigger refresh and close
               onHabitChange();
               onClose();
             } catch (e: any) {
@@ -156,183 +151,181 @@ export default function HabitEditModal({
   return (
     <Modal
       animationType="slide"
-      transparent={true}
+      transparent={false}
       visible={isVisible}
       onRequestClose={onClose}
     >
-      <View style={styles.centeredView}>
-        <View style={styles.modalView}>
-          <Text style={styles.modalTitle}>Edit Habit</Text>
-
-          {/* 1. Title Input */}
-          <View style={styles.controlSection}>
-            <Text style={styles.sectionTitle}>TITLE</Text>
-            <TextInput
-              placeholder="Habit Name"
-              placeholderTextColor="#999"
-              style={styles.textInput}
-              value={title}
-              onChangeText={setTitle}
-            />
-          </View>
-
-          {/* 2. Type Selector (Positive/Negative) */}
-          <View style={styles.controlSection}>
-            <Text style={styles.sectionTitle}>TYPE</Text>
-            <View style={styles.controlRow}>
-              {/* POSITIVE BUTTON */}
-              <TouchableOpacity
-                style={[styles.typeButton, isPositive && styles.activeControl]}
-                onPress={() => setIsPositive((prev) => !prev)}
-              >
-                <FontAwesome
-                  name="plus"
-                  size={20}
-                  color={isPositive ? "#fff" : Colors.light.tint}
-                />
-                <Text
-                  style={[
-                    styles.controlText,
-                    isPositive && styles.activeControlText,
-                  ]}
-                >
-                  Positive
-                </Text>
-              </TouchableOpacity>
-
-              {/* NEGATIVE BUTTON */}
-              <TouchableOpacity
-                style={[styles.typeButton, isNegative && styles.activeControl]}
-                onPress={() => setIsNegative((prev) => !prev)}
-              >
-                <FontAwesome
-                  name="minus"
-                  size={20}
-                  color={isNegative ? "#fff" : Colors.light.tint}
-                />
-                <Text
-                  style={[
-                    styles.controlText,
-                    isNegative && styles.activeControlText,
-                  ]}
-                >
-                  Negative
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* 3. Difficulty Slider (1-10) */}
-          <View style={styles.controlSection}>
-            <Text style={styles.sectionTitle}>DIFFICULTY (1-10)</Text>
-
-            <Slider
-              style={styles.slider}
-              minimumValue={1}
-              maximumValue={10}
-              step={1}
-              value={difficulty}
-              onValueChange={setDifficulty}
-              minimumTrackTintColor={Colors.light.tint}
-              maximumTrackTintColor="#DCDCDC"
-              thumbTintColor={Colors.light.tint}
-            />
-
-            <View style={styles.sliderLabelRow}>
-              <Text style={styles.sliderLabel}>{DIFFICULTY_LABELS[1]}</Text>
-              <Text style={styles.sliderLabelCenter}>
-                {DIFFICULTY_LABELS[5]}
-              </Text>
-              <Text style={styles.sliderLabelRight}>
-                {DIFFICULTY_LABELS[10]}
-              </Text>
-            </View>
-
-            <Text style={styles.currentEffortText}>
-              Current Difficulty: {difficulty}
+      <View style={styles.container}>
+        {/* 1. Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose} disabled={isSaving}>
+            <Text style={styles.headerAction}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit Habit</Text>
+          <TouchableOpacity onPress={handleSave} disabled={isSaving}>
+            <Text style={[styles.headerAction, styles.headerActionBold]}>
+              {isSaving ? "Saving..." : "Save"}
             </Text>
-          </View>
+          </TouchableOpacity>
+        </View>
 
-          {/* 4. Action Buttons (Delete, Cancel, Save) */}
-          <View style={styles.actionRow}>
-            {/* DELETE BUTTON - NEW FEATURE */}
+        {/* 2. Title Input */}
+        <View style={styles.inputSection}>
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Habit Title"
+            placeholderTextColor="#D0C2F2"
+            style={[styles.textInput, styles.titleInput]}
+          />
+        </View>
+
+        {/* 3. Controls: Positive / Negative */}
+        <View style={styles.controlSection}>
+          <Text style={styles.sectionTitle}>CONTROLS</Text>
+          <View style={styles.controlRow}>
             <TouchableOpacity
-              onPress={handleDelete}
-              style={styles.deleteButton}
-              disabled={isSaving}
+              style={[styles.controlButton, isPositive && styles.activeControl]}
+              onPress={() => setIsPositive((prev) => !prev)}
             >
-              <FontAwesome name="trash" size={16} color="#fff" />
-              <Text style={styles.deleteButtonText}>Delete</Text>
+              <FontAwesome
+                name="plus"
+                size={30}
+                color={isPositive ? "#fff" : Colors.light.tint}
+              />
+              <Text
+                style={[
+                  styles.controlText,
+                  isPositive && styles.activeControlText,
+                ]}
+              >
+                Positive
+              </Text>
             </TouchableOpacity>
 
-            <View style={styles.rightActionGroup}>
-              <TouchableOpacity
-                onPress={onClose}
-                style={styles.cancelButton}
-                disabled={isSaving}
+            <TouchableOpacity
+              style={[styles.controlButton, isNegative && styles.activeControl]}
+              onPress={() => setIsNegative((prev) => !prev)}
+            >
+              <FontAwesome
+                name="minus"
+                size={30}
+                color={isNegative ? "#fff" : Colors.light.tint}
+              />
+              <Text
+                style={[
+                  styles.controlText,
+                  isNegative && styles.activeControlText,
+                ]}
               >
-                <Text style={styles.buttonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSave}
-                style={styles.saveButton}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <Text style={[styles.buttonText, styles.saveButtonText]}>
-                    Saving...
-                  </Text>
-                ) : (
-                  <Text style={[styles.buttonText, styles.saveButtonText]}>
-                    Save Changes
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+                Negative
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
+
+        {/* 4. Difficulty Selector */}
+        <View style={styles.controlSection}>
+          <Text style={styles.sectionTitle}>DIFFICULTY</Text>
+          <View style={styles.difficultyRow}>
+            {DIFFICULTIES.map((d) => {
+              const isActive = difficulty === d.value;
+              return (
+                <TouchableOpacity
+                  key={d.value}
+                  style={styles.difficultyButton}
+                  onPress={() => setDifficulty(d.value)}
+                >
+                  <Text style={styles.difficultyLabel}>{d.label}</Text>
+                  <View style={styles.starContainer}>
+                    {Array(d.stars)
+                      .fill(0)
+                      .map((_, i) => (
+                        <FontAwesome
+                          key={i}
+                          name="star"
+                          size={18}
+                          color={isActive ? Colors.light.tint : "#DCDCDC"}
+                          style={{ marginHorizontal: 1 }}
+                        />
+                      ))}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 5. Danger Zone */}
+        <View style={styles.controlSection}>
+          <Text style={styles.sectionTitle}>DANGER ZONE</Text>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDelete}
+            disabled={isSaving}
+          >
+            <FontAwesome name="trash" size={16} color="#fff" />
+            <Text style={styles.deleteButtonText}>Delete This Habit</Text>
+          </TouchableOpacity>
+        </View>
+
+        <StatusBar style={Platform.OS === "ios" ? "light" : "auto"} />
       </View>
-      <StatusBar style={Platform.OS === "ios" ? "light" : "auto"} />
     </Modal>
   );
 }
 
-// app/HabitEditModal.tsx - Styles
 const styles = StyleSheet.create({
-  centeredView: {
+  container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "#F0F0F0",
   },
-  modalView: {
-    margin: 20,
-    backgroundColor: "white",
-    borderRadius: 20,
-    padding: 25,
+
+  // --- Header ---
+  header: {
+    flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    width: "90%",
+    justifyContent: "space-between",
+    backgroundColor: "#A737FD",
+    paddingHorizontal: 15,
+    paddingBottom: 15,
+    paddingTop: Platform.OS === "ios" ? 55 : 15,
   },
-  modalTitle: {
-    fontSize: 24,
+  headerTitle: {
+    color: "#fff",
+    fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 5,
-    color: "#333",
   },
-  habitTitleLabel: {
-    fontSize: 14,
-    color: "#999",
-    marginBottom: 20,
+  headerAction: {
+    color: "#fff",
+    fontSize: 16,
+    minWidth: 60,
+  },
+  headerActionBold: {
+    fontWeight: "bold",
+    textAlign: "right",
+  },
+
+  // --- Input Section ---
+  inputSection: {
+    paddingHorizontal: 15,
+    paddingVertical: 15,
+    backgroundColor: "#A737FD",
+  },
+  textInput: {
+    backgroundColor: "#7A22BD",
+    color: "#fff",
+    borderRadius: 8,
+    padding: 15,
+    fontSize: 16,
+  },
+  titleInput: {
+    height: 50,
   },
 
   // --- Controls Section ---
   controlSection: {
-    width: "100%",
+    paddingHorizontal: 15,
     paddingVertical: 10,
   },
   sectionTitle: {
@@ -342,30 +335,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  // Title Input
-  textInput: {
-    backgroundColor: "#F7F7F7",
-    color: "#333",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-  },
-
-  // Type Row (Positive/Negative)
+  // Controls Row (Positive/Negative)
   controlRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    backgroundColor: "#fff",
     borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#F0F0F0",
   },
-  typeButton: {
+  controlButton: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 12,
-    marginHorizontal: 1,
+    paddingVertical: 20,
+    backgroundColor: "#fff",
   },
   activeControl: {
     backgroundColor: Colors.light.tint,
@@ -374,97 +356,48 @@ const styles = StyleSheet.create({
     marginTop: 5,
     fontWeight: "600",
     color: Colors.light.tint,
-    fontSize: 14,
   },
   activeControlText: {
     color: "#fff",
   },
 
-  // Slider
-  slider: {
-    width: "100%",
-    height: 40,
-  },
-  sliderLabelRow: {
+  // Difficulty Row
+  difficultyRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginTop: -10,
-    paddingHorizontal: 0,
+    justifyContent: "space-around",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    overflow: "hidden",
+    paddingVertical: 10,
   },
-  sliderLabel: {
-    fontSize: 12,
-    color: "#999",
-    width: "30%",
-    textAlign: "left",
+  difficultyButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 5,
   },
-  sliderLabelCenter: {
-    fontSize: 12,
-    color: "#999",
-    width: "40%",
-    textAlign: "center",
-  },
-  sliderLabelRight: {
-    fontSize: 12,
-    color: "#999",
-    width: "30%",
-    textAlign: "right",
-  },
-  currentEffortText: {
-    textAlign: "center",
-    marginTop: 10,
+  difficultyLabel: {
     fontSize: 14,
     fontWeight: "600",
     color: "#555",
   },
-
-  // Action Buttons
-  actionRow: {
+  starContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginTop: 20,
-    alignItems: "center",
+    marginTop: 4,
   },
+
+  // Danger Zone
   deleteButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#E74C3C", // Red for destructive action
-    padding: 12,
-    borderRadius: 8,
-    marginRight: 10,
+    justifyContent: "center",
+    backgroundColor: "#E74C3C",
+    padding: 15,
+    borderRadius: 10,
+    gap: 8,
   },
   deleteButtonText: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#fff",
-    marginLeft: 5,
-  },
-  rightActionGroup: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-  },
-  cancelButton: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: "#E0E0E0",
-    marginRight: 10,
-    alignItems: "center",
-  },
-  saveButton: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: Colors.light.tint,
-    alignItems: "center",
-    minWidth: 100, // Ensure save button is wide enough for "Saving..."
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  saveButtonText: {
     color: "#fff",
   },
 });

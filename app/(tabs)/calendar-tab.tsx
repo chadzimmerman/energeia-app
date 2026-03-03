@@ -3,6 +3,7 @@ import {
   Dimensions,
   ImageSourcePropType,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -57,8 +58,8 @@ interface Profile {
   max_health: number;
   current_energeia: number;
   max_energeia: number;
+  level: number;
   character_image_path: string;
-  // ... add other columns as needed
 }
 
 // Helper function to resolve the image source correctly
@@ -480,7 +481,8 @@ export default function CalendarTabScreen() {
         currentHealth={profile?.current_health ?? 0}
         maxHealth={profile?.max_health ?? 100}
         currentEnergy={profile?.current_energeia ?? 0}
-        maxEnergy={profile?.max_energeia ?? 100}
+        maxEnergy={100 + ((profile?.level ?? 1) - 1) * 20}
+        level={profile?.level ?? 1}
       />
 
       {/* 2. Scrollable Content (Calendar and Habit Tracker) */}
@@ -505,38 +507,43 @@ export default function CalendarTabScreen() {
         onSave={handleSaveLog}
       />
       {/* Habit Selection Modal */}
-      <Modal visible={isPickerVisible} animationType="slide" transparent={true}>
-        <View style={modalStyles.centeredView}>
-          <View style={[modalStyles.modalView, { maxHeight: "50%" }]}>
-            <Text style={[modalStyles.modalTitle, { marginBottom: 20 }]}>
-              Select Habit
-            </Text>
-            <ScrollView>
-              {myHabits.map((habit) => (
-                <TouchableOpacity
-                  key={habit.id}
-                  style={{
-                    paddingVertical: 15,
-                    borderBottomWidth: 1,
-                    borderBottomColor: "#EEE",
-                  }}
-                  onPress={() => {
-                    setSelectedHabit(habit);
-                    setIsPickerVisible(false);
-                  }}
-                >
-                  <Text style={{ fontSize: 18, color: "#333" }}>
-                    {habit.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TouchableOpacity
-              onPress={() => setIsPickerVisible(false)}
-              style={{ marginTop: 20, alignItems: "center" }}
-            >
-              <Text style={{ color: "red", fontWeight: "bold" }}>Cancel</Text>
+      <Modal
+        visible={isPickerVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setIsPickerVisible(false)}
+      >
+        <View style={pickerStyles.container}>
+          {/* Header */}
+          <View style={pickerStyles.header}>
+            <Text style={pickerStyles.headerTitle}>Select a Habit</Text>
+            <TouchableOpacity onPress={() => setIsPickerVisible(false)}>
+              <Text style={pickerStyles.headerCancel}>Cancel</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Habit List */}
+          <View style={pickerStyles.controlSection}>
+            <Text style={pickerStyles.sectionTitle}>YOUR HABITS</Text>
+            <View style={pickerStyles.listContainer}>
+              <ScrollView>
+                {myHabits.map((habit, index) => (
+                  <TouchableOpacity
+                    key={habit.id}
+                    style={[
+                      pickerStyles.habitRow,
+                      index < myHabits.length - 1 && pickerStyles.habitRowBorder,
+                    ]}
+                    onPress={() => {
+                      setSelectedHabit(habit);
+                      setIsPickerVisible(false);
+                    }}
+                  >
+                    <Text style={pickerStyles.habitTitle}>{habit.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
           </View>
         </View>
       </Modal>
@@ -657,56 +664,32 @@ const calendarStyles = StyleSheet.create({
   },
 });
 
-// --- MODAL STYLES (renamed to modalStyles to avoid conflicts) ---
-const modalStyles = StyleSheet.create({
-  centeredView: {
+// --- HABIT PICKER MODAL STYLES ---
+const pickerStyles = StyleSheet.create({
+  container: {
     flex: 1,
-    justifyContent: "flex-end", // Modal slides up from the bottom
-    backgroundColor: "rgba(0,0,0,0.5)", // Dark overlay
-  },
-  modalView: {
     backgroundColor: "#F0F0F0",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    maxHeight: "80%", // Limit height
-    width: "100%",
   },
   header: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#A737FD",
+    paddingHorizontal: 15,
     paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-    backgroundColor: "transparent",
+    paddingTop: Platform.OS === "ios" ? 55 : 15,
   },
-  modalTitle: {
-    fontSize: 22,
+  headerTitle: {
+    color: "#fff",
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
   },
-  modalSubtitle: {
+  headerCancel: {
+    color: "#fff",
     fontSize: 16,
-    color: Colors.light.tint,
-    marginTop: 5,
-    fontWeight: "600",
   },
-  closeButton: {
-    position: "absolute",
-    left: 0,
-    padding: 5,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingVertical: 10,
-  },
-
-  // --- Controls Section ---
   controlSection: {
+    paddingHorizontal: 15,
     paddingVertical: 10,
   },
   sectionTitle: {
@@ -715,55 +698,22 @@ const modalStyles = StyleSheet.create({
     color: "#A9A9A9",
     marginBottom: 8,
   },
-  statusRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+  listContainer: {
     backgroundColor: "#fff",
     borderRadius: 10,
-    padding: 5,
+    overflow: "hidden",
   },
-  statusButton: {
-    width: "48%", // Allow for two buttons per row
-    alignItems: "center",
-    paddingVertical: 15,
-    marginVertical: 5,
-    borderRadius: 8,
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
+  habitRow: {
+    paddingVertical: 18,
+    paddingHorizontal: 15,
   },
-  statusText: {
-    fontWeight: "600",
-    fontSize: 16,
+  habitRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
   },
-
-  // --- Reflection Input ---
-  textInputContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    padding: 15,
-    minHeight: 100,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  placeholderText: {
-    color: "#A9A9A9",
-    fontStyle: "italic",
-    textAlign: "center",
-  },
-
-  // --- Save Button ---
-  saveButton: {
-    backgroundColor: Colors.light.tint, // Purple tint
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 20,
-    alignItems: "center",
-  },
-  saveButtonText: {
-    color: "#fff",
+  habitTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    color: "#333",
+    fontWeight: "500",
   },
 });

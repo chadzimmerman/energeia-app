@@ -157,6 +157,13 @@ const SettingsSection = ({
 
 // --- Component 3: Caution Section ---
 const CautionSection = ({ section }: { section: any }) => {
+  const handleCautionPress = async (itemId: string) => {
+    if (itemId === "logout") {
+      await supabase.auth.signOut();
+      // onAuthStateChange in _layout.tsx will redirect to /login automatically
+    }
+  };
+
   return (
     <View style={sectionStyles.sectionContainer}>
       {section.title && (
@@ -170,7 +177,7 @@ const CautionSection = ({ section }: { section: any }) => {
               sectionStyles.cautionItem,
               index < section.items.length - 1 && sectionStyles.separator,
             ]}
-            onPress={() => console.log(`Action for ${item.id}`)}
+            onPress={() => handleCautionPress(item.id)}
           >
             <Text style={sectionStyles.cautionLabel}>{item.label}</Text>
           </TouchableOpacity>

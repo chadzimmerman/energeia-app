@@ -90,10 +90,10 @@ const MarketDetailsModal: React.FC<{
 
       console.log("Item added to inventory table.");
 
-      // 2. Deduct money from profile
+      // 2. Deduct from currency wallet (not the XP bar)
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({ current_energeia: playerEnergeia - item.price })
+        .update({ energeia_currency: playerEnergeia - item.price })
         .eq("id", userId);
 
       if (profileError) {
@@ -348,12 +348,12 @@ export default function MarketScreen() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("current_energeia")
+        .select("energeia_currency")
         .eq("id", currentUserId)
         .single();
 
       if (error) throw error;
-      if (data) setPlayerEnergeia(data.current_energeia);
+      if (data) setPlayerEnergeia(data.energeia_currency);
     } catch (e: any) {
       console.error("Error fetching market currency:", e.message);
     }

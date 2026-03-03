@@ -1,9 +1,9 @@
 import { Text } from "@/components/Themed";
-import Colors from "@/constants/Colors";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import React, { useEffect, useState } from "react";
 import {
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 
-// Habit Status/Color Constants
 type HabitStatus = "green" | "orange" | "red" | "grey";
 
 const STATUS_OPTIONS: { label: string; status: HabitStatus; color: string }[] =
@@ -39,19 +38,17 @@ const DailyLogModal: React.FC<DailyLogModalProps> = ({
   initialStatus,
   habitTitle,
   onSave,
-  initialNotes = "", // 👈 ADD THIS HERE TOO
+  initialNotes = "",
 }) => {
   const [selectedStatus, setSelectedStatus] =
     useState<HabitStatus>(initialStatus);
   const [notes, setNotes] = useState(initialNotes);
 
-  // Sync internal state when props change
   useEffect(() => {
     setSelectedStatus(initialStatus);
-    setNotes(initialNotes); // 👈 THIS ensures the note loads when you click the day
+    setNotes(initialNotes);
   }, [date, isVisible, initialStatus, initialNotes]);
 
-  // Format the date for the modal header
   const formattedDate = date
     ? date.toLocaleDateString("en-US", {
         weekday: "long",
@@ -62,155 +59,145 @@ const DailyLogModal: React.FC<DailyLogModalProps> = ({
 
   const handleSave = () => {
     if (!date) return;
-
     onSave(selectedStatus, notes, date);
   };
 
-  if (!date) return null; // Don't render if date is null
+  if (!date) return null;
 
   return (
     <Modal
       animationType="slide"
-      transparent={true}
+      transparent={false}
       visible={isVisible}
       onRequestClose={onClose}
     >
-      <View style={styles.centeredView}>
-        <View style={styles.modalView}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <FontAwesome name="times" size={24} color="#A737FD" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{habitTitle}</Text>
-            <Text style={styles.modalSubtitle}>{formattedDate}</Text>
+      <View style={styles.container}>
+        {/* 1. Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose}>
+            <Text style={styles.headerAction}>Cancel</Text>
+          </TouchableOpacity>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {habitTitle}
+            </Text>
+            <Text style={styles.headerSubtitle}>{formattedDate}</Text>
           </View>
-
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            {/* Status Selector */}
-            <View style={styles.controlSection}>
-              <Text style={styles.sectionTitle}>STATUS</Text>
-              <View style={styles.statusRow}>
-                {STATUS_OPTIONS.map(({ label, status, color }) => {
-                  const isActive = selectedStatus === status;
-                  return (
-                    <TouchableOpacity
-                      key={status}
-                      style={[
-                        styles.statusButton,
-                        { backgroundColor: isActive ? color : "#fff" },
-                        { borderColor: color, borderWidth: 2 },
-                      ]}
-                      onPress={() => setSelectedStatus(status)}
-                    >
-                      <FontAwesome
-                        name={
-                          status === "green"
-                            ? "check"
-                            : status === "orange"
-                              ? "exclamation"
-                              : status === "red"
-                                ? "times"
-                                : "question"
-                        }
-                        size={20}
-                        color={isActive ? "#fff" : color}
-                      />
-                      <Text
-                        style={[
-                          styles.statusText,
-                          { color: isActive ? "#fff" : color },
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            {/* Notes/Reflection Input */}
-            <View style={styles.controlSection}>
-              <Text style={styles.sectionTitle}>
-                DAILY REFLECTION (OPTIONAL)
-              </Text>
-              <View style={styles.textInputContainer}>
-                <TextInput
-                  style={{
-                    width: "100%",
-                    minHeight: 80,
-                    textAlignVertical: "top",
-                  }}
-                  placeholder="How did this habit go today?"
-                  multiline
-                  value={notes}
-                  onChangeText={setNotes}
-                />
-              </View>
-            </View>
-          </ScrollView>
-
-          {/* Save Button */}
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Text style={styles.saveButtonText}>SAVE LOG</Text>
+          <TouchableOpacity onPress={handleSave}>
+            <Text style={[styles.headerAction, styles.headerActionBold]}>
+              Save
+            </Text>
           </TouchableOpacity>
         </View>
+
+        <ScrollView>
+          {/* 2. Status Selector */}
+          <View style={styles.controlSection}>
+            <Text style={styles.sectionTitle}>STATUS</Text>
+            <View style={styles.statusRow}>
+              {STATUS_OPTIONS.map(({ label, status, color }) => {
+                const isActive = selectedStatus === status;
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.statusButton,
+                      { backgroundColor: isActive ? color : "#fff" },
+                      { borderColor: color, borderWidth: 2 },
+                    ]}
+                    onPress={() => setSelectedStatus(status)}
+                  >
+                    <FontAwesome
+                      name={
+                        status === "green"
+                          ? "check"
+                          : status === "orange"
+                            ? "exclamation"
+                            : status === "red"
+                              ? "times"
+                              : "question"
+                      }
+                      size={20}
+                      color={isActive ? "#fff" : color}
+                    />
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: isActive ? "#fff" : color },
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* 3. Notes/Reflection Input */}
+          <View style={styles.controlSection}>
+            <Text style={styles.sectionTitle}>DAILY REFLECTION (OPTIONAL)</Text>
+            <View style={styles.notesContainer}>
+              <TextInput
+                style={styles.notesInput}
+                placeholder="How did this habit go today?"
+                placeholderTextColor="#D0C2F2"
+                multiline
+                value={notes}
+                onChangeText={setNotes}
+              />
+            </View>
+          </View>
+        </ScrollView>
       </View>
     </Modal>
   );
 };
 
-// --- STYLES FOR MODAL ---
 const styles = StyleSheet.create({
-  centeredView: {
+  container: {
     flex: 1,
-    justifyContent: "flex-end", // Modal slides up from the bottom
-    backgroundColor: "rgba(0,0,0,0.5)", // Dark overlay
-  },
-  modalView: {
     backgroundColor: "#F0F0F0",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    maxHeight: "80%", // Limit height
-    width: "100%",
-  },
-  header: {
-    alignItems: "center",
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
-    backgroundColor: "transparent",
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    color: Colors.light.tint,
-    marginTop: 5,
-    fontWeight: "600",
-  },
-  closeButton: {
-    position: "absolute",
-    left: 0,
-    padding: 5,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingVertical: 10,
   },
 
-  // --- Controls Section (Adapted from original modal styles) ---
+  // --- Header ---
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#A737FD",
+    paddingHorizontal: 15,
+    paddingBottom: 15,
+    paddingTop: Platform.OS === "ios" ? 55 : 15,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 10,
+  },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  headerSubtitle: {
+    color: "#E0C8FF",
+    fontSize: 13,
+    marginTop: 2,
+  },
+  headerAction: {
+    color: "#fff",
+    fontSize: 16,
+    minWidth: 55,
+  },
+  headerActionBold: {
+    fontWeight: "bold",
+    textAlign: "right",
+  },
+
+  // --- Controls Section ---
   controlSection: {
+    paddingHorizontal: 15,
     paddingVertical: 10,
   },
   sectionTitle: {
@@ -219,6 +206,8 @@ const styles = StyleSheet.create({
     color: "#A9A9A9",
     marginBottom: 8,
   },
+
+  // Status Row (2x2 grid)
   statusRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -228,7 +217,7 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   statusButton: {
-    width: "48%", // Allow for two buttons per row
+    width: "48%",
     alignItems: "center",
     paddingVertical: 15,
     marginVertical: 5,
@@ -242,41 +231,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // --- Reflection Input ---
-  textInputContainer: {
-    backgroundColor: "#fff",
+  // Notes Input
+  notesContainer: {
+    backgroundColor: "#7A22BD",
     borderRadius: 8,
     padding: 15,
-    minHeight: 100,
-    justifyContent: "center",
-    alignItems: "center",
+    minHeight: 120,
   },
-  placeholderText: {
-    color: "#A9A9A9",
-    fontStyle: "italic",
-    textAlign: "center",
-  },
-
-  // --- Save Button ---
-  saveButton: {
-    backgroundColor: Colors.light.tint, // Purple tint
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 20,
-    alignItems: "center",
-  },
-  saveButtonText: {
+  notesInput: {
     color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  actualInput: {
-    width: "100%",
-    minHeight: 100,
-    color: "#333",
     fontSize: 16,
-    textAlignVertical: "top", // Ensures text starts at the top on Android
-    padding: 10,
+    textAlignVertical: "top",
+    minHeight: 90,
+    width: "100%",
   },
 });
 
