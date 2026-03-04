@@ -10,6 +10,8 @@ import {
   Text,
 } from "react-native";
 import { supabase } from "../../utils/supabase";
+import { getSeasonalBackground } from "../../utils/seasons";
+import { grantAchievement } from "../../utils/grantAchievement";
 import HabitEditModal from "../HabitEditModal";
 
 interface Profile {
@@ -53,7 +55,7 @@ const resolveImageSource = (
 
 //item drop percents for seasonal stories
 const checkStoryDrop = async (userId: string) => {
-  const DROP_CHANCE = 0.3;
+  const DROP_CHANCE = 0.167; // ~1 in 6 habit completions
 
   try {
     const { data: activeProgress, error: fetchError } = await supabase
@@ -346,31 +348,31 @@ export default function HabitScreen() {
 
       const { is_positive, is_negative, streak_level, difficulty } = habitData;
 
-      // 2. Calculate Streak Update (Reset to Yellow Logic)
+      // 2. Compute today's date key (reused for both the streak check and the log upsert)
+      const now = new Date();
+      const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+      // Check if this habit already earned a positive log today — streak only increments once per day
+      const { data: todayLog } = await supabase
+        .from("habit_logs")
+        .select("status")
+        .eq("habit_id", habitId)
+        .eq("log_date", dateKey)
+        .maybeSingle();
+
+      const alreadyCountedToday = todayLog?.status === "green";
+
+      // 3. Calculate Streak Update
       let newStreakLevel = streak_level;
 
       if (direction === "up") {
-        // If we are in the red, a single '+' brings us back to neutral yellow (0)
-        if (streak_level < 0) {
-          newStreakLevel = 0;
-        } else {
-          // If already yellow or green, just increment
+        if (!alreadyCountedToday) {
           newStreakLevel = streak_level + 1;
         }
+        // Already counted today — streak stays the same, rewards still apply
       } else {
-        // direction === "down"
-        // If we are in the green, a single '-' resets us to neutral yellow (0)
-        if (streak_level > 0) {
-          newStreakLevel = 0;
-        } else {
-          // If already yellow or red, go deeper into red
-          newStreakLevel = streak_level - 1;
-        }
-      }
-
-      // Keep the floor to keep it manageable
-      if (newStreakLevel < -3) {
-        newStreakLevel = -3;
+        // Any negative press resets streak to 0
+        newStreakLevel = 0;
       }
 
       // 3. Calculate Stat Changes (Uses the simplified logic)
@@ -448,22 +450,19 @@ export default function HabitScreen() {
         alert(`You have reached Level ${newLevel}! Your health has been fully restored.`);
       }
 
-      // --- CALENDAR LOG UPDATE START ---
-      // 1. Map streak to calendar status
-      let calendarStatus: "green" | "orange" | "red" = "orange";
-      if (newStreakLevel > 0) {
-        calendarStatus = "green";
-      } else if (newStreakLevel < 0) {
-        calendarStatus = "red";
-      } else {
-        calendarStatus = "orange"; // Yellow/Neutral
+      // --- ACHIEVEMENT GRANTS ---
+      if (direction === "up") {
+        grantAchievement(userId, "first_task");
       }
+      if (newLevel >= 10) grantAchievement(userId, "level_10");
+      if (newLevel >= 20) grantAchievement(userId, "level_20");
+      if (newLevel >= 30) grantAchievement(userId, "level_30");
 
-      // 2. Format date for Local (YYYY-MM-DD)
-      const now = new Date();
-      const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      // --- CALENDAR LOG UPDATE START ---
+      // + press = green, - press = red
+      const calendarStatus: "green" | "red" = direction === "up" ? "green" : "red";
 
-      // 3. Upsert the log for this specific habit today
+      // Upsert the log for this specific habit today
       const { error: logError } = await supabase.from("habit_logs").upsert(
         {
           habit_id: habitId,
@@ -543,7 +542,7 @@ export default function HabitScreen() {
   return (
     <View style={styles.container}>
       <CharacterStats
-        backgroundImageSource={require("../../assets/sprites/ui-elements/winter-background.png")}
+        backgroundImageSource={getSeasonalBackground()}
         characterImageSource={resolveImageSource(profile.character_image_path)}
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}

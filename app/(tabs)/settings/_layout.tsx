@@ -38,10 +38,15 @@ export default function SettingsStackLayout() {
         }}
       />
       <Stack.Screen
-        name="seasonal_stories"
+        name="seasonal-stories"
         options={{
-          title: "Seasonal Stories", // Sets the title of the About page header
-          // The back button text now correctly inherits the title of the 'index' screen ("Settings")
+          title: "Seasonal Stories",
+        }}
+      />
+      <Stack.Screen
+        name="subscription"
+        options={{
+          title: "Subscription",
         }}
       />
     </Stack>

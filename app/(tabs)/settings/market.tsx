@@ -294,18 +294,39 @@ export default function MarketScreen() {
     setSelectedItem(null);
   };
 
-  // 2. The fetch logic is now INSIDE the component where it can see userId
-  const fetchMarketItems = useCallback(async (currentUserId: string) => {
+  // 2. Single fetch: loads profile (currency + class) then filters market items by class
+  const fetchMarketData = useCallback(async (currentUserId: string) => {
     try {
-      // Get items in market
-      const { data: items, error: marketError } = await supabase
+      // Fetch currency and class together
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("energeia_currency, player_class")
+        .eq("id", currentUserId)
+        .single();
+
+      if (profileError) throw profileError;
+
+      setPlayerEnergeia(profile.energeia_currency);
+      const playerClass: string | null = profile.player_class;
+
+      // Build market query — show class-specific items only for the right class
+      let itemQuery = supabase
         .from("items_master")
         .select("*")
         .eq("is_in_market", true);
 
+      if (playerClass) {
+        itemQuery = itemQuery.or(
+          `required_class.is.null,required_class.eq.${playerClass}`
+        );
+      } else {
+        itemQuery = itemQuery.is("required_class", null);
+      }
+
+      const { data: items, error: marketError } = await itemQuery;
       if (marketError) throw marketError;
 
-      // Get user inventory to filter unique items
+      // Filter out unique items already owned
       const { data: userInv } = await supabase
         .from("user_inventory")
         .select("item_master_id")
@@ -313,19 +334,15 @@ export default function MarketScreen() {
 
       const ownedIds = userInv?.map((i) => i.item_master_id) || [];
 
-      // Map DB columns to your MarketItem interface
       const availableItems: MarketItem[] = items
         .filter((item) => {
-          // ONLY hide it if it's unique AND you already own it.
-          if (item.is_unique && ownedIds.includes(item.id)) {
-            return false;
-          }
-          return true; // Consumables (like candles) stay in the shop forever!
+          if (item.is_unique && ownedIds.includes(item.id)) return false;
+          return true;
         })
         .map((item) => ({
           id: item.id,
           name: item.name,
-          imageSource: item.image_path, // This is now a full public URL
+          imageSource: item.image_path,
           price: item.base_energeia_cost,
           isLocked: false,
           type: item.type,
@@ -339,23 +356,7 @@ export default function MarketScreen() {
 
       setMarketItems(availableItems);
     } catch (e: any) {
-      console.error("Error loading shop:", e.message);
-    }
-  }, []);
-
-  // Fetch the actual profile data
-  const fetchPlayerCurrency = useCallback(async (currentUserId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("energeia_currency")
-        .eq("id", currentUserId)
-        .single();
-
-      if (error) throw error;
-      if (data) setPlayerEnergeia(data.energeia_currency);
-    } catch (e: any) {
-      console.error("Error fetching market currency:", e.message);
+      console.error("Error loading market:", e.message);
     }
   }, []);
 
@@ -369,12 +370,11 @@ export default function MarketScreen() {
         if (session?.user) {
           const id = session.user.id;
           setUserId(id);
-          fetchPlayerCurrency(id);
-          fetchMarketItems(id); // 👈 Load the items too!
+          fetchMarketData(id);
         }
       };
       loadData();
-    }, [fetchPlayerCurrency, fetchMarketItems]),
+    }, [fetchMarketData]),
   );
 
   return (
@@ -411,10 +411,7 @@ export default function MarketScreen() {
         playerEnergeia={playerEnergeia}
         userId={userId}
         onPurchaseSuccess={() => {
-          if (userId) {
-            fetchPlayerCurrency(userId); // Refresh money
-            fetchMarketItems(userId); // Refresh the shop items
-          }
+          if (userId) fetchMarketData(userId);
         }}
       />
     </ThemedView>

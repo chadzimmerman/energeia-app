@@ -17,6 +17,7 @@ import CharacterStats from "@/components/CharacterStats";
 import { View as ThemedView } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
+import { getSeasonalBackground } from "@/utils/seasons";
 import { useFocusEffect } from "expo-router";
 import DailyLogModal from "../calendar-modal";
 
@@ -475,7 +476,7 @@ export default function CalendarTabScreen() {
     <ThemedView style={styles.container}>
       {/* 1. Character Stats Header */}
       <CharacterStats
-        backgroundImageSource={require("../../assets/sprites/ui-elements/winter-background.png")}
+        backgroundImageSource={getSeasonalBackground()}
         // 🔥 The ?. prevents the crash if profile is null
         characterImageSource={resolveImageSource(profile?.character_image_path)}
         currentHealth={profile?.current_health ?? 0}

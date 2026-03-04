@@ -22,7 +22,21 @@ const ACHIEVEMENTS_IMAGES = {
   LEVEL_20: require("../assets/sprites/achievements/level-20-achievement.png"),
   LEVEL_30: require("../assets/sprites/achievements/level-30-acheivement.png"),
   SUBSCRIBER: require("../assets/sprites/achievements/subscriber-achievement.png"),
-  // ... add all your achievement images here
+  // Anniversary
+  YEAR_1: require("../assets/sprites/achievements/blank-achievement.png"),
+  YEAR_2: require("../assets/sprites/achievements/blank-achievement.png"),
+  YEAR_3: require("../assets/sprites/achievements/blank-achievement.png"),
+  // Streaks
+  STREAK_7: require("../assets/sprites/achievements/blank-achievement.png"),
+  STREAK_30: require("../assets/sprites/achievements/blank-achievement.png"),
+  STREAK_180: require("../assets/sprites/achievements/blank-achievement.png"),
+  STREAK_365: require("../assets/sprites/achievements/blank-achievement.png"),
+  // Seasonal gear collections
+  ALL_WINTER_GEAR: require("../assets/sprites/achievements/blank-achievement.png"),
+  ALL_SPRING_GEAR: require("../assets/sprites/achievements/blank-achievement.png"),
+  ALL_SUMMER_GEAR: require("../assets/sprites/achievements/blank-achievement.png"),
+  ALL_AUTUMN_GEAR: require("../assets/sprites/achievements/blank-achievement.png"),
+  ALL_YEAR_GEAR: require("../assets/sprites/achievements/blank-achievement.png"),
 };
 
 // Define the structure for an achievement
@@ -120,6 +134,86 @@ export const ALL_ACHIEVEMENTS: AchievementDefinition[] = [
     title: "Philanthropist",
     description: "You have supported the monastery through a subscription. Thank you for your generosity!",
     imageKey: "SUBSCRIBER",
+  },
+
+  // --- ANNIVERSARY ---
+  {
+    id: "year_1",
+    title: "A Year on the Path",
+    description: "One full year of faithful practice. The desert fathers would be pleased.",
+    imageKey: "YEAR_1",
+  },
+  {
+    id: "year_2",
+    title: "Two Years of Ascesis",
+    description: "Two years of showing up. Constancy is its own form of prayer.",
+    imageKey: "YEAR_2",
+  },
+  {
+    id: "year_3",
+    title: "Elder of the Way",
+    description: "Three years walking this path. You are becoming a guide for others.",
+    imageKey: "YEAR_3",
+  },
+
+  // --- STREAKS ---
+  {
+    id: "streak_7",
+    title: "Week of Watchfulness",
+    description: "Seven days without missing a single positive habit. A small but meaningful victory.",
+    imageKey: "STREAK_7",
+  },
+  {
+    id: "streak_30",
+    title: "A Month of Discipline",
+    description: "Thirty consecutive days of faithfulness. Your cell is becoming a place of real work.",
+    imageKey: "STREAK_30",
+  },
+  {
+    id: "streak_180",
+    title: "Season of Fasting",
+    description: "Six months of unbroken consistency. Half a year is no small thing.",
+    imageKey: "STREAK_180",
+  },
+  {
+    id: "streak_365",
+    title: "Year of Ascesis",
+    description: "365 days without breaking your streak. A full year of faithful daily practice.",
+    imageKey: "STREAK_365",
+  },
+
+  // --- SEASONAL GEAR ---
+  {
+    id: "all_winter_gear",
+    title: "The Winter Schema",
+    description: "You have collected every piece of Winter seasonal gear. The cold holds no fear for you.",
+    imageKey: "ALL_WINTER_GEAR",
+  },
+  {
+    id: "all_spring_gear",
+    title: "Flowers of Pascha",
+    description: "You have collected every piece of Spring seasonal gear. New life blooms in your hands.",
+    imageKey: "ALL_SPRING_GEAR",
+  },
+  {
+    id: "all_summer_gear",
+    title: "The Blazing Hours",
+    description: "You have collected every piece of Summer seasonal gear. You endure the heat of the day.",
+    imageKey: "ALL_SUMMER_GEAR",
+  },
+  {
+    id: "all_autumn_gear",
+    title: "The Harvest Cell",
+    description: "You have collected every piece of Autumn seasonal gear. The harvest is stored and the year draws close.",
+    imageKey: "ALL_AUTUMN_GEAR",
+  },
+
+  // --- MASTER COLLECTOR ---
+  {
+    id: "all_year_gear",
+    title: "Keeper of the Seasons",
+    description: "You have gathered all seasonal gear across every season in a single year. A true steward of the monastery's treasures.",
+    imageKey: "ALL_YEAR_GEAR",
   },
 ];
 

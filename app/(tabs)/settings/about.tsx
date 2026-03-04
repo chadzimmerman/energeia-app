@@ -53,9 +53,21 @@ const ABOUT_DATA = [
   },
 ];
 
+interface AboutItem {
+  id: string;
+  label: string;
+  detail: string | null;
+  action: string;
+}
+
+interface AboutSectionData {
+  title: string | null;
+  items: AboutItem[];
+}
+
 // Helper component for the list sections (similar to SettingsSection)
-const AboutSection = ({ section }) => {
-  const handlePress = (item) => {
+const AboutSection = ({ section }: { section: AboutSectionData }) => {
+  const handlePress = (item: AboutItem) => {
     // 1. Handle Email/Support actions
     if (item.id === "feedback" || item.id === "bug") {
       handleContactSupport(item.id);

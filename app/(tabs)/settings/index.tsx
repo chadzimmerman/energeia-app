@@ -5,6 +5,7 @@ import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -42,7 +43,7 @@ const settingsSections = [
     items: [
       { id: "market", label: "Market", action: "navigate" },
       {
-        id: "seasonal_stories",
+        id: "seasonal-stories",
         label: "Seasonal Stories",
         badge: "Winter",
         action: "navigate",
@@ -118,11 +119,11 @@ const SettingsSection = ({
   const handlePress = (itemId: string) => {
     // Basic navigation logic
     if (
-      ["about", "market", "achievements", "seasonal_stories"].includes(itemId)
+      ["about", "market", "achievements", "seasonal-stories", "subscription"].includes(itemId)
     ) {
       navigation.navigate(itemId);
     } else {
-      console.log(`Navigating to ${itemId}`);
+      Alert.alert("Coming Soon", "This feature is currently in development and will be available in a future update.");
     }
   };
 
@@ -161,6 +162,8 @@ const CautionSection = ({ section }: { section: any }) => {
     if (itemId === "logout") {
       await supabase.auth.signOut();
       // onAuthStateChange in _layout.tsx will redirect to /login automatically
+    } else {
+      Alert.alert("Coming Soon", "This feature is currently in development and will be available in a future update.");
     }
   };
 

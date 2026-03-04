@@ -1,6 +1,7 @@
 import CharacterStats from "@/components/CharacterStats";
 import { Text as ThemedText, View as ThemedView } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
+import { getSeasonalBackground } from "@/utils/seasons";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -292,12 +293,20 @@ const ItemGrid: React.FC<{
       </View>
 
       {/* Item Grid */}
-      <View style={styles.itemGridWrap}>
-        {/* Render the live inventory data */}
-        {inventory.map((item) => (
-          <ItemCard key={item.id} item={item} onPress={onSelectItem} />
-        ))}
-      </View>
+      {inventory.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>Nothing to see here!</Text>
+          <Text style={styles.emptyStateSubtext}>
+            Try going to town and visiting the Market!
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.itemGridWrap}>
+          {inventory.map((item) => (
+            <ItemCard key={item.id} item={item} onPress={onSelectItem} />
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -533,7 +542,7 @@ export default function ItemsTabScreen() {
     <ThemedView style={styles.container}>
       {/* 1. Character Stats Header (Using live profile data) */}
       <CharacterStats
-        backgroundImageSource={require("../../assets/sprites/ui-elements/winter-background.png")}
+        backgroundImageSource={getSeasonalBackground()}
         characterImageSource={resolveImageSource(profile.character_image_path)}
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}
@@ -683,6 +692,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     color: "#666",
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 30,
+    paddingTop: 60,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#555",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: "#999",
+    textAlign: "center",
   },
   stackBadge: {
     position: "absolute",

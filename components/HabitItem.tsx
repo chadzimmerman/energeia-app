@@ -90,20 +90,10 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit }) => {
         <Text style={styles.title} numberOfLines={1}>
           {habit.title}
         </Text>
-        {/* Optional: Show Difficulty (e.g., small stars) */}
-        <View style={styles.difficultyContainer}>
-          {Array(habit.difficulty)
-            .fill(0)
-            .map((_, i) => (
-              <FontAwesome
-                key={i}
-                name="star"
-                size={10}
-                color="#DCDCDC"
-                style={{ marginHorizontal: 1 }}
-              />
-            ))}
-        </View>
+        {/* Streak counter — only shown when streak is active */}
+        {habit.streak_level > 0 && (
+          <Text style={styles.streakText}>{habit.streak_level} day streak</Text>
+        )}
       </TouchableOpacity>
 
       {/* 3. Positive Button (Far Right) */}
@@ -160,9 +150,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
-  difficultyContainer: {
-    flexDirection: "row",
-    marginTop: 4,
+  streakText: {
+    fontSize: 11,
+    color: "#AAAAAA",
+    marginTop: 3,
   },
   scoreButton: {
     width: 40,
