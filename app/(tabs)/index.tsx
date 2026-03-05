@@ -1,17 +1,17 @@
 import CharacterStats from "@/components/CharacterStats";
 import HabitList from "@/components/HabitList";
 import { View } from "@/components/Themed";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  ImageSourcePropType,
   StyleSheet,
   Text,
 } from "react-native";
 import { supabase } from "../../utils/supabase";
 import { getSeasonalBackground } from "../../utils/seasons";
 import { grantAchievement } from "../../utils/grantAchievement";
+import { resolveCharacterImage } from "../../utils/resolveCharacterImage";
 import HabitEditModal from "../HabitEditModal";
 
 interface Profile {
@@ -35,23 +35,6 @@ interface Habit {
   streak_level: number;
 }
 
-// Define the default local image path for comparison
-const DEFAULT_IMAGE_PATH =
-  "../../assets/sprites/characters/monk/novice-monk-male.png";
-
-// Helper function to resolve the image source correctly
-const resolveImageSource = (
-  path: string | null | undefined,
-): ImageSourcePropType => {
-  // 1. If path is null, empty, or contains our default filename
-  if (!path || path.includes("novice-monk-male.png")) {
-    // 🔥 FIX: Use the literal string inside require()
-    return require("../../assets/sprites/characters/monk/novice-monk-male.png");
-  }
-
-  // 2. Otherwise, assume it's a remote URL from Supabase
-  return { uri: path };
-};
 
 //item drop percents for seasonal stories
 const checkStoryDrop = async (userId: string) => {
@@ -160,6 +143,7 @@ const checkStoryDrop = async (userId: string) => {
 };
 
 export default function HabitScreen() {
+  const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,7 +152,7 @@ export default function HabitScreen() {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
 
-  const fetchProfile = useCallback(async (currentUserId: string) => {
+  const fetchProfile = useCallback(async (currentUserId: string, checkOnboarding = false) => {
     try {
       let { data: profileData, error: fetchError } = await supabase
         .from("profiles")
@@ -183,6 +167,8 @@ export default function HabitScreen() {
             {
               id: currentUserId,
               username: `Novice-${currentUserId.substring(0, 4)}`,
+              current_energeia: 0,
+              energeia_currency: 0,
             },
           ])
           .select()
@@ -195,13 +181,19 @@ export default function HabitScreen() {
       }
 
       if (profileData) {
+        // Only check onboarding on initial load, not on stat refreshes
+        if (checkOnboarding && !profileData.player_class) {
+          console.log("No player_class found, redirecting to onboarding. Value:", profileData.player_class);
+          router.replace("/onboarding");
+          return;
+        }
         setProfile(profileData as Profile);
       }
     } catch (e: any) {
       console.error("Profile Fetch/Create Error:", e.message);
       setError(`Profile Setup Error: ${e.message}`);
     }
-  }, []);
+  }, [router]);
 
   const fetchHabits = useCallback(async (currentUserId: string) => {
     try {
@@ -243,7 +235,7 @@ export default function HabitScreen() {
 
         if (currentUserId) {
           setUserId(currentUserId);
-          await fetchProfile(currentUserId);
+          await fetchProfile(currentUserId, true);
         } else {
           setError("Authentication failed: No user ID found.");
         }
@@ -395,8 +387,23 @@ export default function HabitScreen() {
         profileData;
 
       // 5. Apply Stat Changes
+      // Sum flat energeia bonus from all currently equipped items (XP only, not currency)
+      let energeiaFlatBonus = 0;
+      if (energeiaChange > 0) {
+        const { data: equippedBonuses } = await supabase
+          .from("user_inventory")
+          .select("item:item_master_id(hidden_stat_type, hidden_buff_value)")
+          .eq("user_id", userId)
+          .eq("is_equipped", true);
+
+        energeiaFlatBonus =
+          equippedBonuses
+            ?.filter((e: any) => e.item?.hidden_stat_type === "energeia")
+            .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
+      }
+
       let newHealth = Math.min(Math.max(current_health + healthChange, 0), max_health);
-      let newEnergeia = current_energeia + energeiaChange;
+      let newEnergeia = current_energeia + energeiaChange + energeiaFlatBonus;
       let newLevel = level;
       let newCurrency = energeia_currency;
       let didLevelUp = false;
@@ -476,7 +483,7 @@ export default function HabitScreen() {
 
       if (logError) console.error("Calendar Log Error:", logError.message);
 
-      await checkStoryDrop(userId); //random drop call
+      if (direction === "up") await checkStoryDrop(userId); //random drop call
 
       // 6. Refresh ALL data (Habits list color and Character Stats display)
       await fetchHabits(userId);
@@ -543,7 +550,7 @@ export default function HabitScreen() {
     <View style={styles.container}>
       <CharacterStats
         backgroundImageSource={getSeasonalBackground()}
-        characterImageSource={resolveImageSource(profile.character_image_path)}
+        characterImageSource={resolveCharacterImage(profile.character_image_path)}
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}
         currentEnergy={profile.current_energeia}

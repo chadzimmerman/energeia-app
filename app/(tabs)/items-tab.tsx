@@ -2,6 +2,7 @@ import CharacterStats from "@/components/CharacterStats";
 import { Text as ThemedText, View as ThemedView } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
 import { getSeasonalBackground } from "@/utils/seasons";
+import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -96,19 +97,6 @@ const ResolvedImageSourceMap: { [key: string]: ImageSourcePropType } = {
   "fd803603-2861-47a9-91d7-260a108945fa": require("../../assets/sprites/items/philokalia.png"),
 };
 
-// Define the default local image path and resolve it statically
-const DEFAULT_IMAGE_PATH_STRING =
-  "../../assets/sprites/characters/monk/novice-monk-male.png";
-const DEFAULT_IMAGE_SOURCE = require(DEFAULT_IMAGE_PATH_STRING);
-
-// Helper function to resolve the character image source (KEPT)
-const resolveImageSource = (path: string): ImageSourcePropType => {
-  // Check if the path contains the unique part of the default path string
-  if (path.includes("novice-monk-male.png")) {
-    return DEFAULT_IMAGE_SOURCE; // Return the statically required asset
-  }
-  return { uri: path };
-};
 
 // --- COMPONENTS (UPDATED WITH PROPS) ---
 
@@ -483,6 +471,19 @@ export default function ItemsTabScreen() {
           .from("user_inventory")
           .update({ is_equipped: newState })
           .eq("id", item.id);
+
+        if (item.hiddenBonus.stat === "health" && item.hiddenBonus.buff > 0) {
+          const buff = item.hiddenBonus.buff;
+          const newMaxHealth = newState
+            ? profile.max_health + buff
+            : profile.max_health - buff;
+          const newCurrentHealth = Math.min(profile.current_health, newMaxHealth);
+
+          await supabase
+            .from("profiles")
+            .update({ max_health: newMaxHealth, current_health: newCurrentHealth })
+            .eq("id", userId);
+        }
       } else if (item.type === "consumable") {
         if (item.hiddenBonus.stat === "energeia") {
           const buff = item.hiddenBonus.buff;
@@ -511,6 +512,18 @@ export default function ItemsTabScreen() {
           await supabase
             .from("profiles")
             .update(updateData)
+            .eq("id", userId);
+
+          await supabase.from("user_inventory").delete().eq("id", item.id);
+        } else if (item.hiddenBonus.stat === "health") {
+          const newHealth = Math.min(
+            profile.current_health + item.hiddenBonus.buff,
+            profile.max_health
+          );
+
+          await supabase
+            .from("profiles")
+            .update({ current_health: newHealth })
             .eq("id", userId);
 
           await supabase.from("user_inventory").delete().eq("id", item.id);
@@ -543,7 +556,7 @@ export default function ItemsTabScreen() {
       {/* 1. Character Stats Header (Using live profile data) */}
       <CharacterStats
         backgroundImageSource={getSeasonalBackground()}
-        characterImageSource={resolveImageSource(profile.character_image_path)}
+        characterImageSource={resolveCharacterImage(profile.character_image_path)}
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}
         currentEnergy={profile.current_energeia}

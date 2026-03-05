@@ -49,6 +49,18 @@ export default function SettingsStackLayout() {
           title: "Subscription",
         }}
       />
+      <Stack.Screen
+        name="username"
+        options={{
+          title: "Change Username",
+        }}
+      />
+      <Stack.Screen
+        name="password"
+        options={{
+          title: "Change Password",
+        }}
+      />
     </Stack>
   );
 }

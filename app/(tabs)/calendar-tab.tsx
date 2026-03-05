@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Dimensions,
-  ImageSourcePropType,
   Modal,
   Platform,
   ScrollView,
@@ -18,6 +17,7 @@ import { View as ThemedView } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
 import { getSeasonalBackground } from "@/utils/seasons";
+import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { useFocusEffect } from "expo-router";
 import DailyLogModal from "../calendar-modal";
 
@@ -63,19 +63,6 @@ interface Profile {
   character_image_path: string;
 }
 
-// Helper function to resolve the image source correctly
-const resolveImageSource = (
-  path: string | null | undefined,
-): ImageSourcePropType => {
-  // 1. If path is null, empty, or contains our default filename
-  if (!path || path.includes("novice-monk-male.png")) {
-    // 🔥 FIX: Use the literal string inside require()
-    return require("../../assets/sprites/characters/monk/novice-monk-male.png");
-  }
-
-  // 2. Otherwise, assume it's a remote URL from Supabase
-  return { uri: path };
-};
 
 const DEFAULT_IMAGE_PATH =
   "../../assets/sprites/characters/monk/novice-monk-male.png";
@@ -478,7 +465,7 @@ export default function CalendarTabScreen() {
       <CharacterStats
         backgroundImageSource={getSeasonalBackground()}
         // 🔥 The ?. prevents the crash if profile is null
-        characterImageSource={resolveImageSource(profile?.character_image_path)}
+        characterImageSource={resolveCharacterImage(profile?.character_image_path)}
         currentHealth={profile?.current_health ?? 0}
         maxHealth={profile?.max_health ?? 100}
         currentEnergy={profile?.current_energeia ?? 0}

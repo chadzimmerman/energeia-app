@@ -1,5 +1,6 @@
 import { Text, View } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
+import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -74,20 +75,13 @@ const cautionSection = [
 
 // --- Component 1: Dynamic User Header ---
 const UserHeader = ({ profile }: { profile: Profile }) => {
-  // Reuse your image resolver logic
-  const resolveAvatar = (path: string) => {
-    if (!path || path.includes("novice-monk-male.png")) {
-      return require("../../../assets/sprites/characters/monk/novice-monk-male.png");
-    }
-    return { uri: path };
-  };
-
   return (
     <View style={headerStyles.headerContainer}>
       <View style={headerStyles.userInfo}>
         <Image
-          source={resolveAvatar(profile.character_image_path)}
+          source={resolveCharacterImage(profile.character_image_path)}
           style={headerStyles.avatar}
+          resizeMode="contain"
         />
         <View style={headerStyles.textContainer}>
           <Text style={headerStyles.name}>{profile.username}</Text>
@@ -119,7 +113,7 @@ const SettingsSection = ({
   const handlePress = (itemId: string) => {
     // Basic navigation logic
     if (
-      ["about", "market", "achievements", "seasonal-stories", "subscription"].includes(itemId)
+      ["about", "market", "achievements", "seasonal-stories", "subscription", "username", "password"].includes(itemId)
     ) {
       navigation.navigate(itemId);
     } else {
@@ -160,8 +154,40 @@ const SettingsSection = ({
 const CautionSection = ({ section }: { section: any }) => {
   const handleCautionPress = async (itemId: string) => {
     if (itemId === "logout") {
-      await supabase.auth.signOut();
-      // onAuthStateChange in _layout.tsx will redirect to /login automatically
+      Alert.alert(
+        "Log Out",
+        "Are you sure you want to log out?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Log Out",
+            style: "destructive",
+            onPress: async () => { await supabase.auth.signOut(); },
+          },
+        ]
+      );
+    } else if (itemId === "deleteAccount") {
+      Alert.alert(
+        "Delete Account",
+        "This will permanently delete your account and all your progress. This cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete My Account",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const { error } = await supabase.rpc("delete_user");
+                if (error) throw error;
+                await supabase.auth.signOut();
+                // onAuthStateChange in _layout.tsx redirects to /login
+              } catch (e: any) {
+                Alert.alert("Error", e.message);
+              }
+            },
+          },
+        ]
+      );
     } else {
       Alert.alert("Coming Soon", "This feature is currently in development and will be available in a future update.");
     }
@@ -268,6 +294,8 @@ const headerStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#ffffff",
     marginRight: 10,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.1)",
   },
   textContainer: {
     // Add background color here if not using Themed.View for this section
