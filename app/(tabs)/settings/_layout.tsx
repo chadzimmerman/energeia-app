@@ -61,6 +61,12 @@ export default function SettingsStackLayout() {
           title: "Change Password",
         }}
       />
+      <Stack.Screen
+        name="stable"
+        options={{
+          title: "Stable",
+        }}
+      />
     </Stack>
   );
 }

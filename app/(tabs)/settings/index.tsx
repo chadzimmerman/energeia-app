@@ -26,6 +26,12 @@ interface Profile {
   character_image_path: string;
 }
 
+const CLASS_HUB_LABEL: Record<string, string> = {
+  monk:    "Monastery",
+  noble:   "Envoy",
+  fighter: "Barracks",
+};
+
 const settingsSections = [
   {
     title: null, // Corresponds to Skills, Stats, Achievements in the image
@@ -49,7 +55,7 @@ const settingsSections = [
         badge: "Winter",
         action: "navigate",
       },
-      { id: "temple", label: "Temple", action: "navigate" },
+      { id: "stable", label: "Stable", action: "navigate" },
     ],
   },
   {
@@ -113,7 +119,7 @@ const SettingsSection = ({
   const handlePress = (itemId: string) => {
     // Basic navigation logic
     if (
-      ["about", "market", "achievements", "seasonal-stories", "subscription", "username", "password"].includes(itemId)
+      ["about", "market", "achievements", "seasonal-stories", "stable", "subscription", "username", "password"].includes(itemId)
     ) {
       navigation.navigate(itemId);
     } else {
@@ -260,7 +266,14 @@ export default function SettingsTabScreen() {
         {settingsSections.map((section, index) => (
           <SettingsSection
             key={index}
-            section={section}
+            section={{
+              ...section,
+              items: section.items.map((item) =>
+                item.id === "monastery"
+                  ? { ...item, label: CLASS_HUB_LABEL[profile.player_class?.toLowerCase()] ?? "Monastery" }
+                  : item
+              ),
+            }}
             navigation={navigation}
           />
         ))}

@@ -13,6 +13,7 @@ import { getSeasonalBackground } from "../../utils/seasons";
 import { grantAchievement } from "../../utils/grantAchievement";
 import { resolveCharacterImage } from "../../utils/resolveCharacterImage";
 import HabitEditModal from "../HabitEditModal";
+import DeathModal from "../DeathModal";
 
 interface Profile {
   id: string;
@@ -125,9 +126,25 @@ const checkStoryDrop = async (userId: string) => {
             ]);
         }
 
+        // 3. Grant seasonal reward item (final parts only — when reward_item_id is set)
+        let rewardItemName: string | null = null;
+        if (storyData.reward_item_id) {
+          const { data: itemData } = await supabase
+            .from("items_master")
+            .select("name")
+            .eq("id", storyData.reward_item_id)
+            .single();
+          rewardItemName = itemData?.name ?? null;
+
+          await supabase.from("user_inventory").upsert(
+            { user_id: userId, item_master_id: storyData.reward_item_id, quantity: 1, is_equipped: false },
+            { onConflict: "user_id, item_master_id", ignoreDuplicates: true },
+          );
+        }
+
         // Final completion message
         alert(
-          `🏆 Quest Part Complete!\nYou earned ${storyData.reward_energeia} Energeia. Check your Storyline tab!`,
+          `🏆 Quest Part Complete!\nYou earned ${storyData.reward_energeia} Energeia.${rewardItemName ? `\n✨ You received: ${rewardItemName}!` : ""} Check your Storyline tab!`,
         );
       } else {
         // Standard item find message
@@ -151,6 +168,8 @@ export default function HabitScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
+  const [isDeathModalVisible, setIsDeathModalVisible] = useState(false);
+  const [deathLostItemName, setDeathLostItemName] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async (currentUserId: string, checkOnboarding = false) => {
     try {
@@ -273,45 +292,39 @@ export default function HabitScreen() {
   const calculateStatChanges = (
     difficulty: number,
     direction: "up" | "down",
+    streakLevel: number,
   ): { healthChange: number; energeiaChange: number } => {
-    // Safety check: Clamp difficulty between 1 and 10
     const clampedDifficulty = Math.min(Math.max(difficulty, 1), 10);
-
-    // --- Configuration Constants ---
     const healthDamageMultiplier = 1.5;
 
-    // 1. DETERMINE REWARD MAGNITUDE (Positive Press)
-    // Easy (1) = 1pt, Medium (5) = 3pts, Hard (10) = 5pts
+    // Base reward: D1=1, D5=3, D10=5
     const REWARD_BY_DIFFICULTY: { [key: number]: number } = { 1: 1, 5: 3, 10: 5 };
     const rewardMagnitude = REWARD_BY_DIFFICULTY[clampedDifficulty] ?? 1;
 
-    // 2. DETERMINE PENALTY MAGNITUDE (Negative Press)
+    // Base penalty capped at 5
+    const penaltyMagnitude = Math.min(clampedDifficulty, 5);
 
-    // We want the penalty to be MIN(5, linear_scale).
-    // Let's scale linearly from 1 to 5.
-    // Penalty scales linearly from D=1 (1) to D=5 (5), then is capped at 5.
+    // Streak tier — drives bonuses and penalty modifiers
+    // Blue (≥7 days): +2 energeia bonus, 50% lighter penalty
+    // Green (1–6):    +1 energeia bonus, 25% lighter penalty
+    // Yellow (0):     no bonus,          full penalty
+    // Red (<0):       no bonus,          25% heavier penalty
+    const streakTier =
+      streakLevel >= 7 ? "blue" :
+      streakLevel >= 1 ? "green" :
+      streakLevel === 0 ? "yellow" : "red";
 
-    // Scaling factor (D=1 gives 1, D=5 gives 5, D=10 gives 5)
-    let penaltyMagnitude = clampedDifficulty;
-
-    // Cap the maximum penalty at 5, fulfilling the "max 5" requirement for failure.
-    penaltyMagnitude = Math.min(penaltyMagnitude, 5);
+    const streakBonus  = streakTier === "blue" ? 2 : streakTier === "green" ? 1 : 0;
+    const penaltyMult  = streakTier === "blue" ? 0.5 : streakTier === "green" ? 0.75 : streakTier === "yellow" ? 1.0 : 1.25;
 
     let healthChange = 0;
     let energeiaChange = 0;
 
     if (direction === "up") {
-      // RULE: Plus press always grants Energeia based on REWARD Magnitude.
-      energeiaChange = rewardMagnitude;
+      energeiaChange = rewardMagnitude + streakBonus;
     } else if (direction === "down") {
-      // RULE: Minus press always incurs penalty based on PENALTY Magnitude.
-
-      // Health Penalty (More severe loss than Energeia)
-      // Use the capped penalty magnitude
-      healthChange = -Math.round(penaltyMagnitude * healthDamageMultiplier);
-
-      // Energeia Penalty
-      energeiaChange = -penaltyMagnitude;
+      healthChange   = -Math.round(penaltyMagnitude * healthDamageMultiplier * penaltyMult);
+      energeiaChange = -Math.round(penaltyMagnitude * penaltyMult);
     }
 
     return { healthChange, energeiaChange };
@@ -344,46 +357,27 @@ export default function HabitScreen() {
       const now = new Date();
       const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-      // Check if this habit already earned a positive log today — streak only increments once per day
-      const { data: todayLog } = await supabase
-        .from("habit_logs")
-        .select("status")
-        .eq("habit_id", habitId)
-        .eq("log_date", dateKey)
-        .maybeSingle();
-
-      const alreadyCountedToday = todayLog?.status === "green";
-
-      // 3. Calculate Streak Update
-      let newStreakLevel = streak_level;
-
-      if (direction === "up") {
-        if (!alreadyCountedToday) {
-          newStreakLevel = streak_level + 1;
-        }
-        // Already counted today — streak stays the same, rewards still apply
-      } else {
-        // Any negative press resets streak to 0
-        newStreakLevel = 0;
-      }
+      // 3. Calculate Streak Update — each press counts (no per-day cap)
+      const newStreakLevel = direction === "up" ? streak_level + 1 : streak_level - 1;
 
       // 3. Calculate Stat Changes (Uses the simplified logic)
       const { healthChange, energeiaChange } = calculateStatChanges(
         difficulty,
-        direction, // is_negative is no longer passed
+        direction,
+        streak_level,
       );
 
       // 4. Fetch Profile Details (for current stats)
       const { data: profileData, error: profileFetchError } = await supabase
         .from("profiles")
-        .select("current_health, max_health, current_energeia, level, energeia_currency")
+        .select("current_health, max_health, current_energeia, level, energeia_currency, player_class")
         .eq("id", userId)
         .single();
 
       if (profileFetchError || !profileData)
         throw profileFetchError || new Error("Profile not found.");
 
-      const { current_health, max_health, current_energeia, level, energeia_currency } =
+      const { current_health, max_health, current_energeia, level, energeia_currency, player_class } =
         profileData;
 
       // 5. Apply Stat Changes
@@ -411,6 +405,18 @@ export default function HabitScreen() {
       if (energeiaChange > 0) {
         // Earning: tick up the wallet and handle level-up with overflow carry-forward
         newCurrency = energeia_currency + energeiaChange;
+
+        // Class bonuses (applied to raw earned amount before level-up processing)
+        const cls = player_class?.toLowerCase();
+        if (cls === "monk") {
+          // Monk: +10% to XP earned
+          newEnergeia += Math.round(energeiaChange * 0.10);
+        } else if (cls === "noble") {
+          // Noble: +10% to coin wallet
+          newCurrency += Math.round(energeiaChange * 0.10);
+        }
+        // Fighter: +1% damage to bosses — wired up when boss system is added
+
         let levelThreshold = 100 + (newLevel - 1) * 20;
         while (newEnergeia >= levelThreshold) {
           newEnergeia -= levelThreshold;
@@ -439,6 +445,58 @@ export default function HabitScreen() {
         .eq("id", habitId);
 
       if (streakError) throw streakError;
+
+      // ── DEATH CHECK ──────────────────────────────────────────────────────
+      if (newHealth <= 0) {
+        // 1. Lose a random inventory item (if any)
+        let lostItemName: string | null = null;
+        const { data: inventory } = await supabase
+          .from("user_inventory")
+          .select("id, item_master_id")
+          .eq("user_id", userId);
+
+        if (inventory && inventory.length > 0) {
+          const victim = inventory[Math.floor(Math.random() * inventory.length)];
+          const { data: itemData } = await supabase
+            .from("items_master")
+            .select("name")
+            .eq("id", (victim as any).item_master_id)
+            .single();
+          lostItemName = itemData?.name ?? null;
+          await supabase.from("user_inventory").delete().eq("id", victim.id);
+        }
+
+        // 2. Apply death penalties — reset level, wipe energeia, restore health
+        await supabase
+          .from("profiles")
+          .update({
+            level: 1,
+            current_energeia: 0,
+            energeia_currency: 0,
+            current_health: max_health,
+          })
+          .eq("id", userId);
+
+        // 3. Log the red calendar entry
+        await supabase.from("habit_logs").upsert(
+          {
+            habit_id: habitId,
+            user_id: userId,
+            log_date: dateKey,
+            status: "red",
+            notes: `Fallen. Streak: ${newStreakLevel}`,
+          },
+          { onConflict: "habit_id, log_date" },
+        );
+
+        // 4. Show death modal and refresh display
+        setDeathLostItemName(lostItemName);
+        setIsDeathModalVisible(true);
+        await fetchHabits(userId);
+        await fetchProfile(userId);
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       // B. Update Profile Stats
       const { error: profileError } = await supabase
@@ -550,7 +608,7 @@ export default function HabitScreen() {
     <View style={styles.container}>
       <CharacterStats
         backgroundImageSource={getSeasonalBackground()}
-        characterImageSource={resolveCharacterImage(profile.character_image_path)}
+        characterImageSource={resolveCharacterImage(profile.character_image_path, profile.level)}
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}
         currentEnergy={profile.current_energeia}
@@ -567,6 +625,12 @@ export default function HabitScreen() {
         onClose={handleCloseEditModal}
         habitToEdit={habitToEdit}
         onHabitChange={handleHabitChange}
+      />
+      <DeathModal
+        visible={isDeathModalVisible}
+        gender={profile.character_image_path?.includes("_female") ? "female" : "male"}
+        lostItemName={deathLostItemName}
+        onRise={() => setIsDeathModalVisible(false)}
       />
     </View>
   );

@@ -1,7 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 // Note: Using expo-vector-icons which should be available
-import Colors from "@/constants/Colors"; // Assuming this path is correct for color definitions
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 // Define the Habit data structure based on the new SQL table
@@ -32,28 +31,10 @@ interface HabitItemProps {
  * @returns A hex color string.
  */
 const getStreakColor = (streakLevel: number): string => {
-  const colorMap = {
-    red: "#E85A4F", // Negative streak
-    yellow: "#F4D35E", // Neutral (0)
-    green: "#4CAF50", // High positive streak
-    neutral: Colors?.light?.tint || "#A737FD", // Default positive
-  };
-
-  if (streakLevel > 0) {
-    // If it's a very strong streak (2+), use full green
-    if (streakLevel >= 2) {
-      return colorMap.green;
-    }
-    // If it's just starting (1), use your app's purple tint
-    return colorMap.neutral;
-  }
-
-  if (streakLevel === 0) {
-    return colorMap.yellow;
-  }
-
-  // If streakLevel is negative (< 0)
-  return colorMap.red;
+  if (streakLevel >= 7) return "#4A90D9"; // Blue  — strong streak (7+ days)
+  if (streakLevel >= 1) return "#4CAF50"; // Green — active streak
+  if (streakLevel === 0) return "#F4D35E"; // Yellow — neutral
+  return "#E85A4F";                        // Red   — negative streak
 };
 
 // Use the new HabitItemProps interface here
