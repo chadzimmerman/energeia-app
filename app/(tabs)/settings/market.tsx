@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { resolveItemImage } from "@/utils/resolveItemImage";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -26,7 +27,7 @@ import Colors from "@/constants/Colors";
 interface MarketItem {
   id: string;
   name: string;
-  imageSource: any; // Use 'any' for local image `require` paths
+  imageSource: ReturnType<typeof resolveItemImage>;
   price: number; // Renamed from energeiaNumber to price for clarity
   isLocked: boolean;
   type: "consumable" | "equippable";
@@ -147,7 +148,7 @@ const MarketDetailsModal: React.FC<{
 
           {/* Item Image */}
           <Image
-            source={{ uri: item.imageSource }} // item.imageSource is the full Supabase URL
+            source={item.imageSource}
             style={modalStyles.itemImage}
             resizeMode="contain"
           />
@@ -213,11 +214,7 @@ const MarketItemCard: React.FC<{
       disabled={item.isLocked} // Optional: Prevent opening locked items
     >
       <Image
-        source={
-          item.imageSource
-            ? { uri: item.imageSource }
-            : { uri: "https://placehold.co/60x60/png?text=Item" }
-        }
+        source={item.imageSource}
         style={marketStyles.itemImage}
         resizeMode="contain"
       />
@@ -342,7 +339,7 @@ export default function MarketScreen() {
         .map((item) => ({
           id: item.id,
           name: item.name,
-          imageSource: item.image_path,
+          imageSource: resolveItemImage(item.image_path),
           price: item.base_energeia_cost,
           isLocked: false,
           type: item.type,
