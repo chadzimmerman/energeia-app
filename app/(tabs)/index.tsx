@@ -38,8 +38,48 @@ interface Habit {
 
 
 //item drop percents for seasonal stories
-const checkStoryDrop = async (userId: string) => {
-  const DROP_CHANCE = 0.167; // ~1 in 6 habit completions
+// ── Shared damage formula ─────────────────────────────────────────────────────
+// Used by fight quests. difficulty 1–3 × level bonus × class multiplier.
+const calculateBossDamage = async (
+  userId: string,
+  difficulty: number,
+  playerClass: string,
+  level: number,
+  currentEnergeia: number,
+): Promise<number> => {
+  const levelMult = 1 + level / 100;
+  let classMult = 1;
+
+  const cls = playerClass?.toLowerCase();
+  if (cls === "monk") {
+    // Monk: spiritual energy fuels hits — higher energeia = harder strikes
+    classMult = 1 + currentEnergeia / 100;
+  } else if (cls === "fighter") {
+    // Fighter: equipped defense gear adds damage bonus
+    const { data: equipped } = await supabase
+      .from("user_inventory")
+      .select("item:item_master_id(hidden_stat_type, hidden_buff_value)")
+      .eq("user_id", userId)
+      .eq("is_equipped", true);
+    const gearBuff =
+      equipped
+        ?.filter((e: any) => e.item?.hidden_stat_type === "defense")
+        .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
+    classMult = 1 + gearBuff / 5;
+  }
+  // Noble: classMult stays 1 — their bonuses are coins + XP
+
+  return Math.ceil(difficulty * levelMult * classMult);
+};
+
+const checkStoryDrop = async (
+  userId: string,
+  difficulty: number,
+  playerClass: string,
+  level: number,
+  currentEnergeia: number,
+) => {
+  const DROP_CHANCE = 0.167; // ~1 in 6 habit completions (collection quests only)
 
   try {
     const { data: activeProgress, error: fetchError } = await supabase
@@ -47,15 +87,26 @@ const checkStoryDrop = async (userId: string) => {
       .select("*, seasonal_stories!inner(*)")
       .eq("user_id", userId)
       .eq("is_completed", false)
-      .eq("is_paused", false)
-      .single();
+      .or("is_paused.eq.false,is_paused.is.null")
+      .order("id", { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
     if (fetchError || !activeProgress) return;
 
-    const didDrop = Math.random() < DROP_CHANCE;
-    if (!didDrop) return;
+    const isFightQuest = activeProgress.seasonal_stories.quest_type === "fight";
 
-    const newCount = activeProgress.current_count + 1;
+    // Fight quests: every positive press deals scaled damage — no random roll
+    // Collection quests: keep the 1-in-6 random drop
+    let increment = 1;
+    if (isFightQuest) {
+      increment = await calculateBossDamage(userId, difficulty, playerClass, level, currentEnergeia);
+    } else {
+      const didDrop = Math.random() < DROP_CHANCE;
+      if (!didDrop) return;
+    }
+
+    const newCount = activeProgress.current_count + increment;
     const goal = activeProgress.seasonal_stories.required_items_count;
     const isNowFinished = newCount >= goal;
 
@@ -146,16 +197,94 @@ const checkStoryDrop = async (userId: string) => {
         alert(
           `🏆 Quest Part Complete!\nYou earned ${storyData.reward_energeia} Energeia.${rewardItemName ? `\n✨ You received: ${rewardItemName}!` : ""} Check your Storyline tab!`,
         );
+      } else if (isFightQuest) {
+        alert(`⚔️ You dealt ${increment} damage! (${newCount}/${goal} HP dealt)`);
       } else {
-        // Standard item find message
-        alert(
-          `✨ You found a ${storyData.required_item_name}! (${newCount}/${goal})`,
-        );
+        alert(`✨ You found a ${storyData.required_item_name}! (${newCount}/${goal})`);
       }
       // --- NEW LOGIC END ---
     }
   } catch (e) {
     console.error("Story drop error:", e);
+  }
+};
+
+// ── Boss daily attack ─────────────────────────────────────────────────────────
+// Called on focus. Finds the active fight quest (if any), checks whether the
+// boss has already struck today, then applies scaled damage to the player.
+// Red habit logs from YESTERDAY increase the boss's damage by 5% per press
+// (capped at +50%) — bad habits yesterday make the boss hit harder today.
+const checkBossAttack = async (userId: string) => {
+  try {
+    const { data: activeProgress } = await supabase
+      .from("user_story_progress")
+      .select("*, seasonal_stories!inner(*)")
+      .eq("user_id", userId)
+      .eq("is_completed", false)
+      .eq("is_paused", false)
+      .order("id", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (!activeProgress) return;
+    if (activeProgress.seasonal_stories.quest_type !== "fight") return;
+
+    // Build today's date key (YYYY-MM-DD) for the attack guard
+    const today = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const todayKey = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+    if (activeProgress.last_boss_attack_date === todayKey) return; // already hit today
+
+    // Count yesterday's red logs — fuels the damage multiplier
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = `${yesterday.getFullYear()}-${pad(yesterday.getMonth() + 1)}-${pad(yesterday.getDate())}`;
+
+    const { data: redLogs } = await supabase
+      .from("habit_logs")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("status", "red")
+      .eq("log_date", yesterdayKey);
+
+    const redCount = redLogs?.length ?? 0;
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("current_health, max_health")
+      .eq("id", userId)
+      .single();
+
+    if (!profileData) return;
+
+    // Base: 2% of player's max health × boss difficulty (1–3)
+    const bossDifficulty = activeProgress.seasonal_stories.boss_difficulty ?? 1;
+    const baseDamage = Math.ceil(profileData.max_health * bossDifficulty * 0.02);
+    const redMult = 1 + Math.min(redCount * 0.05, 0.5);
+    const totalDamage = Math.ceil(baseDamage * redMult);
+
+    const newHealth = Math.max(profileData.current_health - totalDamage, 0);
+
+    await supabase
+      .from("profiles")
+      .update({ current_health: newHealth })
+      .eq("id", userId);
+
+    await supabase
+      .from("user_story_progress")
+      .update({ last_boss_attack_date: todayKey })
+      .eq("id", activeProgress.id);
+
+    const redNote =
+      redCount > 0
+        ? `\n(${redCount} bad habit${redCount > 1 ? "s" : ""} yesterday made it hit harder!)`
+        : "";
+    alert(
+      `⚔️ The ${activeProgress.seasonal_stories.title} attacks!\nYou took ${totalDamage} damage!${redNote}`,
+    );
+  } catch (e) {
+    console.error("Boss attack error:", e);
   }
 };
 
@@ -276,7 +405,9 @@ export default function HabitScreen() {
 
       const runFetch = async () => {
         if (userId && isActive) {
+          await checkBossAttack(userId);
           await fetchHabits(userId);
+          await fetchProfile(userId);
         }
       };
 
@@ -381,8 +512,9 @@ export default function HabitScreen() {
         profileData;
 
       // 5. Apply Stat Changes
-      // Sum flat energeia bonus from all currently equipped items (XP only, not currency)
+      // Sum bonuses from all currently equipped items
       let energeiaFlatBonus = 0;
+      let healthEquipBonus = 0;
       if (energeiaChange > 0) {
         const { data: equippedBonuses } = await supabase
           .from("user_inventory")
@@ -394,11 +526,18 @@ export default function HabitScreen() {
           equippedBonuses
             ?.filter((e: any) => e.item?.hidden_stat_type === "energeia")
             .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
+
+        // Health gear bonus applied once per level-up (fighters benefit most)
+        healthEquipBonus =
+          equippedBonuses
+            ?.filter((e: any) => e.item?.hidden_stat_type === "health")
+            .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
       }
 
       let newHealth = Math.min(Math.max(current_health + healthChange, 0), max_health);
       let newEnergeia = current_energeia + energeiaChange + energeiaFlatBonus;
       let newLevel = level;
+      let newMaxHealth = max_health;
       let newCurrency = energeia_currency;
       let didLevelUp = false;
 
@@ -415,12 +554,14 @@ export default function HabitScreen() {
           // Noble: +10% to coin wallet
           newCurrency += Math.round(energeiaChange * 0.10);
         }
-        // Fighter: +1% damage to bosses — wired up when boss system is added
+        // Fighter: gear bonus feeds into boss damage and health growth
 
         let levelThreshold = 100 + (newLevel - 1) * 20;
         while (newEnergeia >= levelThreshold) {
           newEnergeia -= levelThreshold;
           newLevel += 1;
+          // Max health grows 5 base + equipped health gear bonus each level
+          newMaxHealth += 5 + healthEquipBonus;
           didLevelUp = true;
           levelThreshold = 100 + (newLevel - 1) * 20;
         }
@@ -429,9 +570,9 @@ export default function HabitScreen() {
         newEnergeia = Math.max(newEnergeia, 0);
       }
 
-      // Level up restores health to full
+      // Level up restores health to the new (grown) max
       if (didLevelUp) {
-        newHealth = max_health;
+        newHealth = newMaxHealth;
       }
 
       // --- TRANSACTION: Perform both updates ---
@@ -506,13 +647,14 @@ export default function HabitScreen() {
           current_energeia: newEnergeia,
           level: newLevel,
           energeia_currency: newCurrency,
+          ...(didLevelUp ? { max_health: newMaxHealth } : {}),
         })
         .eq("id", userId);
 
       if (profileError) throw profileError;
 
       if (didLevelUp) {
-        alert(`You have reached Level ${newLevel}! Your health has been fully restored.`);
+        alert(`You have reached Level ${newLevel}!\nMax health increased to ${newMaxHealth} and fully restored.`);
       }
 
       // --- ACHIEVEMENT GRANTS ---
@@ -541,7 +683,9 @@ export default function HabitScreen() {
 
       if (logError) console.error("Calendar Log Error:", logError.message);
 
-      if (direction === "up") await checkStoryDrop(userId); //random drop call
+      if (direction === "up") {
+        await checkStoryDrop(userId, difficulty, player_class ?? "", level, current_energeia);
+      }
 
       // 6. Refresh ALL data (Habits list color and Character Stats display)
       await fetchHabits(userId);

@@ -1,5 +1,6 @@
 import { supabase } from "@/utils/supabase";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   Image,
   ScrollView,
@@ -13,15 +14,18 @@ interface SeasonalStory {
   id: number;
   title: string;
   intro_text: string;
+  completion_text: string;
   part_number: number;
   required_items_count: number;
   required_item_name: string;
   quest_image: string | null;
-  // ... any other columns from your table
+  quest_type: string | null;       // "fight" | "collection" | null
+  boss_difficulty: number | null;
 }
 
 // A simple, cross-platform custom progress bar
-const ProgressBar = ({ progress }: { progress: number }) => (
+// color defaults to green for collection quests; pass red for fight/boss quests
+const ProgressBar = ({ progress, color = "#2ECC71" }: { progress: number; color?: string }) => (
   <View
     style={{
       height: 10,
@@ -35,7 +39,7 @@ const ProgressBar = ({ progress }: { progress: number }) => (
       style={{
         height: "100%",
         width: `${Math.min(Math.max(progress * 100, 0), 100)}%`,
-        backgroundColor: "#2ECC71",
+        backgroundColor: color,
       }}
     />
   </View>
@@ -47,8 +51,8 @@ const getCurrentSeasonString = () => {
 
   if (month >= 11 || month <= 1) return "Winter (Dec–Feb)";
   if (month >= 2 && month <= 4) return "Spring (Mar–May)";
-  if (month >= 5 && month <= 7) return "Summer (Jun–Aug)"; // Assuming future format
-  return "Autumn (Sep–Nov)"; // Assuming future format
+  if (month >= 5 && month <= 7) return "Summer (Jun–Aug)";
+  return "Autumn (Sep–Nov)";
 };
 
 export default function StorylineScreen() {
@@ -57,38 +61,35 @@ export default function StorylineScreen() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadStoryData = async () => {
+  const loadStoryData = useCallback(async () => {
     setLoading(true);
     const {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session) return;
 
-    const currentSeason = getCurrentSeasonString(); // Get "Winter (Dec–Feb)"
+    const currentSeason = getCurrentSeasonString();
 
-    // 1. Fetch Stories ONLY for this season
-    const { data: storyData, error: storyError } = await supabase // 👈 Added error: storyError
+    const { data: storyData, error: storyError } = await supabase
       .from("seasonal_stories")
       .select("*")
       .eq("season", currentSeason)
       .eq("is_active", true)
       .order("part_number", { ascending: true });
 
-    console.log("Stories found:", storyData?.length);
     if (storyError) console.error("Supabase Story Error:", storyError.message);
 
-    // 2. Fetch Progress
     const { data: progressData } = await supabase
       .from("user_story_progress")
       .select("*")
       .eq("user_id", session.user.id);
 
-    const progressMap = {};
+    const progressMap: Record<number, any> = {};
     progressData?.forEach((p) => {
       progressMap[p.story_id] = p;
     });
 
-    // 3. AUTO-INITIALIZE: If user has stories but NO progress at all, start Part 1
+    // AUTO-INITIALIZE: If user has stories but NO progress at all, start Part 1
     if (
       storyData &&
       storyData.length > 0 &&
@@ -113,11 +114,14 @@ export default function StorylineScreen() {
     setStories(storyData || []);
     setUserProgress(progressMap);
     setLoading(false);
-  };
-
-  useEffect(() => {
-    loadStoryData();
   }, []);
+
+  // Reload every time the screen comes into focus so damage/drops show immediately
+  useFocusEffect(
+    useCallback(() => {
+      loadStoryData();
+    }, [loadStoryData]),
+  );
 
   const handleTogglePause = async (storyId: number) => {
     const currentProgress = userProgress[storyId];
@@ -148,16 +152,21 @@ export default function StorylineScreen() {
     <ScrollView style={styles.container}>
       {stories.map((story, index) => {
         const progressObj = userProgress[story.id];
-        const currentCount = progressObj?.current_count || 0;
+        // Cap display count at goal so it never shows 44/40
+        const rawCount = progressObj?.current_count ?? 0;
+        const displayCount = Math.min(rawCount, story.required_items_count);
+        const isCompleted = progressObj?.is_completed === true;
 
-        // A node is locked if it's not the first one AND the previous one isn't finished
-        // We use optional chaining ?. to handle the case where the previous progress doesn't exist
         const isLocked =
           index > 0 && !userProgress[stories[index - 1].id]?.is_completed;
 
-        const progressRatio =
-          story.required_items_count > 0
-            ? currentCount / story.required_items_count
+        const isFightQuest = story.quest_type === "fight";
+
+        // Completed quests always show a full bar
+        const progressRatio = isCompleted
+          ? 1
+          : story.required_items_count > 0
+            ? rawCount / story.required_items_count
             : 0;
 
         return (
@@ -190,7 +199,11 @@ export default function StorylineScreen() {
                   <Text style={styles.subtext}>
                     {isLocked
                       ? "??? (Locked)"
-                      : `${currentCount}/${story.required_items_count} ${story.required_item_name}`}
+                      : isCompleted
+                        ? "✅ Complete!"
+                        : isFightQuest
+                          ? `⚔️ ${displayCount}/${story.required_items_count} HP dealt`
+                          : `${displayCount}/${story.required_items_count} ${story.required_item_name}`}
                   </Text>
                 </View>
               </View>
@@ -198,24 +211,39 @@ export default function StorylineScreen() {
 
             {!isLocked && (
               <View style={styles.progressSection}>
-                <ProgressBar progress={progressRatio} />
+                <ProgressBar
+                  progress={progressRatio}
+                  color={
+                    isCompleted ? "#3498DB" : isFightQuest ? "#E74C3C" : "#2ECC71"
+                  }
+                />
               </View>
             )}
 
             {expandedId === story.id && (
               <View style={styles.descriptionBox}>
-                <Text style={styles.storyText}>{story.intro_text}</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.pauseButton,
-                    progressObj?.is_paused && styles.pausedActive,
-                  ]}
-                  onPress={() => handleTogglePause(story.id)}
-                >
-                  <Text style={{ color: "white" }}>
-                    {progressObj?.is_paused ? "Resume Quest" : "Pause Quest"}
-                  </Text>
-                </TouchableOpacity>
+                <Text style={styles.storyText}>
+                  {isCompleted ? story.completion_text : story.intro_text}
+                </Text>
+                {isCompleted ? (
+                  <View style={styles.completedBadge}>
+                    <Text style={{ color: "white", fontWeight: "bold" }}>
+                      Quest Complete!
+                    </Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[
+                      styles.pauseButton,
+                      progressObj?.is_paused && styles.pausedActive,
+                    ]}
+                    onPress={() => handleTogglePause(story.id)}
+                  >
+                    <Text style={{ color: "white" }}>
+                      {progressObj?.is_paused ? "Resume Quest" : "Pause Quest"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
@@ -225,7 +253,6 @@ export default function StorylineScreen() {
   );
 }
 
-// Basic styles to get you started
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 15, backgroundColor: "#f5f5f5" },
   node: {
@@ -257,6 +284,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pausedActive: { backgroundColor: "#2ECC71" },
+  completedBadge: {
+    marginTop: 10,
+    backgroundColor: "#3498DB",
+    padding: 8,
+    borderRadius: 5,
+    alignItems: "center",
+  },
   lockOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.05)",
