@@ -28,7 +28,7 @@ interface Profile {
 
 const CLASS_HUB_LABEL: Record<string, string> = {
   monk:    "Monastery",
-  noble:   "Envoy",
+  noble:   "Court",
   fighter: "Barracks",
 };
 
@@ -119,7 +119,7 @@ const SettingsSection = ({
   const handlePress = (itemId: string) => {
     // Basic navigation logic
     if (
-      ["about", "market", "achievements", "seasonal-stories", "stable", "subscription", "username", "password"].includes(itemId)
+      ["about", "market", "achievements", "seasonal-stories", "stable", "subscription", "username", "password", "monastery"].includes(itemId)
     ) {
       navigation.navigate(itemId);
     } else {

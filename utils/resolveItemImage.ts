@@ -22,6 +22,9 @@ const ITEM_IMAGE_MAP: Record<string, ImageSourcePropType> = {
   "noble-female-tiara":    require("../assets/sprites/items/noble-female-tiara.png"),
   "noble-princess-mirror": require("../assets/sprites/items/noble-princess-mirror.png"),
 
+  // ── Quest items (scrolls, drops) ─────────────────────────────────────────
+  "help-wanted-scroll": require("../assets/sprites/quests/quest-scroll-temp.jpg"),
+
   // ── Spring 2026 seasonal items ────────────────────────────────────────────
   "spring-kokoshnik-2026":    require("../assets/sprites/items/spring-kokoshnik-2026.png"),
   "temp-princess-spring-dress": require("../assets/sprites/items/temp-princess-spring-dress.png"),

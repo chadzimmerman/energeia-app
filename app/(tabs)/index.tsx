@@ -4,6 +4,7 @@ import { View } from "@/components/Themed";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   StyleSheet,
   Text,
@@ -286,6 +287,42 @@ const checkBossAttack = async (userId: string) => {
   } catch (e) {
     console.error("Boss attack error:", e);
   }
+};
+
+// 1/50 chance per positive habit press (~1 drop per 10 days with 5 daily habits)
+const checkScrollDrop = async (userId: string): Promise<void> => {
+  if (Math.random() > 1 / 50) return;
+
+  const { data: scrollItem } = await supabase
+    .from("items_master")
+    .select("id")
+    .eq("image_path", "help-wanted-scroll")
+    .maybeSingle();
+
+  if (!scrollItem) return;
+
+  const { data: existing } = await supabase
+    .from("user_inventory")
+    .select("id, quantity")
+    .eq("user_id", userId)
+    .eq("item_id", scrollItem.id)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("user_inventory")
+      .update({ quantity: existing.quantity + 1 })
+      .eq("id", existing.id);
+  } else {
+    await supabase
+      .from("user_inventory")
+      .insert({ user_id: userId, item_id: scrollItem.id, quantity: 1 });
+  }
+
+  Alert.alert(
+    "📜 Help Wanted!",
+    "You found a notice from the town center — someone needs help at the old healer's cottage. Check your inventory!"
+  );
 };
 
 export default function HabitScreen() {
@@ -685,6 +722,7 @@ export default function HabitScreen() {
 
       if (direction === "up") {
         await checkStoryDrop(userId, difficulty, player_class ?? "", level, current_energeia);
+        await checkScrollDrop(userId);
       }
 
       // 6. Refresh ALL data (Habits list color and Character Stats display)

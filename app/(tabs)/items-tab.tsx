@@ -81,6 +81,8 @@ const RawItemImagePathMap: { [key: string]: string } = {
     "../../assets/sprites/items/candle.png",
   "fd803603-2861-47a9-91d7-260a108945fa":
     "../../assets/sprites/items/philokalia.png",
+  "4390acf4-8880-4647-a540-4920f5114644":
+    "../../assets/sprites/quests/quest-scroll-temp.jpg",
 };
 
 // 🌟 FIX: Pre-resolve the image assets at compile time 🌟
@@ -95,6 +97,7 @@ const ResolvedImageSourceMap: { [key: string]: ImageSourcePropType } = {
   "9b04e0c5-14fc-44d7-b72c-5ed9abb4c276": require("../../assets/sprites/items/chotki.png"),
   "63537178-f4ff-4bcd-8572-fd71244c6a24": require("../../assets/sprites/items/candle.png"),
   "fd803603-2861-47a9-91d7-260a108945fa": require("../../assets/sprites/items/philokalia.png"),
+  "4390acf4-8880-4647-a540-4920f5114644": require("../../assets/sprites/quests/quest-scroll-temp.jpg"),
 };
 
 
@@ -375,7 +378,7 @@ export default function ItemsTabScreen() {
             item_id: itemId,
             quantity: 1,
             name: itemMaster.name,
-            imageSource: { uri: itemMaster.image_path }, // Directly use the Supabase URL
+            imageSource: ResolvedImageSourceMap[itemId] ?? { uri: itemMaster.image_path },
             energeiaNumber: itemMaster.base_energeia_cost,
             type: itemMaster.type,
             flavorText: itemMaster.flavor_text,

@@ -67,6 +67,12 @@ export default function SettingsStackLayout() {
           title: "Stable",
         }}
       />
+      <Stack.Screen
+        name="monastery"
+        options={{
+          title: "Group",
+        }}
+      />
     </Stack>
   );
 }
