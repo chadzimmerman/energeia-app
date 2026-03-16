@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
+  ImageSourcePropType,
   StyleSheet,
   Text,
 } from "react-native";
@@ -13,8 +14,10 @@ import { supabase } from "../../utils/supabase";
 import { getSeasonalBackground } from "../../utils/seasons";
 import { grantAchievement } from "../../utils/grantAchievement";
 import { resolveCharacterImage } from "../../utils/resolveCharacterImage";
+import { resolveItemImage } from "../../utils/resolveItemImage";
 import HabitEditModal from "../HabitEditModal";
 import DeathModal from "../DeathModal";
+import { useProfile } from "@/contexts/ProfileContext";
 
 interface Profile {
   id: string;
@@ -178,20 +181,33 @@ const checkStoryDrop = async (
             ]);
         }
 
-        // 3. Grant seasonal reward item (final parts only — when reward_item_id is set)
+        // 3. Grant class-specific seasonal equipment reward (final parts only)
         let rewardItemName: string | null = null;
-        if (storyData.reward_item_id) {
-          const { data: itemData } = await supabase
-            .from("items_master")
-            .select("name")
-            .eq("id", storyData.reward_item_id)
+        if (!nextStory) {
+          // Only grant on the final part — look up this player's class reward
+          const { data: profileForClass } = await supabase
+            .from("profiles")
+            .select("player_class")
+            .eq("id", userId)
             .single();
-          rewardItemName = itemData?.name ?? null;
 
-          await supabase.from("user_inventory").upsert(
-            { user_id: userId, item_master_id: storyData.reward_item_id, quantity: 1, is_equipped: false },
-            { onConflict: "user_id, item_master_id", ignoreDuplicates: true },
-          );
+          if (profileForClass?.player_class) {
+            const { data: rewardItem } = await supabase
+              .from("items_master")
+              .select("id, name")
+              .eq("required_class", profileForClass.player_class)
+              .eq("is_in_market", false)
+              .eq("type", "equippable")
+              .maybeSingle();
+
+            if (rewardItem) {
+              rewardItemName = rewardItem.name;
+              await supabase.from("user_inventory").upsert(
+                { user_id: userId, item_master_id: rewardItem.id, quantity: 1, is_equipped: false },
+                { onConflict: "user_id, item_master_id", ignoreDuplicates: true },
+              );
+            }
+          }
         }
 
         // Final completion message
@@ -327,7 +343,9 @@ const checkScrollDrop = async (userId: string): Promise<void> => {
 
 export default function HabitScreen() {
   const router = useRouter();
+  const { animalCompanion, wallItems, floorItems } = useProfile();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [equippedOverlays, setEquippedOverlays] = useState<ImageSourcePropType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -379,6 +397,20 @@ export default function HabitScreen() {
       setError(`Profile Setup Error: ${e.message}`);
     }
   }, [router]);
+
+  const fetchEquippedOverlays = useCallback(async (currentUserId: string) => {
+    const { data } = await supabase
+      .from("user_inventory")
+      .select("item:item_master_id(image_path, type)")
+      .eq("user_id", currentUserId)
+      .eq("is_equipped", true);
+    if (data) {
+      const overlays = data
+        .filter((e: any) => e.item?.type === "equippable")
+        .map((e: any) => resolveItemImage(e.item.image_path));
+      setEquippedOverlays(overlays);
+    }
+  }, []);
 
   const fetchHabits = useCallback(async (currentUserId: string) => {
     try {
@@ -445,6 +477,7 @@ export default function HabitScreen() {
           await checkBossAttack(userId);
           await fetchHabits(userId);
           await fetchProfile(userId);
+          await fetchEquippedOverlays(userId);
         }
       };
 
@@ -795,7 +828,11 @@ export default function HabitScreen() {
         maxHealth={profile.max_health}
         currentEnergy={profile.current_energeia}
         maxEnergy={100 + (profile.level - 1) * 20}
+        equippedOverlays={equippedOverlays}
         level={profile.level}
+        animalCompanion={animalCompanion}
+        wallItems={wallItems}
+        floorItems={floorItems}
       />
       <HabitList
         habits={habits}

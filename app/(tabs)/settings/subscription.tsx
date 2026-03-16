@@ -4,6 +4,7 @@ import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -169,12 +170,15 @@ function UpsellView() {
 
         {/* Price */}
         <View style={upsellStyles.priceContainer}>
-          <Text style={upsellStyles.price}>$2.99</Text>
+          <Text style={upsellStyles.price}>$5.00</Text>
           <Text style={upsellStyles.pricePeriod}> / month</Text>
         </View>
 
         {/* Subscribe button */}
-        <TouchableOpacity style={upsellStyles.subscribeButton} onPress={() => {}}>
+        <TouchableOpacity
+          style={upsellStyles.subscribeButton}
+          onPress={() => Alert.alert("Coming Soon", "In-app subscription is coming in a future update!")}
+        >
           <Text style={upsellStyles.subscribeButtonText}>Subscribe</Text>
         </TouchableOpacity>
 

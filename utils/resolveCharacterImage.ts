@@ -16,9 +16,9 @@ import { ImageSourcePropType } from 'react-native';
 
 // ── Placeholders (swap these out as art is ready) ──────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const MALE_PLACEHOLDER   = require('../assets/sprites/characters/warrior/base-male.png');
+const MALE_PLACEHOLDER   = require('../assets/sprites/characters/genders/base-male.png');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const FEMALE_PLACEHOLDER = require('../assets/sprites/characters/princess/base-princess.png');
+const FEMALE_PLACEHOLDER = require('../assets/sprites/characters/genders/princess-base.png');
 
 const CHARACTER_IMAGE_MAP: Record<string, ImageSourcePropType> = {
 

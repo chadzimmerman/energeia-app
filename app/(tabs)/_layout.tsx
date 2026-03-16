@@ -6,6 +6,7 @@ import { Pressable } from "react-native";
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
+import { ProfileProvider } from "@/contexts/ProfileContext";
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -19,6 +20,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <ProfileProvider>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
@@ -83,5 +85,6 @@ export default function TabLayout() {
         }}
       /> */}
     </Tabs>
+    </ProfileProvider>
   );
 }

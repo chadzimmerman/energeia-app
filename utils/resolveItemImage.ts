@@ -22,6 +22,25 @@ const ITEM_IMAGE_MAP: Record<string, ImageSourcePropType> = {
   "noble-female-tiara":    require("../assets/sprites/items/noble-female-tiara.png"),
   "noble-princess-mirror": require("../assets/sprites/items/noble-princess-mirror.png"),
 
+  // ── Animal companions ─────────────────────────────────────────────────────
+  "puppy":            require("../assets/sprites/animals/puppy.webp"),
+  "kitten":           require("../assets/sprites/animals/kitten.webp"),
+  "baby-rabbit":      require("../assets/sprites/animals/baby-rabbit.webp"),
+  "baby-bear":        require("../assets/sprites/animals/baby-bear.webp"),
+  "baby-crocodile":   require("../assets/sprites/animals/baby-crocodile.webp"),
+  "bear":             require("../assets/sprites/animals/bear.webp"),
+  "baby-lion":        require("../assets/sprites/animals/baby-lion.webp"),
+
+  // ── Equipment overlays (transparent PNGs, layered over character) ────────
+  "monk-hat":              require("../assets/sprites/characters/monk/monk-hat.png"),
+  "monk-pectoral-cross":   require("../assets/sprites/characters/monk/monk-pectoral-cross.png"),
+  "monk-robes":            require("../assets/sprites/characters/monk/monk-robes.png"),
+  "princess-kokoshnik":    require("../assets/sprites/characters/princess/princess-kokoshnik.png"),
+  "princess-dress":        require("../assets/sprites/characters/princess/princess-dress.png"),
+  "spring-2026-mirror":    require("../assets/sprites/characters/princess/spring-2026-mirrior.png"),
+  "fighter-helmet":        require("../assets/sprites/characters/warrior/fighter-helmet.png"),
+  "fighter-sword":         require("../assets/sprites/characters/warrior/fighter-sword.png"),
+
   // ── Quest items (scrolls, drops) ─────────────────────────────────────────
   "help-wanted-scroll": require("../assets/sprites/quests/quest-scroll-temp.jpg"),
 

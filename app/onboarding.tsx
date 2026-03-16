@@ -16,10 +16,10 @@ import {
 type Gender = "male" | "female";
 type PlayerClass = "Monk" | "Fighter" | "Noble";
 
-const CLASS_OPTIONS: { id: PlayerClass; label: string; tagline: string }[] = [
-  { id: "Monk", label: "Monk", tagline: "Prayer & fasting" },
-  { id: "Fighter", label: "Fighter", tagline: "Shield & sword" },
-  { id: "Noble", label: "Noble", tagline: "Wisdom & stewardship" },
+const CLASS_OPTIONS: { id: PlayerClass; label: string; tagline: string; bonus: string; lockedGender: Gender }[] = [
+  { id: "Monk",    label: "Monk",    tagline: "Prayer & fasting",      bonus: "+10% XP from all habits",    lockedGender: "male"   },
+  { id: "Fighter", label: "Fighter", tagline: "Shield & sword",        bonus: "+10% damage to bosses",      lockedGender: "male"   },
+  { id: "Noble",   label: "Noble",   tagline: "Wisdom & stewardship",  bonus: "+10% Energeia earned",       lockedGender: "female" },
 ];
 
 export default function OnboardingScreen() {
@@ -113,8 +113,10 @@ export default function OnboardingScreen() {
           style={[
             styles.genderButton,
             gender === "male" && styles.genderButtonActive,
+            !!selectedClass && styles.genderButtonDisabled,
           ]}
-          onPress={() => setGender("male")}
+          onPress={() => !selectedClass && setGender("male")}
+          disabled={!!selectedClass}
         >
           <Text
             style={[
@@ -129,8 +131,10 @@ export default function OnboardingScreen() {
           style={[
             styles.genderButton,
             gender === "female" && styles.genderButtonActive,
+            !!selectedClass && styles.genderButtonDisabled,
           ]}
-          onPress={() => setGender("female")}
+          onPress={() => !selectedClass && setGender("female")}
+          disabled={!!selectedClass}
         >
           <Text
             style={[
@@ -142,6 +146,11 @@ export default function OnboardingScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+      {!!selectedClass && (
+        <Text style={styles.genderNote}>
+          More character art coming in a future update.
+        </Text>
+      )}
 
       {/* Class Selection */}
       <Text style={styles.sectionLabel}>Choose Your Class</Text>
@@ -153,7 +162,7 @@ export default function OnboardingScreen() {
               styles.classCard,
               selectedClass === cls.id && styles.classCardActive,
             ]}
-            onPress={() => setSelectedClass(cls.id)}
+            onPress={() => { setSelectedClass(cls.id); setGender(cls.lockedGender); }}
           >
             <Text
               style={[
@@ -170,6 +179,14 @@ export default function OnboardingScreen() {
               ]}
             >
               {cls.tagline}
+            </Text>
+            <Text
+              style={[
+                styles.classBonus,
+                selectedClass === cls.id && styles.classBonusActive,
+              ]}
+            >
+              {cls.bonus}
             </Text>
           </TouchableOpacity>
         ))}
@@ -320,9 +337,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "rgba(255,255,255,0.35)",
     textAlign: "center",
+    marginBottom: 6,
   },
   classTaglineActive: {
     color: "rgba(255,255,255,0.75)",
+  },
+  classBonus: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.25)",
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+  classBonusActive: {
+    color: "#FFD700",
+  },
+  genderButtonDisabled: {
+    opacity: 0.35,
+  },
+  genderNote: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.35)",
+    fontStyle: "italic",
+    marginTop: -20,
+    marginBottom: 20,
+    textAlign: "center",
   },
   beginButton: {
     backgroundColor: PURPLE,

@@ -313,8 +313,9 @@ export default function MarketScreen() {
         .eq("is_in_market", true);
 
       if (playerClass) {
+        const cls = playerClass.toLowerCase();
         itemQuery = itemQuery.or(
-          `required_class.is.null,required_class.eq.${playerClass}`
+          `required_class.is.null,required_class.eq.${cls}`
         );
       } else {
         itemQuery = itemQuery.is("required_class", null);

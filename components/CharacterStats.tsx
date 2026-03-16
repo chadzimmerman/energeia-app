@@ -19,6 +19,10 @@ interface CharacterStatsProps {
   currentEnergy: number;
   maxEnergy: number;
   level?: number;
+  equippedOverlays?: ImageSourcePropType[];
+  animalCompanion?: ImageSourcePropType | null;
+  wallItems?: ImageSourcePropType[];
+  floorItems?: ImageSourcePropType[];
 }
 
 const CharacterStats: React.FC<CharacterStatsProps> = ({
@@ -29,6 +33,10 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   currentEnergy,
   maxEnergy,
   level = 1,
+  equippedOverlays = [],
+  animalCompanion = null,
+  wallItems = [],
+  floorItems = [],
 }) => {
   // Calculate bar percentages
   const healthPercent = (currentHealth / maxHealth) * 100;
@@ -41,8 +49,26 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
 
       {/* 2. Character Stats Card Area */}
       <View style={styles.card}>
-        {/* 3. Character Image */}
+        {/* 3. Character Image + Equipment Overlays */}
         <Image source={characterImageSource} style={styles.characterImage} />
+        {equippedOverlays.map((src, i) => (
+          <Image key={i} source={src} style={[styles.characterImage, styles.equipmentOverlay]} />
+        ))}
+
+        {/* Animal Companion — small, to the left of the character */}
+        {animalCompanion && (
+          <Image source={animalCompanion} style={styles.animalCompanion} resizeMode="contain" />
+        )}
+
+        {/* Wall Decorations — upper-right behind the stats */}
+        {wallItems.map((src, i) => (
+          <Image key={`wall-${i}`} source={src} style={[styles.wallItem, { right: 8 + i * 34 }]} resizeMode="contain" />
+        ))}
+
+        {/* Floor Decorations — lower-right */}
+        {floorItems.map((src, i) => (
+          <Image key={`floor-${i}`} source={src} style={[styles.floorItem, { right: 8 + i * 44 }]} resizeMode="contain" />
+        ))}
 
         {/* 4. Stats Bars Container */}
         <View style={styles.statsContainer}>
@@ -82,7 +108,9 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           </View>
 
           {/* Level Display */}
-          <Text style={styles.levelText}>Level {level}</Text>
+          <View style={styles.levelBadge}>
+            <Text style={styles.levelText}>Lv. {level}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -109,11 +137,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 25,
     left: 25,
-    width: width * 0.95, // Adjust width to be almost full screen
+    width: width * 0.95,
     height: CARD_HEIGHT,
     flexDirection: "row",
     alignItems: "flex-start",
-    zIndex: 10, // Ensure it sits on top of the background
+    zIndex: 10,
+    overflow: "visible",
   },
   characterImage: {
     width: 100,
@@ -127,6 +156,12 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     zIndex: 20,
+  },
+  equipmentOverlay: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    borderColor: "transparent",
+    zIndex: 21,
   },
   statsContainer: {
     position: "absolute",
@@ -198,10 +233,39 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     //tintColor: "#EEDD82", // Light gold for the bolt icon
   },
+  levelBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
   levelText: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "#A737FD",
+    color: "#fff",
+  },
+  animalCompanion: {
+    position: "absolute",
+    left: 8,
+    bottom: 73,
+    width: 38,
+    height: 38,
+    zIndex: 22,
+  },
+  wallItem: {
+    position: "absolute",
+    top: 6,
+    width: 30,
+    height: 30,
+    zIndex: 8,
+  },
+  floorItem: {
+    position: "absolute",
+    bottom: 6,
+    width: 40,
+    height: 40,
+    zIndex: 8,
   },
 });
 

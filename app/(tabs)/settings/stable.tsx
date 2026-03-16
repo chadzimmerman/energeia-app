@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { useProfile } from "@/contexts/ProfileContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -21,13 +22,13 @@ import {
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const ANIMAL_IMAGE_MAP: Record<string, ImageSourcePropType> = {
-  puppy:           require("../../../assets/sprites/animals/puppy.png"),
-  kitten:          require("../../../assets/sprites/animals/kitten.png"),
-  "baby-rabbit":   require("../../../assets/sprites/animals/baby-rabbit.png"),
-  "baby-bear":     require("../../../assets/sprites/animals/baby-bear.png"),
-  "baby-crocodile":require("../../../assets/sprites/animals/baby-crocodile.png"),
-  bear:            require("../../../assets/sprites/animals/bear.png"),
-  "baby-lion":     require("../../../assets/sprites/animals/baby-lion.png"),
+  puppy:           require("../../../assets/sprites/animals/puppy.webp"),
+  kitten:          require("../../../assets/sprites/animals/kitten.webp"),
+  "baby-rabbit":   require("../../../assets/sprites/animals/baby-rabbit.webp"),
+  "baby-bear":     require("../../../assets/sprites/animals/baby-bear.webp"),
+  "baby-crocodile":require("../../../assets/sprites/animals/baby-crocodile.webp"),
+  bear:            require("../../../assets/sprites/animals/bear.webp"),
+  "baby-lion":     require("../../../assets/sprites/animals/baby-lion.webp"),
 };
 
 const resolveAnimalImage = (key: string): ImageSourcePropType => {
@@ -48,7 +49,7 @@ const getCurrentSeason = (): string => {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface StableAnimal {
-  id: string;
+  id: string;           // item_master_id
   name: string;
   imageSource: ImageSourcePropType;
   price: number;
@@ -57,6 +58,8 @@ interface StableAnimal {
   isSeasonal: boolean;
   season: string | null;
   isSubscriberOnly: boolean;
+  inventoryId: string | null;   // null = not owned
+  isEquipped: boolean;
 }
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -66,7 +69,7 @@ const CARD_PADDING = 15;
 const CARD_GAP = 10;
 const cardSize = (screenWidth - CARD_PADDING * 2 - CARD_GAP) / 2;
 
-// ── Animal Card ───────────────────────────────────────────────────────────────
+// ── Shop Animal Card (unowned) ────────────────────────────────────────────────
 
 const AnimalCard: React.FC<{
   animal: StableAnimal;
@@ -101,20 +104,53 @@ const AnimalCard: React.FC<{
   </TouchableOpacity>
 );
 
-// ── Purchase Modal ────────────────────────────────────────────────────────────
+// ── Owned Animal Card ─────────────────────────────────────────────────────────
+
+const OwnedAnimalCard: React.FC<{
+  animal: StableAnimal;
+  onPress: (animal: StableAnimal) => void;
+}> = ({ animal, onPress }) => (
+  <TouchableOpacity
+    style={[styles.card, styles.ownedCard, { width: cardSize, height: cardSize * 1.4 }]}
+    onPress={() => onPress(animal)}
+    activeOpacity={0.75}
+  >
+    <Image
+      source={animal.imageSource}
+      style={styles.cardImage}
+      resizeMode="contain"
+    />
+    <Text style={styles.cardName} numberOfLines={2}>{animal.name}</Text>
+    <View style={[styles.priceRow, animal.isEquipped && styles.equippedBadge]}>
+      <FontAwesome
+        name={animal.isEquipped ? "check" : "plus"}
+        size={12}
+        color={animal.isEquipped ? "#2ECC71" : "#A06E00"}
+      />
+      <Text style={[styles.priceText, animal.isEquipped && styles.equippedText]}>
+        {animal.isEquipped ? "Equipped" : "Equip"}
+      </Text>
+    </View>
+  </TouchableOpacity>
+);
+
+// ── Purchase / Equip Modal ────────────────────────────────────────────────────
 
 const AnimalModal: React.FC<{
   visible: boolean;
   animal: StableAnimal | null;
   playerEnergeia: number;
   userId: string | null;
+  allAnimalItemIds: string[];
   onClose: () => void;
   onPurchaseSuccess: () => void;
-}> = ({ visible, animal, playerEnergeia, userId, onClose, onPurchaseSuccess }) => {
+  onEquipSuccess: () => void;
+}> = ({ visible, animal, playerEnergeia, userId, allAnimalItemIds, onClose, onPurchaseSuccess, onEquipSuccess }) => {
   if (!animal) return null;
 
   const canAfford = playerEnergeia >= animal.price;
   const isLocked = animal.isSubscriberOnly;
+  const isOwned = animal.inventoryId !== null;
 
   const handleBuy = async () => {
     try {
@@ -139,6 +175,48 @@ const AnimalModal: React.FC<{
     }
   };
 
+  const handleEquip = async () => {
+    if (!animal.inventoryId) return;
+    try {
+      // Unequip all other owned animals first
+      if (allAnimalItemIds.length > 0) {
+        const { error: unequipErr } = await supabase
+          .from("user_inventory")
+          .update({ is_equipped: false })
+          .eq("user_id", userId)
+          .in("item_master_id", allAnimalItemIds);
+        if (unequipErr) throw unequipErr;
+      }
+      // Equip this one
+      const { error: equipErr } = await supabase
+        .from("user_inventory")
+        .update({ is_equipped: true })
+        .eq("id", animal.inventoryId);
+      if (equipErr) throw equipErr;
+
+      onEquipSuccess();
+      onClose();
+    } catch (e: any) {
+      Alert.alert("Equip Error", e.message);
+    }
+  };
+
+  const handleUnequip = async () => {
+    if (!animal.inventoryId) return;
+    try {
+      const { error: unequipErr } = await supabase
+        .from("user_inventory")
+        .update({ is_equipped: false })
+        .eq("id", animal.inventoryId);
+      if (unequipErr) throw unequipErr;
+
+      onEquipSuccess();
+      onClose();
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={modal.overlay} activeOpacity={1} onPress={onClose}>
@@ -147,10 +225,12 @@ const AnimalModal: React.FC<{
             <FontAwesome name="times" size={22} color="#888" />
           </TouchableOpacity>
 
-          <View style={modal.currencyChip}>
-            <FontAwesome name="flash" size={14} color="#FFC800" />
-            <Text style={modal.currencyText}>{playerEnergeia}</Text>
-          </View>
+          {!isOwned && (
+            <View style={modal.currencyChip}>
+              <FontAwesome name="flash" size={14} color="#FFC800" />
+              <Text style={modal.currencyText}>{playerEnergeia}</Text>
+            </View>
+          )}
 
           <Image
             source={animal.imageSource}
@@ -162,26 +242,42 @@ const AnimalModal: React.FC<{
           <Text style={modal.flavor}>{animal.flavorText}</Text>
           <Text style={modal.desc}>{animal.description}</Text>
 
-          <TouchableOpacity
-            style={[modal.buyBtn, isLocked ? modal.subscriberBtn : !canAfford && modal.disabledBtn]}
-            onPress={handleBuy}
-            disabled={isLocked || !canAfford}
-          >
-            {isLocked ? (
-              <>
-                <FontAwesome name="star" size={15} color="#fff" />
-                <Text style={modal.buyText}>SUBSCRIBERS ONLY</Text>
-              </>
+          {isOwned ? (
+            // Owned — show equip or unequip
+            animal.isEquipped ? (
+              <TouchableOpacity style={[modal.buyBtn, modal.unequipBtn]} onPress={handleUnequip}>
+                <FontAwesome name="times-circle" size={15} color="#fff" />
+                <Text style={modal.buyText}>UNEQUIP</Text>
+              </TouchableOpacity>
             ) : (
-              <>
-                <Text style={modal.buyText}>{canAfford ? "ADOPT" : "CANNOT AFFORD"}</Text>
-                <View style={modal.priceTag}>
-                  <FontAwesome name="flash" size={13} color="#A06E00" />
-                  <Text style={modal.priceTagText}>{animal.price}</Text>
-                </View>
-              </>
-            )}
-          </TouchableOpacity>
+              <TouchableOpacity style={[modal.buyBtn, modal.equipBtn]} onPress={handleEquip}>
+                <FontAwesome name="check-circle" size={15} color="#fff" />
+                <Text style={modal.buyText}>EQUIP COMPANION</Text>
+              </TouchableOpacity>
+            )
+          ) : (
+            // Not owned — show buy button
+            <TouchableOpacity
+              style={[modal.buyBtn, isLocked ? modal.subscriberBtn : !canAfford && modal.disabledBtn]}
+              onPress={handleBuy}
+              disabled={isLocked || !canAfford}
+            >
+              {isLocked ? (
+                <>
+                  <FontAwesome name="star" size={15} color="#fff" />
+                  <Text style={modal.buyText}>SUBSCRIBERS ONLY</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={modal.buyText}>{canAfford ? "ADOPT" : "CANNOT AFFORD"}</Text>
+                  <View style={modal.priceTag}>
+                    <FontAwesome name="flash" size={13} color="#A06E00" />
+                    <Text style={modal.priceTagText}>{animal.price}</Text>
+                  </View>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     </Modal>
@@ -191,6 +287,7 @@ const AnimalModal: React.FC<{
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function StableScreen() {
+  const { refreshProfile } = useProfile();
   const [animals, setAnimals] = useState<StableAnimal[]>([]);
   const [playerEnergeia, setPlayerEnergeia] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
@@ -207,7 +304,6 @@ export default function StableScreen() {
 
       if (profile) setPlayerEnergeia(profile.energeia_currency);
 
-      // Fetch all animals from items_master
       const { data: items, error } = await supabase
         .from("items_master")
         .select("*")
@@ -215,22 +311,26 @@ export default function StableScreen() {
 
       if (error) throw error;
 
-      // Filter out unique animals already owned
+      // Fetch inventory with equipped state
       const { data: inventory } = await supabase
         .from("user_inventory")
-        .select("item_master_id")
+        .select("id, item_master_id, is_equipped")
         .eq("user_id", uid);
 
-      const ownedIds = inventory?.map((i) => i.item_master_id) ?? [];
+      // Build a map: item_master_id → { inventoryId, isEquipped }
+      const ownedMap: Record<string, { inventoryId: string; isEquipped: boolean }> = {};
+      (inventory ?? []).forEach((inv: any) => {
+        ownedMap[inv.item_master_id] = {
+          inventoryId: inv.id,
+          isEquipped: inv.is_equipped ?? false,
+        };
+      });
 
       const currentSeason = getCurrentSeason();
 
-      const available = (items ?? [])
+      const mapped = (items ?? [])
         .filter((item) => {
-          if (item.is_unique && ownedIds.includes(item.id)) return false;
-          // Subscriber-only items always show so users can see what they're missing
           if (item.is_subscriber_only) return true;
-          // Hide seasonal animals that aren't in the current season
           if (!item.is_permanent && item.season) {
             return item.season.startsWith(currentSeason);
           }
@@ -246,9 +346,11 @@ export default function StableScreen() {
           isSeasonal: !item.is_permanent,
           season: item.season ?? null,
           isSubscriberOnly: item.is_subscriber_only ?? false,
+          inventoryId: ownedMap[item.id]?.inventoryId ?? null,
+          isEquipped: ownedMap[item.id]?.isEquipped ?? false,
         }));
 
-      setAnimals(available);
+      setAnimals(mapped);
     } catch (e: any) {
       console.error("Stable load error:", e.message);
     } finally {
@@ -269,8 +371,13 @@ export default function StableScreen() {
     }, [fetchStableData]),
   );
 
-  const regular  = animals.filter((a) => !a.isSeasonal);
-  const seasonal = animals.filter((a) => a.isSeasonal);
+  const myAnimals  = animals.filter((a) => a.inventoryId !== null);
+  const shopAnimals = animals.filter((a) => a.inventoryId === null);
+  const regular    = shopAnimals.filter((a) => !a.isSeasonal);
+  const seasonal   = shopAnimals.filter((a) => a.isSeasonal);
+
+  // All owned animal item IDs — used to unequip all before equipping a new one
+  const allAnimalItemIds = myAnimals.map((a) => a.id);
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
@@ -296,6 +403,18 @@ export default function StableScreen() {
           "Care for your animals as you care for your soul — with patience and
           devotion."
         </Text>
+
+        {/* My Companions */}
+        {myAnimals.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>My Companions</Text>
+            <View style={styles.grid}>
+              {myAnimals.map((a) => (
+                <OwnedAnimalCard key={a.id} animal={a} onPress={setSelected} />
+              ))}
+            </View>
+          </>
+        )}
 
         {/* Regular Animals */}
         <Text style={styles.sectionTitle}>Animals</Text>
@@ -333,9 +452,15 @@ export default function StableScreen() {
         animal={selected}
         playerEnergeia={playerEnergeia}
         userId={userId}
+        allAnimalItemIds={allAnimalItemIds}
         onClose={() => setSelected(null)}
         onPurchaseSuccess={() => {
           if (userId) fetchStableData(userId);
+          refreshProfile();
+        }}
+        onEquipSuccess={() => {
+          if (userId) fetchStableData(userId);
+          refreshProfile();
         }}
       />
     </View>
@@ -426,6 +551,10 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
   },
+  ownedCard: {
+    borderColor: "#A737FD",
+    backgroundColor: "#FAF4FF",
+  },
   cardImage: { width: "65%", height: "50%", marginBottom: 4 },
   cardName: {
     fontSize: 13,
@@ -470,7 +599,12 @@ const styles = StyleSheet.create({
     borderColor: "#FBD28B",
     gap: 4,
   },
+  equippedBadge: {
+    backgroundColor: "#E8F8EF",
+    borderColor: "#2ECC71",
+  },
   priceText: { fontSize: 14, fontWeight: "bold", color: "#A06E00" },
+  equippedText: { color: "#2ECC71" },
 });
 
 const modal = StyleSheet.create({
@@ -517,6 +651,8 @@ const modal = StyleSheet.create({
     gap: 12,
     marginTop: 6,
   },
+  equipBtn: { backgroundColor: "#A737FD" },
+  unequipBtn: { backgroundColor: "#888" },
   disabledBtn: { backgroundColor: "#E74C3C", opacity: 0.8 },
   subscriberBtn: { backgroundColor: "#B8860B" },
   buyText: { color: "#fff", fontSize: 17, fontWeight: "bold" },

@@ -18,6 +18,7 @@ import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
 import { getSeasonalBackground } from "@/utils/seasons";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
+import { useProfile } from "@/contexts/ProfileContext";
 import { useFocusEffect } from "expo-router";
 import DailyLogModal from "../calendar-modal";
 
@@ -52,16 +53,6 @@ const STATUS_COLORS = {
   grey: "#ECF0F1", // Untracked/Blank
 };
 
-interface Profile {
-  id: string;
-  username: string;
-  current_health: number;
-  max_health: number;
-  current_energeia: number;
-  max_energeia: number;
-  level: number;
-  character_image_path: string;
-}
 
 
 const DEFAULT_IMAGE_PATH =
@@ -312,24 +303,7 @@ export default function CalendarTabScreen() {
   }>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
-
-  const fetchProfile = useCallback(async (currentUserId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", currentUserId)
-        .single();
-
-      if (error) throw error;
-      if (data) {
-        setProfile(data as Profile);
-      }
-    } catch (e: any) {
-      console.error("Error fetching profile on Calendar Tab:", e.message);
-    }
-  }, []);
+  const { profile, equippedOverlays, animalCompanion, wallItems, floorItems, refreshProfile } = useProfile();
 
   useFocusEffect(
     useCallback(() => {
@@ -343,7 +317,7 @@ export default function CalendarTabScreen() {
 
         if (id && isActive) {
           setUserId(id);
-          fetchProfile(id);
+          refreshProfile();
 
           // ONLY fetch habits if we don't have them yet
           if (myHabits.length === 0) {
@@ -362,7 +336,7 @@ export default function CalendarTabScreen() {
       return () => {
         isActive = false;
       };
-    }, [fetchProfile]), // Remove selectedHabit from here!
+    }, [refreshProfile]),
   );
 
   useEffect(() => {
@@ -464,13 +438,16 @@ export default function CalendarTabScreen() {
       {/* 1. Character Stats Header */}
       <CharacterStats
         backgroundImageSource={getSeasonalBackground()}
-        // 🔥 The ?. prevents the crash if profile is null
         characterImageSource={resolveCharacterImage(profile?.character_image_path)}
         currentHealth={profile?.current_health ?? 0}
         maxHealth={profile?.max_health ?? 100}
         currentEnergy={profile?.current_energeia ?? 0}
         maxEnergy={100 + ((profile?.level ?? 1) - 1) * 20}
         level={profile?.level ?? 1}
+        equippedOverlays={equippedOverlays}
+        animalCompanion={animalCompanion}
+        wallItems={wallItems}
+        floorItems={floorItems}
       />
 
       {/* 2. Scrollable Content (Calendar and Habit Tracker) */}

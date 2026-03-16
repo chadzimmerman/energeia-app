@@ -1,6 +1,7 @@
 import { Text, View } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
+import { useProfile } from "@/contexts/ProfileContext";
 import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -8,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  ImageSourcePropType,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -80,15 +82,20 @@ const cautionSection = [
 ];
 
 // --- Component 1: Dynamic User Header ---
-const UserHeader = ({ profile }: { profile: Profile }) => {
+const UserHeader = ({ profile, equippedOverlays }: { profile: Profile; equippedOverlays: ImageSourcePropType[] }) => {
   return (
     <View style={headerStyles.headerContainer}>
       <View style={headerStyles.userInfo}>
-        <Image
-          source={resolveCharacterImage(profile.character_image_path)}
-          style={headerStyles.avatar}
-          resizeMode="contain"
-        />
+        <View style={headerStyles.avatarContainer}>
+          <Image
+            source={resolveCharacterImage(profile.character_image_path)}
+            style={headerStyles.avatar}
+            resizeMode="contain"
+          />
+          {equippedOverlays.map((src, i) => (
+            <Image key={i} source={src} style={[headerStyles.avatar, headerStyles.avatarOverlay]} resizeMode="contain" />
+          ))}
+        </View>
         <View style={headerStyles.textContainer}>
           <Text style={headerStyles.name}>{profile.username}</Text>
           {/* Fallback to @username if handle is null */}
@@ -226,6 +233,7 @@ const CautionSection = ({ section }: { section: any }) => {
 export default function SettingsTabScreen() {
   const navigation = useNavigation();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const { equippedOverlays } = useProfile();
   const [loading, setLoading] = useState(true);
 
   const fetchSettingsProfile = useCallback(async () => {
@@ -261,7 +269,7 @@ export default function SettingsTabScreen() {
 
   return (
     <View style={styles.container}>
-      <UserHeader profile={profile} />
+      <UserHeader profile={profile} equippedOverlays={equippedOverlays} />
       <ScrollView style={styles.listContainer}>
         {settingsSections.map((section, index) => (
           <SettingsSection
@@ -299,6 +307,21 @@ const headerStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "transparent",
+  },
+  avatarContainer: {
+    width: 50,
+    height: 50,
+    marginRight: 10,
+    position: "relative",
+  },
+  avatarOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    marginRight: 0,
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    borderColor: "transparent",
   },
   avatar: {
     width: 50,

@@ -3,10 +3,13 @@ import { Text as ThemedText, View as ThemedView } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
 import { getSeasonalBackground } from "@/utils/seasons";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
+import { resolveItemImage } from "@/utils/resolveItemImage";
+import { useProfile } from "@/contexts/ProfileContext";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   ImageSourcePropType,
@@ -40,17 +43,6 @@ interface Item {
   };
 }
 
-interface Profile {
-  id: string;
-  username: string;
-  current_health: number;
-  max_health: number;
-  current_energeia: number;
-  max_energeia: number;
-  energeia_currency: number;
-  level: number;
-  character_image_path: string;
-}
 
 // Get screen width to calculate responsive card size
 const screenWidth = Dimensions.get("window").width;
@@ -307,26 +299,11 @@ const ItemGrid: React.FC<{
 export default function ItemsTabScreen() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const { profile, equippedOverlays, animalCompanion, wallItems, floorItems, refreshProfile } = useProfile();
   const [inventory, setInventory] = useState<Item[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // --- FETCH PROFILE (KEPT) ---
-  const fetchProfile = useCallback(async (currentUserId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", currentUserId)
-        .single();
-
-      if (error) throw error;
-      setProfile(data as Profile);
-    } catch (e: any) {
-      console.error("Profile Fetch Error:", e.message);
-    }
-  }, []);
 
   // --- FETCH INVENTORY (LIVE QUERY IMPLEMENTED) ---
   const fetchInventory = useCallback(async (currentUserId: string) => {
@@ -362,6 +339,7 @@ export default function ItemsTabScreen() {
       data.forEach((record) => {
         const itemMaster = record.item as any;
         if (!itemMaster) return;
+        if (itemMaster.type === "animal") return; // animals live in the Stable, not inventory
 
         const itemId = itemMaster.id;
 
@@ -378,9 +356,11 @@ export default function ItemsTabScreen() {
             item_id: itemId,
             quantity: 1,
             name: itemMaster.name,
-            imageSource: ResolvedImageSourceMap[itemId] ?? { uri: itemMaster.image_path },
+            imageSource: ResolvedImageSourceMap[itemId] ?? resolveItemImage(itemMaster.image_path),
             energeiaNumber: itemMaster.base_energeia_cost,
             type: itemMaster.type,
+            is_equipped: record.is_equipped ?? false,
+            isLocked: record.is_locked ?? false,
             flavorText: itemMaster.flavor_text,
             description: itemMaster.description,
             requiredClass: itemMaster.required_class,
@@ -388,7 +368,7 @@ export default function ItemsTabScreen() {
               stat: itemMaster.hidden_stat_type,
               buff: itemMaster.hidden_buff_value,
             },
-          } as Item;
+          };
         }
       });
 
@@ -423,11 +403,11 @@ export default function ItemsTabScreen() {
   useFocusEffect(
     useCallback(() => {
       if (userId) {
-        fetchProfile(userId);
+        refreshProfile();
         fetchInventory(userId);
       }
       return () => {};
-    }, [userId, fetchProfile, fetchInventory]),
+    }, [userId, refreshProfile, fetchInventory]),
   );
 
   // --- HANDLERS (KEPT, BUT NOW PASSED AS PROPS) ---
@@ -443,7 +423,10 @@ export default function ItemsTabScreen() {
 
   const handleSell = async (item: Item) => {
     if (!userId || !profile) return;
-    // ... (Sell logic remains the same) ...
+    if (item.is_equipped) {
+      Alert.alert("Cannot Sell", "Unequip this item before selling it.");
+      return;
+    }
     try {
       const sellPrice = Math.floor(item.energeiaNumber / 2);
 
@@ -454,7 +437,7 @@ export default function ItemsTabScreen() {
 
       await supabase.from("user_inventory").delete().eq("id", item.id);
 
-      await fetchProfile(userId);
+      await refreshProfile();
       await fetchInventory(userId);
       console.log(`${item.name} sold for ${sellPrice} Energeia.`);
       handleCloseModal();
@@ -533,7 +516,7 @@ export default function ItemsTabScreen() {
         }
       }
 
-      await fetchProfile(userId);
+      await refreshProfile();
       await fetchInventory(userId);
       handleCloseModal();
     } catch (e: any) {
@@ -565,6 +548,10 @@ export default function ItemsTabScreen() {
         currentEnergy={profile.current_energeia}
         maxEnergy={100 + (profile.level - 1) * 20}
         level={profile.level}
+        equippedOverlays={equippedOverlays}
+        animalCompanion={animalCompanion}
+        wallItems={wallItems}
+        floorItems={floorItems}
       />
 
       {/* 2. Item Grid (Passing live inventory and currency) */}

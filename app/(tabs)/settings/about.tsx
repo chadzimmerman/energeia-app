@@ -204,7 +204,7 @@ export default function AboutScreen() {
           <Text style={aboutStyles.logo}>
             <Text style={{ fontSize: 40 }}>🐉</Text>
           </Text>
-          <Text style={aboutStyles.versionText}>Version **0.0.2**</Text>
+          <Text style={aboutStyles.versionText}>Version 0.1.0-alpha</Text>
         </View>
 
         {ABOUT_DATA.map((section, index) => (
