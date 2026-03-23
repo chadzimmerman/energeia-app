@@ -54,7 +54,7 @@ const cardSize = (screenWidth - 20 * 3) / 2; // 20px padding on left, right, and
 // This MUST match the paths used when inserting data into items_master
 const RawItemImagePathMap: { [key: string]: string } = {
   "2ea753aa-484b-428a-abe2-e630007aee20":
-    "../../assets/sprites/animals/baby-bear.png",
+    "../../assets/sprites/animals/baby-bear.webp",
   "8c86d9f2-1db2-4e11-bd21-156076c23a9f":
     "../../assets/sprites/icons/theotokos-icon.png",
   "9cca09c7-ba18-49b9-93cb-b4dce413159f":
@@ -79,7 +79,7 @@ const RawItemImagePathMap: { [key: string]: string } = {
 
 // 🌟 FIX: Pre-resolve the image assets at compile time 🌟
 const ResolvedImageSourceMap: { [key: string]: ImageSourcePropType } = {
-  "2ea753aa-484b-428a-abe2-e630007aee20": require("../../assets/sprites/animals/baby-bear.png"),
+  "2ea753aa-484b-428a-abe2-e630007aee20": require("../../assets/sprites/animals/baby-bear.webp"),
   "8c86d9f2-1db2-4e11-bd21-156076c23a9f": require("../../assets/sprites/icons/theotokos-icon.png"),
   "9cca09c7-ba18-49b9-93cb-b4dce413159f": require("../../assets/sprites/items/sword.png"),
   "2301f7f7-c2fc-4a20-be2a-6b6c843de4b9": require("../../assets/sprites/items/warrior-helmet.png"),
