@@ -23,6 +23,7 @@ interface CharacterStatsProps {
   animalCompanion?: ImageSourcePropType | null;
   wallItems?: ImageSourcePropType[];
   floorItems?: ImageSourcePropType[];
+  handItems?: ImageSourcePropType[];
 }
 
 const CharacterStats: React.FC<CharacterStatsProps> = ({
@@ -37,6 +38,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   animalCompanion = null,
   wallItems = [],
   floorItems = [],
+  handItems = [],
 }) => {
   // Calculate bar percentages
   const healthPercent = (currentHealth / maxHealth) * 100;
@@ -60,14 +62,19 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           <Image source={animalCompanion} style={styles.animalCompanion} resizeMode="contain" />
         )}
 
-        {/* Wall Decorations — upper-right behind the stats */}
-        {wallItems.map((src, i) => (
-          <Image key={`wall-${i}`} source={src} style={[styles.wallItem, { right: 8 + i * 34 }]} resizeMode="contain" />
+        {/* Hand Items — right side of character, mid-height */}
+        {handItems.map((src, i) => (
+          <Image key={`hand-${i}`} source={src} style={[styles.handItem, { top: 55 + i * 30 }]} resizeMode="contain" />
         ))}
 
-        {/* Floor Decorations — lower-right */}
+        {/* Wall Decorations — upper-right inside character box */}
+        {wallItems.map((src, i) => (
+          <Image key={`wall-${i}`} source={src} style={[styles.wallItem, { left: 65 - i * 33 }]} resizeMode="contain" />
+        ))}
+
+        {/* Floor Decorations — lower-right inside character box */}
         {floorItems.map((src, i) => (
-          <Image key={`floor-${i}`} source={src} style={[styles.floorItem, { right: 8 + i * 44 }]} resizeMode="contain" />
+          <Image key={`floor-${i}`} source={src} style={[styles.floorItem, { left: 65 - i * 36 }]} resizeMode="contain" />
         ))}
 
         {/* 4. Stats Bars Container */}
@@ -255,17 +262,24 @@ const styles = StyleSheet.create({
   },
   wallItem: {
     position: "absolute",
-    top: 6,
-    width: 30,
-    height: 30,
-    zIndex: 8,
+    top: 5,
+    width: 28,
+    height: 28,
+    zIndex: 25,
   },
   floorItem: {
     position: "absolute",
-    bottom: 6,
-    width: 40,
-    height: 40,
-    zIndex: 8,
+    top: 65,
+    width: 32,
+    height: 32,
+    zIndex: 25,
+  },
+  handItem: {
+    position: "absolute",
+    left: 68,
+    width: 32,
+    height: 32,
+    zIndex: 23,
   },
 });
 

@@ -23,6 +23,7 @@ interface ProfileContextValue {
   animalCompanion: ImageSourcePropType | null;
   wallItems: ImageSourcePropType[];
   floorItems: ImageSourcePropType[];
+  handItems: ImageSourcePropType[];
   refreshProfile: () => Promise<void>;
 }
 
@@ -32,6 +33,7 @@ const ProfileContext = createContext<ProfileContextValue>({
   animalCompanion: null,
   wallItems: [],
   floorItems: [],
+  handItems: [],
   refreshProfile: async () => {},
 });
 
@@ -41,6 +43,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [animalCompanion, setAnimalCompanion] = useState<ImageSourcePropType | null>(null);
   const [wallItems, setWallItems] = useState<ImageSourcePropType[]>([]);
   const [floorItems, setFloorItems] = useState<ImageSourcePropType[]>([]);
+  const [handItems, setHandItems] = useState<ImageSourcePropType[]>([]);
 
   const refreshProfile = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -89,6 +92,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .filter((e: any) => e.item?.display_slot === "floor")
           .map((e: any) => resolveItemImage(e.item.image_path))
       );
+
+      setHandItems(
+        equipped
+          .filter((e: any) => e.item?.display_slot === "hand")
+          .map((e: any) => resolveItemImage(e.item.image_path))
+      );
     }
   }, []);
 
@@ -97,7 +106,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [refreshProfile]);
 
   return (
-    <ProfileContext.Provider value={{ profile, equippedOverlays, animalCompanion, wallItems, floorItems, refreshProfile }}>
+    <ProfileContext.Provider value={{ profile, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile }}>
       {children}
     </ProfileContext.Provider>
   );

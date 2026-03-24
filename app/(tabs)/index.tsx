@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   ActivityIndicator,
-  ImageSourcePropType,
   StyleSheet,
   Text,
 } from "react-native";
@@ -14,22 +13,9 @@ import { supabase } from "../../utils/supabase";
 import { getSeasonalBackground } from "../../utils/seasons";
 import { grantAchievement } from "../../utils/grantAchievement";
 import { resolveCharacterImage } from "../../utils/resolveCharacterImage";
-import { resolveItemImage } from "../../utils/resolveItemImage";
 import HabitEditModal from "../HabitEditModal";
 import DeathModal from "../DeathModal";
 import { useProfile } from "@/contexts/ProfileContext";
-
-interface Profile {
-  id: string;
-  username: string;
-  current_health: number;
-  max_health: number;
-  current_energeia: number;
-  max_energeia: number;
-  energeia_currency: number;
-  level: number;
-  character_image_path: string;
-}
 
 interface Habit {
   id: string;
@@ -343,9 +329,7 @@ const checkScrollDrop = async (userId: string): Promise<void> => {
 
 export default function HabitScreen() {
   const router = useRouter();
-  const { animalCompanion, wallItems, floorItems } = useProfile();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [equippedOverlays, setEquippedOverlays] = useState<ImageSourcePropType[]>([]);
+  const { profile, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile } = useProfile();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -355,62 +339,6 @@ export default function HabitScreen() {
   const [isDeathModalVisible, setIsDeathModalVisible] = useState(false);
   const [deathLostItemName, setDeathLostItemName] = useState<string | null>(null);
 
-  const fetchProfile = useCallback(async (currentUserId: string, checkOnboarding = false) => {
-    try {
-      let { data: profileData, error: fetchError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", currentUserId)
-        .single();
-
-      if (fetchError && fetchError.code === "PGRST116") {
-        const { data: newProfileData, error: insertError } = await supabase
-          .from("profiles")
-          .insert([
-            {
-              id: currentUserId,
-              username: `Novice-${currentUserId.substring(0, 4)}`,
-              current_energeia: 0,
-              energeia_currency: 0,
-            },
-          ])
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        profileData = newProfileData;
-      } else if (fetchError) {
-        throw fetchError;
-      }
-
-      if (profileData) {
-        // Only check onboarding on initial load, not on stat refreshes
-        if (checkOnboarding && !profileData.player_class) {
-          console.log("No player_class found, redirecting to onboarding. Value:", profileData.player_class);
-          router.replace("/onboarding");
-          return;
-        }
-        setProfile(profileData as Profile);
-      }
-    } catch (e: any) {
-      console.error("Profile Fetch/Create Error:", e.message);
-      setError(`Profile Setup Error: ${e.message}`);
-    }
-  }, [router]);
-
-  const fetchEquippedOverlays = useCallback(async (currentUserId: string) => {
-    const { data } = await supabase
-      .from("user_inventory")
-      .select("item:item_master_id(image_path, type)")
-      .eq("user_id", currentUserId)
-      .eq("is_equipped", true);
-    if (data) {
-      const overlays = data
-        .filter((e: any) => e.item?.type === "equippable")
-        .map((e: any) => resolveItemImage(e.item.image_path));
-      setEquippedOverlays(overlays);
-    }
-  }, []);
 
   const fetchHabits = useCallback(async (currentUserId: string) => {
     try {
@@ -434,27 +362,13 @@ export default function HabitScreen() {
     const authenticate = async () => {
       setLoading(true);
       setError(null);
-
       try {
-        let currentUserId: string | null = null;
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         const user = session?.user;
-
         if (user) {
-          currentUserId = user.id;
+          setUserId(user.id);
         } else {
-          // No session — _layout.tsx will redirect to login, so nothing to do here
           setError("Not logged in.");
-          return;
-        }
-
-        if (currentUserId) {
-          setUserId(currentUserId);
-          await fetchProfile(currentUserId, true);
-        } else {
-          setError("Authentication failed: No user ID found.");
         }
       } catch (e: any) {
         console.error("Authentication Error:", e.message);
@@ -464,10 +378,16 @@ export default function HabitScreen() {
       }
     };
     authenticate();
-  }, [fetchProfile]);
+  }, []);
 
-  // --- Habit Refresh (Run on Mount AND when the screen comes into focus) ---
-  // This is the core fix for auto-refreshing the list after the modal closes.
+  // --- Onboarding redirect — runs when context profile loads ---
+  useEffect(() => {
+    if (profile && !profile.player_class) {
+      router.replace("/onboarding");
+    }
+  }, [profile, router]);
+
+  // --- Habit + context refresh on focus ---
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -476,8 +396,7 @@ export default function HabitScreen() {
         if (userId && isActive) {
           await checkBossAttack(userId);
           await fetchHabits(userId);
-          await fetchProfile(userId);
-          await fetchEquippedOverlays(userId);
+          await refreshProfile();
         }
       };
 
@@ -486,7 +405,7 @@ export default function HabitScreen() {
       return () => {
         isActive = false;
       };
-    }, [userId, fetchHabits]),
+    }, [userId, fetchHabits, refreshProfile]),
   );
 
   // --- Helper: Calculate Stat Changes based on Difficulty ---
@@ -704,7 +623,7 @@ export default function HabitScreen() {
         setDeathLostItemName(lostItemName);
         setIsDeathModalVisible(true);
         await fetchHabits(userId);
-        await fetchProfile(userId);
+        await refreshProfile();
         return;
       }
       // ─────────────────────────────────────────────────────────────────────
@@ -760,7 +679,7 @@ export default function HabitScreen() {
 
       // 6. Refresh ALL data (Habits list color and Character Stats display)
       await fetchHabits(userId);
-      await fetchProfile(userId);
+      await refreshProfile();
     } catch (e: any) {
       console.error("Score & Stat Update Error:", e.message);
     }
@@ -833,6 +752,7 @@ export default function HabitScreen() {
         animalCompanion={animalCompanion}
         wallItems={wallItems}
         floorItems={floorItems}
+        handItems={handItems}
       />
       <HabitList
         habits={habits}

@@ -299,7 +299,7 @@ const ItemGrid: React.FC<{
 export default function ItemsTabScreen() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const { profile, equippedOverlays, animalCompanion, wallItems, floorItems, refreshProfile } = useProfile();
+  const { profile, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile } = useProfile();
   const [inventory, setInventory] = useState<Item[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -552,6 +552,7 @@ export default function ItemsTabScreen() {
         animalCompanion={animalCompanion}
         wallItems={wallItems}
         floorItems={floorItems}
+        handItems={handItems}
       />
 
       {/* 2. Item Grid (Passing live inventory and currency) */}
