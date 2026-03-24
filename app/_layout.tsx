@@ -5,8 +5,6 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useRootNavigationState, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
-import 'react-native-reanimated';
-
 import { useColorScheme } from '@/components/useColorScheme';
 import { supabase } from '@/utils/supabase';
 

@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.chadzimmerman.energeia",
-      "buildNumber": "3",
+      "buildNumber": "6",
       "splash": {
         "image": "./assets/splash screen/energeia-alpha-splash.png",
         "resizeMode": "cover",

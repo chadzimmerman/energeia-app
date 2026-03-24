@@ -196,8 +196,8 @@ const checkStoryDrop = async (
               .from("items_master")
               .select("id, name")
               .eq("required_class", profileForClass.player_class)
-              .eq("is_in_market", false)
-              .eq("type", "equippable")
+              .eq("is_quest_reward", true)
+              .eq("season", storyData.season)
               .maybeSingle();
 
             if (rewardItem) {

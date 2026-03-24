@@ -10,6 +10,7 @@ import {
   Alert,
   Image,
   ImageSourcePropType,
+  Linking,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -65,6 +66,8 @@ const settingsSections = [
     items: [
       { id: "about", label: "About", action: "navigate" },
       { id: "subscription", label: "Subscription", action: "navigate" },
+      { id: "restore-purchases", label: "Restore Purchases", action: "navigate" },
+      { id: "privacy-policy", label: "Privacy Policy", action: "navigate" },
       { id: "username", label: "Username", action: "navigate" },
       { id: "password", label: "Password", action: "navigate" },
     ],
@@ -124,9 +127,16 @@ const SettingsSection = ({
   navigation: any;
 }) => {
   const handlePress = (itemId: string) => {
-    // Basic navigation logic
-    if (
-      ["about", "market", "achievements", "seasonal-stories", "stable", "subscription", "username", "password", "monastery"].includes(itemId)
+    if (itemId === "privacy-policy") {
+      Linking.openURL("https://chadzimmerman.github.io/energeia-app/privacy.html");
+    } else if (itemId === "restore-purchases") {
+      Alert.alert(
+        "Restore Purchases",
+        "If you have an active subscription, it will be restored automatically when you log in. If you're still having trouble, please contact us at chadzimmerman.codes@gmail.com.",
+        [{ text: "OK" }]
+      );
+    } else if (
+      ["about", "market", "achievements", "seasonal-stories", "stable", "subscription", "username", "password", "monastery", "journey"].includes(itemId)
     ) {
       navigation.navigate(itemId);
     } else {

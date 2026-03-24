@@ -1,5 +1,6 @@
 import { supabase } from "@/utils/supabase";
 import { resolveItemImage } from "@/utils/resolveItemImage";
+import { getCurrentSeason } from "@/utils/seasons";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -21,18 +22,32 @@ import { Text as ThemedText, View as ThemedView } from "@/components/Themed";
 // Import Colors for UI consistency
 import Colors from "@/constants/Colors";
 
-// --- MOCK DATA & TYPES ---
+// --- TYPES & CONSTANTS ---
 
-// Define the structure for an item (adding price explicitly here)
+const SEASON_LABELS: Record<string, string> = {
+  winter: "Winter (Dec–Feb)",
+  spring: "Spring (Mar–May)",
+  summer: "Summer (Jun–Aug)",
+  autumn: "Autumn (Sep–Nov)",
+};
+
+const SEASON_DIALOGUE: Record<string, string> = {
+  winter: "The cold has come, but the market fire burns bright. The winter collection awaits.",
+  spring: "The thaw brings new wares from distant lands. Browse the spring collection.",
+  summer: "The longest days bring the richest goods. See what the summer has brought.",
+  autumn: "The harvest is in. Come, see what the season has brought to market.",
+};
+
 interface MarketItem {
   id: string;
   name: string;
   imageSource: ReturnType<typeof resolveItemImage>;
-  price: number; // Renamed from energeiaNumber to price for clarity
+  price: number;
   isLocked: boolean;
   type: "consumable" | "equippable";
   flavorText: string;
   description: string;
+  season: string | null;
   hiddenBonus: {
     stat: "energeia" | "defense" | "health";
     buff: number;
@@ -245,28 +260,49 @@ const MarketItemCard: React.FC<{
 const MarketGrid: React.FC<{
   onSelectItem: (item: MarketItem) => void;
   playerEnergeia: number;
-  items: MarketItem[];
-}> = ({ onSelectItem, playerEnergeia, items }) => {
+  seasonalItems: MarketItem[];
+  regularItems: MarketItem[];
+  seasonLabel: string;
+  seasonDialogue: string;
+}> = ({ onSelectItem, seasonalItems, regularItems, seasonLabel, seasonDialogue }) => {
   return (
     <ScrollView
       style={marketStyles.gridContainer}
       contentContainerStyle={marketStyles.gridContent}
     >
-      {/* Store Owner/Dialogue Header */}
+      {/* Seasonal dialogue */}
       <View style={marketStyles.dialogueBox}>
-        <Text style={marketStyles.dialogueText}>
-          Welcome, Novice. Here you will find the fruits of hard labor.
-        </Text>
+        <Text style={marketStyles.dialogueText}>{seasonDialogue}</Text>
       </View>
 
-      {/* Item Grid - This wrapper now correctly applies the grid layout */}
-      <View style={marketStyles.itemGrid}>
-        {items.map((item) => (
-          <MarketItemCard key={item.id} item={item} onPress={onSelectItem} />
-        ))}
-      </View>
+      {/* Seasonal section */}
+      {seasonalItems.length > 0 && (
+        <>
+          <View style={marketStyles.sectionHeader}>
+            <Text style={marketStyles.sectionHeaderText}>★ {seasonLabel}</Text>
+          </View>
+          <View style={marketStyles.itemGrid}>
+            {seasonalItems.map((item) => (
+              <MarketItemCard key={item.id} item={item} onPress={onSelectItem} />
+            ))}
+          </View>
+        </>
+      )}
 
-      {/* Space at the bottom */}
+      {/* Regular section */}
+      {regularItems.length > 0 && (
+        <>
+          <View style={marketStyles.sectionHeader}>
+            <Text style={marketStyles.sectionHeaderText}>General Store</Text>
+          </View>
+          <View style={marketStyles.itemGrid}>
+            {regularItems.map((item) => (
+              <MarketItemCard key={item.id} item={item} onPress={onSelectItem} />
+            ))}
+          </View>
+        </>
+      )}
+
       <View style={{ height: 50 }} />
     </ScrollView>
   );
@@ -279,7 +315,11 @@ export default function MarketScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [playerEnergeia, setPlayerEnergeia] = useState(0);
   const [userId, setUserId] = useState<string | null>(null);
-  const [marketItems, setMarketItems] = useState<MarketItem[]>([]);
+  const [seasonalItems, setSeasonalItems] = useState<MarketItem[]>([]);
+  const [regularItems, setRegularItems] = useState<MarketItem[]>([]);
+  const currentSeason = getCurrentSeason();
+  const seasonLabel = SEASON_LABELS[currentSeason];
+  const seasonDialogue = SEASON_DIALOGUE[currentSeason];
 
   const handleSelectItem = (item: MarketItem) => {
     setSelectedItem(item);
@@ -331,6 +371,7 @@ export default function MarketScreen() {
         .eq("user_id", currentUserId);
 
       const ownedIds = userInv?.map((i) => i.item_master_id) || [];
+      const currentSeasonLabel = SEASON_LABELS[getCurrentSeason()];
 
       const availableItems: MarketItem[] = items
         .filter((item) => {
@@ -346,13 +387,15 @@ export default function MarketScreen() {
           type: item.type,
           flavorText: item.flavor_text,
           description: item.description,
+          season: item.season,
           hiddenBonus: {
             stat: item.hidden_stat_type,
             buff: item.hidden_buff_value,
           },
         }));
 
-      setMarketItems(availableItems);
+      setSeasonalItems(availableItems.filter((i) => i.season === currentSeasonLabel));
+      setRegularItems(availableItems.filter((i) => !i.season));
     } catch (e: any) {
       console.error("Error loading market:", e.message);
     }
@@ -395,11 +438,14 @@ export default function MarketScreen() {
         </View>
       </View>
 
-      {/* 2. Item Grid (Pass live state here if needed for dialogue/logic) */}
+      {/* 2. Item Grid */}
       <MarketGrid
         onSelectItem={handleSelectItem}
         playerEnergeia={playerEnergeia}
-        items={marketItems}
+        seasonalItems={seasonalItems}
+        regularItems={regularItems}
+        seasonLabel={seasonLabel}
+        seasonDialogue={seasonDialogue}
       />
 
       <MarketDetailsModal
@@ -554,6 +600,20 @@ const marketStyles = StyleSheet.create({
     fontWeight: "bold",
     color: "#A06E00",
     marginLeft: 5,
+  },
+  sectionHeader: {
+    paddingHorizontal: cardPadding,
+    paddingTop: 20,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8D5A3",
+  },
+  sectionHeaderText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#5D4037",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
 });
 

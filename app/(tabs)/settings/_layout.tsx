@@ -73,6 +73,12 @@ export default function SettingsStackLayout() {
           title: "Group",
         }}
       />
+      <Stack.Screen
+        name="journey"
+        options={{
+          title: "Journey",
+        }}
+      />
     </Stack>
   );
 }
