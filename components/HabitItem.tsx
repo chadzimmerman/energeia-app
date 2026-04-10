@@ -1,6 +1,5 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-// Note: Using expo-vector-icons which should be available
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 // Define the Habit data structure based on the new SQL table
@@ -19,9 +18,10 @@ interface Habit {
 // This interface correctly combines the habit data object with the onScore function prop.
 interface HabitItemProps {
   habit: Habit;
-  // The onScore function prop accepts the habit ID and a direction ('up' or 'down')
   onScore: (habitId: string, direction: "up" | "down") => void;
   onEdit: (habit: Habit) => void;
+  drag: () => void;
+  isActive: boolean;
 }
 
 /**
@@ -38,13 +38,15 @@ const getStreakColor = (streakLevel: number): string => {
 };
 
 // Use the new HabitItemProps interface here
-const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit }) => {
-  // Determine the color based on the habit's streak level
+const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isActive }) => {
   const buttonColor = getStreakColor(habit.streak_level);
 
   return (
-    // Wrap the entire visual card in a View
-    <View style={styles.cardWrapper}>
+    <View style={[styles.cardWrapper, isActive && styles.cardActive]}>
+      {/* Drag handle — press and hold to reorder */}
+      <TouchableOpacity onPressIn={drag} style={styles.dragHandle}>
+        <FontAwesome name="bars" size={14} color="#CCCCCC" />
+      </TouchableOpacity>
       {/* 1. Negative Button (Far Left) */}
       {habit.is_negative && (
         <TouchableOpacity
@@ -149,8 +151,18 @@ const styles = StyleSheet.create({
     shadowRadius: 1,
     elevation: 2,
   },
+  dragHandle: {
+    paddingHorizontal: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardActive: {
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 8,
+  },
   leftButton: {
-    marginLeft: 15,
+    marginLeft: 8,
     marginRight: 0,
   },
   rightButton: {

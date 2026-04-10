@@ -74,14 +74,20 @@ export default function ModalScreen() {
         options={{
           title: "New Habit",
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+            >
               <Text style={{ color: Colors.light.tint, fontSize: 16 }}>
                 Cancel
               </Text>
             </TouchableOpacity>
           ),
           headerRight: () => (
-            <TouchableOpacity onPress={createHabit}>
+            <TouchableOpacity
+              onPress={createHabit}
+              style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+            >
               <Text
                 style={{
                   color: Colors.light.tint,

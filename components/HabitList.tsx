@@ -1,8 +1,12 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet } from "react-native";
+import { Text, View } from "@/components/Themed";
+import DraggableFlatList, {
+  RenderItemParams,
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
 import HabitItem from "./HabitItem";
 
-// Define the Habit data structure (re-using the one from HabitItem)
 interface Habit {
   id: string;
   title: string;
@@ -12,15 +16,14 @@ interface Habit {
   difficulty: number;
 }
 
-// Define the props for the HabitList component
 interface HabitListProps {
   habits: Habit[];
   onScore: (habitId: string, direction: "up" | "down") => void;
   onEdit: (habit: Habit) => void;
+  onReorder: (habits: Habit[]) => void;
 }
 
-const HabitList: React.FC<HabitListProps> = ({ habits, onScore, onEdit }) => {
-  // 💡 FIX: Added a check for '!habits' to handle the case where the prop is undefined.
+const HabitList: React.FC<HabitListProps> = ({ habits, onScore, onEdit, onReorder }) => {
   if (!habits || habits.length === 0) {
     return (
       <View style={styles.noHabitsContainer}>
@@ -34,18 +37,26 @@ const HabitList: React.FC<HabitListProps> = ({ habits, onScore, onEdit }) => {
     );
   }
 
-  // Use ScrollView to make the list scrollable if content exceeds the screen height
+  const renderItem = ({ item, drag, isActive }: RenderItemParams<Habit>) => (
+    <ScaleDecorator>
+      <HabitItem
+        habit={item}
+        onScore={onScore}
+        onEdit={onEdit}
+        drag={drag}
+        isActive={isActive}
+      />
+    </ScaleDecorator>
+  );
+
   return (
-    <ScrollView contentContainerStyle={styles.listContainer}>
-      {habits.map((habit) => (
-        <HabitItem
-          key={habit.id}
-          habit={habit}
-          onScore={onScore}
-          onEdit={onEdit}
-        />
-      ))}
-    </ScrollView>
+    <DraggableFlatList
+      data={habits}
+      keyExtractor={(item) => item.id}
+      renderItem={renderItem}
+      onDragEnd={({ data }) => onReorder(data)}
+      contentContainerStyle={styles.listContainer}
+    />
   );
 };
 

@@ -346,6 +346,7 @@ export default function HabitScreen() {
         .from("user_habits")
         .select("*")
         .eq("user_id", currentUserId)
+        .order("order_index", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -354,6 +355,16 @@ export default function HabitScreen() {
     } catch (e: any) {
       console.error("Habit Fetch Error:", e.message);
       setError(`Habit Fetch Error: ${e.message}`);
+    }
+  }, []);
+
+  const handleReorder = useCallback(async (reorderedHabits: Habit[]) => {
+    setHabits(reorderedHabits); // optimistic update — UI moves instantly
+    for (let i = 0; i < reorderedHabits.length; i++) {
+      await supabase
+        .from("user_habits")
+        .update({ order_index: i })
+        .eq("id", reorderedHabits[i].id);
     }
   }, []);
 
@@ -758,6 +769,7 @@ export default function HabitScreen() {
         habits={habits}
         onScore={handleScoreHabit}
         onEdit={handleEditHabit}
+        onReorder={handleReorder}
       />
       <HabitEditModal
         isVisible={isEditModalVisible}

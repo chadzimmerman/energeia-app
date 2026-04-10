@@ -328,16 +328,20 @@ const headerStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#ffffff",
     backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarOverlay: {
     position: "absolute",
     top: 0,
     left: 0,
+    width: 44,
+    height: 44,
     backgroundColor: "transparent",
   },
   avatar: {
-    width: 50,
-    height: 50,
+    width: 44,
+    height: 44,
   },
   textContainer: {
     // Add background color here if not using Themed.View for this section
