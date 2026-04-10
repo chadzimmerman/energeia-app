@@ -10,8 +10,8 @@ interface Habit {
   is_positive: boolean;
   is_negative: boolean;
   streak_level: number;
-  // Difficulty is useful for calculating the score change (later)
   difficulty: number;
+  reset_frequency: string;
 }
 
 // Define the Props for the HabitItem component.
@@ -75,7 +75,9 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isA
         </Text>
         {/* Streak counter — only shown when streak is active */}
         {habit.streak_level > 0 && (
-          <Text style={styles.streakText}>{habit.streak_level} day streak</Text>
+          <Text style={styles.streakText}>
+            {habit.streak_level} {habit.reset_frequency === "Weekly" ? "week" : habit.reset_frequency === "Monthly" ? "month" : "day"} streak
+          </Text>
         )}
       </TouchableOpacity>
 

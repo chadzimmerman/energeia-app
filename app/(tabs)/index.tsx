@@ -24,6 +24,7 @@ interface Habit {
   is_negative: boolean;
   difficulty: number;
   streak_level: number;
+  reset_frequency: string;
 }
 
 

@@ -23,6 +23,7 @@ interface Habit {
   is_negative: boolean;
   streak_level: number;
   difficulty: number;
+  reset_frequency: string;
 }
 
 interface HabitEditModalProps {
@@ -55,6 +56,7 @@ export default function HabitEditModal({
   const [isPositive, setIsPositive] = useState(true);
   const [isNegative, setIsNegative] = useState(false);
   const [difficulty, setDifficulty] = useState(1);
+  const [reset, setReset] = useState("Daily");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -63,11 +65,13 @@ export default function HabitEditModal({
       setIsPositive(habitToEdit.is_positive);
       setIsNegative(habitToEdit.is_negative);
       setDifficulty(snapDifficulty(habitToEdit.difficulty));
+      setReset(habitToEdit.reset_frequency ?? "Daily");
     } else if (isVisible && !habitToEdit) {
       setTitle("");
       setIsPositive(true);
       setIsNegative(false);
       setDifficulty(1);
+      setReset("Daily");
     }
   }, [isVisible, habitToEdit]);
 
@@ -97,6 +101,7 @@ export default function HabitEditModal({
           is_positive: isPositive,
           is_negative: isNegative,
           difficulty: difficulty,
+          reset_frequency: reset,
         })
         .eq("id", habitToEdit.id);
 
@@ -227,7 +232,25 @@ export default function HabitEditModal({
           </View>
         </View>
 
-        {/* 4. Difficulty Selector */}
+        {/* 4. Reset Counter */}
+        <View style={styles.controlSection}>
+          <Text style={styles.sectionTitle}>RESET COUNTER</Text>
+          <View style={styles.resetRow}>
+            {["Daily", "Weekly", "Monthly"].map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[styles.resetButton, reset === option && styles.activeReset]}
+                onPress={() => setReset(option)}
+              >
+                <Text style={[styles.resetText, reset === option && styles.activeResetText]}>
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* 5. Difficulty Selector */}
         <View style={styles.controlSection}>
           <Text style={styles.sectionTitle}>DIFFICULTY</Text>
           <View style={styles.difficultyRow}>
@@ -402,5 +425,31 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#fff",
+  },
+  resetRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  resetButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#DCDCDC",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  activeReset: {
+    backgroundColor: seasonColor,
+    borderColor: seasonColor,
+  },
+  resetText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  activeResetText: {
+    color: "#fff",
+    fontWeight: "600",
   },
 });

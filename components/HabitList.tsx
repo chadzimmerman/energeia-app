@@ -14,6 +14,7 @@ interface Habit {
   is_negative: boolean;
   streak_level: number;
   difficulty: number;
+  reset_frequency: string;
 }
 
 interface HabitListProps {

@@ -176,7 +176,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({
   habitLogs,
 }) => {
   // Start date (March 2026 as seen in the screenshot)
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 1));
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -483,10 +483,11 @@ export default function CalendarTabScreen() {
         <View style={pickerStyles.container}>
           {/* Header */}
           <View style={pickerStyles.header}>
-            <Text style={pickerStyles.headerTitle}>Select a Habit</Text>
             <TouchableOpacity onPress={() => setIsPickerVisible(false)}>
               <Text style={pickerStyles.headerCancel}>Cancel</Text>
             </TouchableOpacity>
+            <Text style={pickerStyles.headerTitle}>Select a Habit</Text>
+            <View style={{ width: 60 }} />
           </View>
 
           {/* Habit List */}
