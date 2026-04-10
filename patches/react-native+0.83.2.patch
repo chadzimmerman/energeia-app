@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
-index 6646570..678aa0d 100644
+index 6646570..ccdb3a3 100644
 --- a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
 +++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
 @@ -406,7 +406,7 @@ id ObjCTurboModule::performMethodInvocation(
@@ -11,3 +11,16 @@ index 6646570..678aa0d 100644
        }
      } @finally {
        [retainedObjectsForInvocation removeAllObjects];
+@@ -470,7 +470,11 @@ void ObjCTurboModule::performVoidMethodInvocation(
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
+-      throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      if (shouldVoidMethodsExecuteSync_) {
++        throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      } else {
++        RCTLogError(@"Exception thrown while invoking async void method %s.%s: %@", moduleName, methodNameStr.c_str(), exception);
++      }
+     } @finally {
+       [retainedObjectsForInvocation removeAllObjects];
+     }

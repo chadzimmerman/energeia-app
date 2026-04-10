@@ -1,5 +1,6 @@
 import { supabase } from "@/utils/supabase";
 import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 
 const seasonColor = getSeasonalColor();
@@ -16,6 +17,7 @@ import {
 } from "react-native";
 
 export default function LoginScreen() {
+  const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,10 +38,28 @@ export default function LoginScreen() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
+
+        // Insert a default profile row so onboarding can find it.
+        // Onboarding will UPDATE this row with username/class/character.
+        if (data.user) {
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .upsert({
+              id: data.user.id,
+              current_health: 100,
+              max_health: 100,
+              current_energeia: 0,
+              energeia_currency: 0,
+              level: 1,
+            });
+          if (profileError) throw profileError;
+        }
+        router.replace("/onboarding");
+        return;
       }
-      // On success, onAuthStateChange in _layout.tsx fires and navigates to /(tabs)
+      // Login success: onAuthStateChange in _layout.tsx navigates to /(tabs).
     } catch (e: any) {
       setError(e.message);
     } finally {
