@@ -1,4 +1,8 @@
 import { Text } from "@/components/Themed";
+import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
+
+const seasonColor = getSeasonalColor();
+const seasonDarkColor = getSeasonalDarkColor();
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import React, { useEffect, useState } from "react";
 import {
@@ -165,7 +169,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
     paddingHorizontal: 15,
     paddingBottom: 15,
     paddingTop: Platform.OS === "ios" ? 55 : 15,
@@ -233,7 +237,7 @@ const styles = StyleSheet.create({
 
   // Notes Input
   notesContainer: {
-    backgroundColor: "#7A22BD",
+    backgroundColor: seasonDarkColor,
     borderRadius: 8,
     padding: 15,
     minHeight: 120,

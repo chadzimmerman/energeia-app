@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { getSeasonalColor } from "@/utils/seasons";
+const seasonColor = getSeasonalColor();
 import {
   Dimensions,
   Modal,
@@ -639,7 +641,7 @@ const pickerStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
     paddingHorizontal: 15,
     paddingBottom: 15,
     paddingTop: Platform.OS === "ios" ? 55 : 15,

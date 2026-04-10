@@ -1,5 +1,7 @@
 import { supabase } from "@/utils/supabase";
+import { getSeasonalColor } from "@/utils/seasons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+const seasonColor = getSeasonalColor();
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -110,7 +112,7 @@ function SubscriberView({ profile }: { profile: SubscriptionProfile }) {
               <FontAwesome
                 name="check"
                 size={14}
-                color="#A737FD"
+                color={seasonColor}
                 style={{ marginRight: 12, marginTop: 2 }}
               />
               <Text style={subStyles.benefitText}>{benefit.text}</Text>
@@ -160,7 +162,7 @@ function UpsellView() {
               <FontAwesome
                 name="check-circle"
                 size={16}
-                color="#A737FD"
+                color={seasonColor}
                 style={{ marginRight: 10, marginTop: 1 }}
               />
               <Text style={upsellStyles.benefitText}>{benefit.text}</Text>
@@ -246,7 +248,7 @@ const subStyles = StyleSheet.create({
     backgroundColor: "#F0F0F0",
   },
   banner: {
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
     paddingVertical: 30,
     alignItems: "center",
     borderBottomLeftRadius: 10,
@@ -343,7 +345,7 @@ const upsellStyles = StyleSheet.create({
     elevation: 10,
   },
   cardHeader: {
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
     paddingVertical: 24,
     alignItems: "center",
     paddingHorizontal: 20,
@@ -382,14 +384,14 @@ const upsellStyles = StyleSheet.create({
   price: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#A737FD",
+    color: seasonColor,
   },
   pricePeriod: {
     fontSize: 16,
     color: "#888",
   },
   subscribeButton: {
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
     marginHorizontal: 20,
     marginBottom: 12,
     paddingVertical: 15,

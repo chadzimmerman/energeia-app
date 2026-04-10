@@ -1,6 +1,9 @@
 import { Text, View } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
+import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
+const seasonColor = getSeasonalColor();
+const seasonDarkColor = getSeasonalDarkColor();
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
@@ -286,7 +289,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
     paddingHorizontal: 15,
     paddingBottom: 15,
     paddingTop: Platform.OS === "ios" ? 55 : 15,
@@ -310,10 +313,10 @@ const styles = StyleSheet.create({
   inputSection: {
     paddingHorizontal: 15,
     paddingVertical: 15,
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
   },
   textInput: {
-    backgroundColor: "#7A22BD",
+    backgroundColor: seasonDarkColor,
     color: "#fff",
     borderRadius: 8,
     padding: 15,

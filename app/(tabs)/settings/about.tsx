@@ -1,5 +1,7 @@
 import { Text, View } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
+import { getSeasonalColor } from "@/utils/seasons";
+const seasonColor = getSeasonalColor();
 import {
   ActivityIndicator,
   Alert,
@@ -108,7 +110,7 @@ const FeedbackModal = ({
           </Text>
           <TouchableOpacity onPress={handleSubmit} disabled={submitting}>
             {submitting
-              ? <ActivityIndicator color="#A737FD" />
+              ? <ActivityIndicator color={seasonColor} />
               : <Text style={modalStyles.submitText}>Send</Text>
             }
           </TouchableOpacity>
@@ -250,7 +252,7 @@ const modalStyles = StyleSheet.create({
   submitText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#A737FD",
+    color: seasonColor,
   },
   input: {
     flex: 1,
@@ -274,7 +276,7 @@ const aboutStyles = StyleSheet.create({
     flex: 1,
   },
   banner: {
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
     paddingVertical: 30,
     alignItems: "center",
     marginBottom: 10,

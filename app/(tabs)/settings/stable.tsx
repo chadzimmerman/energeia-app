@@ -1,5 +1,7 @@
 import { supabase } from "@/utils/supabase";
 import { useProfile } from "@/contexts/ProfileContext";
+import { getSeasonalColor } from "@/utils/seasons";
+const seasonColor = getSeasonalColor();
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -552,7 +554,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   ownedCard: {
-    borderColor: "#A737FD",
+    borderColor: seasonColor,
     backgroundColor: "#FAF4FF",
   },
   cardImage: { width: "65%", height: "50%", marginBottom: 4 },
@@ -651,7 +653,7 @@ const modal = StyleSheet.create({
     gap: 12,
     marginTop: 6,
   },
-  equipBtn: { backgroundColor: "#A737FD" },
+  equipBtn: { backgroundColor: seasonColor },
   unequipBtn: { backgroundColor: "#888" },
   disabledBtn: { backgroundColor: "#E74C3C", opacity: 0.8 },
   subscriberBtn: { backgroundColor: "#B8860B" },

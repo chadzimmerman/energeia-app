@@ -1,6 +1,7 @@
 import { Text, View } from "@/components/Themed";
 import Colors from "@/constants/Colors"; // Assuming you have a Colors file
 import { supabase } from "@/utils/supabase";
+import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -11,6 +12,9 @@ import {
   TextInput,
   TouchableOpacity,
 } from "react-native";
+
+const seasonColor = getSeasonalColor();
+const seasonDarkColor = getSeasonalDarkColor();
 
 // --- Constants for Difficulty and Reset Counter ---
 const DIFFICULTIES = [
@@ -78,7 +82,7 @@ export default function ModalScreen() {
               onPress={() => router.back()}
               style={{ paddingHorizontal: 12, paddingVertical: 6 }}
             >
-              <Text style={{ color: Colors.light.tint, fontSize: 16 }}>
+              <Text style={{ color: "#fff", fontSize: 16 }}>
                 Cancel
               </Text>
             </TouchableOpacity>
@@ -90,7 +94,7 @@ export default function ModalScreen() {
             >
               <Text
                 style={{
-                  color: Colors.light.tint,
+                  color: "#fff",
                   fontSize: 16,
                   fontWeight: "bold",
                 }}
@@ -100,7 +104,7 @@ export default function ModalScreen() {
             </TouchableOpacity>
           ),
           headerStyle: {
-            backgroundColor: "#A737FD", // Habitica purple background
+            backgroundColor: seasonColor,
           },
           headerTintColor: "#fff", // White text
           headerTitleStyle: {
@@ -256,10 +260,10 @@ const styles = StyleSheet.create({
   inputSection: {
     paddingHorizontal: 15,
     paddingTop: 20,
-    backgroundColor: "#A737FD", // Match header purple
+    backgroundColor: seasonColor,
   },
   textInput: {
-    backgroundColor: "#7A22BD", // Darker purple input background
+    backgroundColor: seasonDarkColor,
     color: "#fff",
     borderRadius: 8,
     padding: 15,

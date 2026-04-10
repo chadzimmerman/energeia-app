@@ -1,4 +1,6 @@
 import React from "react";
+import { getSeasonalColor } from "@/utils/seasons";
+const seasonColor = getSeasonalColor();
 import {
   Dimensions,
   Image,
@@ -166,7 +168,7 @@ const styles = StyleSheet.create({
 
   // Rise button
   riseButton: {
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
     borderRadius: 14,
     paddingVertical: 18,
     paddingHorizontal: 60,

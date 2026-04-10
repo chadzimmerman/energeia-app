@@ -22,3 +22,20 @@ const SEASON_BACKGROUNDS: Record<Season, ImageSourcePropType> = {
 export function getSeasonalBackground(): ImageSourcePropType {
   return SEASON_BACKGROUNDS[getCurrentSeason()];
 }
+
+// Primary UI accent color — replaces purple (#A737FD) throughout the app
+const SEASON_COLORS: Record<Season, { primary: string; dark: string }> = {
+  spring: { primary: '#5A9E6F', dark: '#3D7A52' },
+  summer: { primary: '#E8A020', dark: '#B07010' },
+  autumn: { primary: '#C4622D', dark: '#8B3A18' },
+  winter: { primary: '#4A8FB5', dark: '#2E6A8A' },
+};
+
+export function getSeasonalColor(): string {
+  return SEASON_COLORS[getCurrentSeason()].primary;
+}
+
+// Darker variant — used for input backgrounds and secondary surfaces
+export function getSeasonalDarkColor(): string {
+  return SEASON_COLORS[getCurrentSeason()].dark;
+}

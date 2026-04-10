@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { getSeasonalColor } from "@/utils/seasons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -127,7 +128,7 @@ export default function UsernameScreen() {
   );
 }
 
-const PURPLE = "#A737FD";
+const PURPLE = getSeasonalColor();
 
 const styles = StyleSheet.create({
   container: {

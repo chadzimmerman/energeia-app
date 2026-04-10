@@ -2,6 +2,11 @@ import { Text, View } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { useProfile } from "@/contexts/ProfileContext";
+import { getSeasonalColor, getCurrentSeason } from "@/utils/seasons";
+
+const seasonColor = getSeasonalColor();
+const currentSeason = getCurrentSeason();
+const seasonBadgeLabel = currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1);
 import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -55,7 +60,7 @@ const settingsSections = [
       {
         id: "seasonal-stories",
         label: "Seasonal Stories",
-        badge: "Winter",
+        badge: seasonBadgeLabel,
         action: "navigate",
       },
       { id: "stable", label: "Stable", action: "navigate" },
@@ -311,7 +316,7 @@ const headerStyles = StyleSheet.create({
     alignItems: "center",
     padding: 15,
     paddingTop: 40, // Adjust for status bar/notch
-    backgroundColor: "#6A5ACD", // Your desired purple background
+    backgroundColor: seasonColor,
   },
   userInfo: {
     flexDirection: "row",
@@ -414,7 +419,7 @@ const sectionStyles = StyleSheet.create({
     color: "#000000",
   },
   badge: {
-    backgroundColor: "#9370DB", // Purple color for the Winter badge
+    backgroundColor: seasonColor,
     borderRadius: 5,
     paddingHorizontal: 6,
     paddingVertical: 2,

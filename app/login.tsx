@@ -1,5 +1,9 @@
 import { supabase } from "@/utils/supabase";
+import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
 import React, { useState } from "react";
+
+const seasonColor = getSeasonalColor();
+const seasonDarkColor = getSeasonalDarkColor();
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -128,7 +132,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 48,
     fontWeight: "bold",
-    color: "#A737FD",
+    color: seasonColor,
     letterSpacing: 1,
   },
   subtitle: {
@@ -155,7 +159,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   input: {
-    backgroundColor: "#7A22BD",
+    backgroundColor: seasonDarkColor,
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -170,7 +174,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   submitButton: {
-    backgroundColor: "#A737FD",
+    backgroundColor: seasonColor,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: "center",
@@ -189,7 +193,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   toggleText: {
-    color: "#A737FD",
+    color: seasonColor,
     fontSize: 14,
   },
 });
