@@ -1,14 +1,11 @@
 import React from "react";
 import {
-  Dimensions,
   Image,
   ImageSourcePropType,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-
-const { width } = Dimensions.get("window");
 
 // Define props for the component
 interface CharacterStatsProps {
@@ -144,7 +141,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 25,
     left: 25,
-    width: width * 0.95,
+    right: 25,
     height: CARD_HEIGHT,
     flexDirection: "row",
     alignItems: "flex-start",
@@ -173,6 +170,7 @@ const styles = StyleSheet.create({
   statsContainer: {
     position: "absolute",
     left: 115,
+    right: 0,
     top: 10,
     height: 120,
     justifyContent: "space-between",
@@ -192,7 +190,7 @@ const styles = StyleSheet.create({
     marginBottom: 10, // Space between health row and energy row
   },
   barWrapper: {
-    width: 200, // Fixed width for the bars to keep them uniform
+    flex: 1,
   },
   barBackground: {
     position: "relative", // Keep relative for progress fill
