@@ -16,6 +16,7 @@ import { resolveCharacterImage } from "../../utils/resolveCharacterImage";
 import HabitEditModal from "../HabitEditModal";
 import DeathModal from "../DeathModal";
 import { useProfile } from "@/contexts/ProfileContext";
+import TutorialOverlay, { hasTutorialBeenSeen } from "@/components/TutorialOverlay";
 
 interface Habit {
   id: string;
@@ -339,6 +340,7 @@ export default function HabitScreen() {
   const [habitToEdit, setHabitToEdit] = useState<Habit | null>(null);
   const [isDeathModalVisible, setIsDeathModalVisible] = useState(false);
   const [deathLostItemName, setDeathLostItemName] = useState<string | null>(null);
+  const [isTutorialVisible, setIsTutorialVisible] = useState(false);
 
 
   const fetchHabits = useCallback(async (currentUserId: string) => {
@@ -398,6 +400,14 @@ export default function HabitScreen() {
       router.replace("/onboarding");
     }
   }, [profile, router]);
+
+  // --- Show tutorial on first ever visit (after profile is ready) ---
+  useEffect(() => {
+    if (!userId || !profile || !profile.player_class) return;
+    hasTutorialBeenSeen().then((seen) => {
+      if (!seen) setIsTutorialVisible(true);
+    });
+  }, [userId, profile]);
 
   // --- Habit + context refresh on focus ---
   useFocusEffect(
@@ -476,21 +486,52 @@ export default function HabitScreen() {
       // 1. Fetch Habit Details (for difficulty and type)
       const { data: habitData, error: habitFetchError } = await supabase
         .from("user_habits")
-        .select("is_positive, is_negative, streak_level, difficulty")
+        .select("is_positive, is_negative, streak_level, difficulty, reset_frequency")
         .eq("id", habitId)
         .single();
 
       if (habitFetchError || !habitData)
         throw habitFetchError || new Error("Habit not found.");
 
-      const { is_positive, is_negative, streak_level, difficulty } = habitData;
+      const { is_positive, is_negative, streak_level, difficulty, reset_frequency } = habitData;
 
       // 2. Compute today's date key (reused for both the streak check and the log upsert)
       const now = new Date();
-      const dateKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const dateKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
-      // 3. Calculate Streak Update — each press counts (no per-day cap)
-      const newStreakLevel = direction === "up" ? streak_level + 1 : streak_level - 1;
+      // 3. Calculate Streak Update
+      // Negative always resets to 0. Positive only increments once per period.
+      let newStreakLevel: number;
+      if (direction === "down") {
+        newStreakLevel = 0;
+      } else {
+        // Check if habit was already scored green this period to prevent double-counting
+        let periodStart: string;
+        if (reset_frequency === "Weekly") {
+          const day = now.getDay(); // 0=Sun
+          const daysBackToMonday = day === 0 ? 6 : day - 1;
+          const monday = new Date(now);
+          monday.setDate(now.getDate() - daysBackToMonday);
+          periodStart = `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
+        } else if (reset_frequency === "Monthly") {
+          periodStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+        } else {
+          periodStart = dateKey; // Daily: just today
+        }
+
+        const { data: existingLog } = await supabase
+          .from("habit_logs")
+          .select("id")
+          .eq("habit_id", habitId)
+          .eq("user_id", userId)
+          .eq("status", "green")
+          .gte("log_date", periodStart)
+          .lte("log_date", dateKey)
+          .maybeSingle();
+
+        newStreakLevel = existingLog ? streak_level : streak_level + 1;
+      }
 
       // 3. Calculate Stat Changes (Uses the simplified logic)
       const { healthChange, energeiaChange } = calculateStatChanges(
@@ -783,6 +824,10 @@ export default function HabitScreen() {
         gender={profile.character_image_path?.includes("_female") ? "female" : "male"}
         lostItemName={deathLostItemName}
         onRise={() => setIsDeathModalVisible(false)}
+      />
+      <TutorialOverlay
+        visible={isTutorialVisible}
+        onDismiss={() => setIsTutorialVisible(false)}
       />
     </View>
   );

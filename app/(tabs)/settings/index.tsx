@@ -3,6 +3,7 @@ import { supabase } from "@/utils/supabase";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { useProfile } from "@/contexts/ProfileContext";
 import { getSeasonalColor, getCurrentSeason } from "@/utils/seasons";
+import TutorialOverlay, { resetTutorial } from "@/components/TutorialOverlay";
 
 const seasonColor = getSeasonalColor();
 const currentSeason = getCurrentSeason();
@@ -69,6 +70,7 @@ const settingsSections = [
   {
     title: "Settings",
     items: [
+      { id: "tutorial", label: "Replay Tutorial", action: "navigate" },
       { id: "about", label: "About", action: "navigate" },
       { id: "subscription", label: "Subscription", action: "navigate" },
       { id: "restore-purchases", label: "Restore Purchases", action: "navigate" },
@@ -127,12 +129,16 @@ const UserHeader = ({ profile, equippedOverlays }: { profile: Profile; equippedO
 const SettingsSection = ({
   section,
   navigation,
+  onTutorial,
 }: {
   section: any;
   navigation: any;
+  onTutorial?: () => void;
 }) => {
   const handlePress = (itemId: string) => {
-    if (itemId === "privacy-policy") {
+    if (itemId === "tutorial") {
+      resetTutorial().then(() => onTutorial?.());
+    } else if (itemId === "privacy-policy") {
       Linking.openURL("https://chadzimmerman.github.io/energeia-app/privacy.html");
     } else if (itemId === "restore-purchases") {
       Alert.alert(
@@ -250,6 +256,7 @@ export default function SettingsTabScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const { equippedOverlays } = useProfile();
   const [loading, setLoading] = useState(true);
+  const [isTutorialVisible, setIsTutorialVisible] = useState(false);
 
   const fetchSettingsProfile = useCallback(async () => {
     try {
@@ -298,12 +305,17 @@ export default function SettingsTabScreen() {
               ),
             }}
             navigation={navigation}
+            onTutorial={() => setIsTutorialVisible(true)}
           />
         ))}
         {cautionSection.map((section, index) => (
           <CautionSection key={`caution-${index}`} section={section} />
         ))}
       </ScrollView>
+      <TutorialOverlay
+        visible={isTutorialVisible}
+        onDismiss={() => setIsTutorialVisible(false)}
+      />
     </View>
   );
 }

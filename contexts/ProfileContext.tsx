@@ -50,11 +50,30 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const userId = session?.user?.id;
     if (!userId) return;
 
-    const { data: profileData } = await supabase
+    let { data: profileData } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
+
+    if (!profileData) {
+      // No profile row — user signed up before the fix. Create a default row
+      // so onboarding can run and set their class/username.
+      await supabase.from("profiles").upsert({
+        id: userId,
+        current_health: 100,
+        max_health: 100,
+        current_energeia: 0,
+        energeia_currency: 0,
+        level: 1,
+      });
+      const { data: created } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      profileData = created;
+    }
 
     if (profileData) setProfile(profileData as Profile);
 
