@@ -77,10 +77,8 @@ const STEPS: TutorialStep[] = [
   {
     title: "Welcome, Seeker",
     body:
-      "You stand at the threshold of Energe.ia — a monastery of the soul, " +
-      "built upon the ancient teaching of Energeia: the divine grace " +
-      "that flows into us as we draw ever nearer to God.\n\n" +
-      "Let the brothers show you the way.",
+      "Welcome to Energe.ia — where daily habits become a path toward God.\n\n" +
+      "Let the brothers guide you.",
     spotlight: null,
     cardSide: "center",
     tabRoute: "/(tabs)",
@@ -88,31 +86,28 @@ const STEPS: TutorialStep[] = [
   {
     title: "Your Avatar",
     body:
-      "This is your character — your reflection in the spiritual realm. " +
-      "Through faithful practice your avatar grows in strength, rises in " +
-      "level, and may be adorned with sacred vestments and holy companions.",
-    // Character sprite is on the LEFT side of the screen
-    spotlight: { cx: 0.27, cy: 0.22, r: 68 },
+      "Your character reflects your spiritual journey.\n\n" +
+      "Grow in faithfulness to level up and earn sacred vestments.",
+    // cx/cy centers on the 100×100 character sprite box:
+    // card left=25, char center X=75 → cx≈0.19; header≈91pt, card top=25, char center Y=166 → cy≈0.20
+    spotlight: { cx: 0.19, cy: 0.20, r: 55 },
     cardSide: "bottom",
     tabRoute: "/(tabs)",
   },
   {
     title: "Health & Energeia",
     body:
-      "The crimson bar is your Health — your resilience against temptation. " +
-      "Let it reach zero and face death: your level reset, an item lost.\n\n" +
-      "The golden bar is your Energeia — divine energy earned through holy " +
-      "practice. Fill it to rise in level and unlock greater power.",
-    // Stat bars are left-of-center, below the sprite
-    spotlight: { cx: 0.42, cy: 0.29, r: 48 },
+      "❤️ Health — let it reach zero and face death: level reset, item lost.\n\n" +
+      "⚡ Energeia — complete habits to fill it and rise in level.",
+    spotlight: { cx: 0.58, cy: 0.18, r: 58 },
     cardSide: "bottom",
     tabRoute: "/(tabs)",
   },
   {
     title: "Your Disciplines",
     body:
-      "These are your Habits — daily, weekly, or monthly practices you " +
-      "have sworn to uphold. Each act of virtue ripples through your soul.",
+      "Your Habits are the practices you've sworn to uphold — daily, weekly, or monthly.\n\n" +
+      "Tap a habit's name to edit it. Hold the grip on the left to reorder.",
     spotlight: { cx: 0.5, cy: 0.64, r: 88 },
     cardSide: "top",
     tabRoute: "/(tabs)",
@@ -120,8 +115,8 @@ const STEPS: TutorialStep[] = [
   {
     title: "Virtue & Vice",
     body:
-      "Press ⊕ when you fulfill a practice — Energeia earned, Streak grows.\n\n" +
-      "Press ⊖ when you have fallen — Health lost, Streak extinguished.",
+      "⊕ Complete a habit — earn Energeia and grow your Streak.\n\n" +
+      "⊖ Fall to temptation — lose Health and reset your Streak to zero.",
     spotlight: { cx: 0.5, cy: 0.64, r: 88 },
     cardSide: "top",
     tabRoute: "/(tabs)",
@@ -129,10 +124,9 @@ const STEPS: TutorialStep[] = [
   {
     title: "The Chronicle",
     body:
-      "The Calendar is your sacred Chronicle — colored by fidelity or " +
-      "failure. Green marks days of virtue; red marks falls.\n\n" +
-      "Select any habit to view its history laid bare across the months.",
-    // Calendar tab icon (2nd tab), navigates to calendar in background
+      "The Calendar records every choice in color.\n\n" +
+      "Green = virtue. Red = failure.\n\n" +
+      "Select a habit to see its full history.",
     spotlight: { cx: 0.375, cy: 0.935, r: 36 },
     cardSide: "top",
     tabRoute: "/(tabs)/calendar-tab",
@@ -140,11 +134,8 @@ const STEPS: TutorialStep[] = [
   {
     title: "The Treasury",
     body:
-      "The Items tab holds sacred objects, adornments, and companions — " +
-      "earned through perseverance or purchased with Energeia.\n\n" +
-      "Equip them to receive hidden blessings. Some are granted only by " +
-      "completing the Seasonal Stories.",
-    // Items tab icon (3rd tab), navigates to items in background
+      "Buy and equip sacred items with your Energeia.\n\n" +
+      "Each grants hidden blessings. Some are earned only through Seasonal Stories.",
     spotlight: { cx: 0.625, cy: 0.935, r: 36 },
     cardSide: "top",
     tabRoute: "/(tabs)/items-tab",
@@ -152,10 +143,8 @@ const STEPS: TutorialStep[] = [
   {
     title: "The Archives",
     body:
-      "Settings holds your profile, achievements, and the Seasonal Stories — " +
-      "sacred quests that unfold through the church calendar.\n\n" +
-      "Complete them to earn rare vestments and blessings of each season.",
-    // Settings tab icon (4th tab), navigates to settings in background
+      "Settings holds your profile, achievements, and Seasonal Stories — " +
+      "quests tied to the ancient calendar.",
     spotlight: { cx: 0.875, cy: 0.935, r: 36 },
     cardSide: "top",
     tabRoute: "/(tabs)/settings",
@@ -163,13 +152,10 @@ const STEPS: TutorialStep[] = [
   {
     title: "Your Covenant",
     body:
-      "At the top of the Archives lives your spiritual profile — your name, " +
-      "class, and level of ascent.\n\n" +
-      "Below it: your Class Guild to journey alongside fellow monks, knights, " +
-      "and nobles; the Seasonal Stories to pursue sacred quests through the " +
-      "Orthodox year; and the Stable for your animal companions.",
-    // Profile header at the top of the settings screen
-    spotlight: { cx: 0.5, cy: 0.17, r: 95 },
+      "Your profile and class sit at the top.\n\n" +
+      "Below: your Class Guild, Seasonal Stories, and Stable — " +
+      "places to journey, quest, and grow alongside others.",
+    spotlight: { cx: 0.20, cy: 0.30, r: 70 },
     cardSide: "bottom",
     tabRoute: "/(tabs)/settings",
   },
@@ -177,8 +163,8 @@ const STEPS: TutorialStep[] = [
     title: "Go Forth",
     body:
       "The monastery awaits your disciplines.\n\n" +
-      "May your habits become virtues, your virtues become character, and " +
-      "your character draw you ever nearer to theosis.\n\n" +
+      "May your habits become virtues, and your character draw you " +
+      "ever nearer to theosis.\n\n" +
       "☩  May your journey begin  ☩",
     spotlight: null,
     cardSide: "center",
@@ -534,13 +520,13 @@ const styles = StyleSheet.create({
   },
 
   bodyScroll: {
-    maxHeight: H * 0.20,
+    maxHeight: H * 0.22,
   },
 
   body: {
-    fontSize: 15,
+    fontSize: 17,
     color: "#C9B8E8",
-    lineHeight: 24,
+    lineHeight: 26,
     textAlign: "center",
   },
 
