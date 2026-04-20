@@ -84,18 +84,29 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .eq("is_equipped", true);
 
     if (equipped) {
-      console.log("[ProfileContext] equipped items:", JSON.stringify(equipped));
-      setEquippedOverlays(
-        equipped
-          .filter((e: any) => {
-            const slot = e.item?.display_slot;
-            // If display_slot is set, only 'character' items go on the sprite
-            if (slot) return slot === "character";
-            // Fallback for items without display_slot: use type
-            return e.item?.type === "equippable";
-          })
-          .map((e: any) => resolveItemImage(e.item.image_path))
-      );
+      // Render order: body behind everything, head on top
+      const SLOT_ORDER: Record<string, number> = {
+        character_body: 0,
+        character_neck: 1,
+        character_hand: 2,
+        character_shield: 3,
+        character_head: 4,
+      };
+
+      const characterItems = equipped
+        .filter((e: any) => {
+          const slot = e.item?.display_slot;
+          if (slot) return slot.startsWith("character_");
+          // Fallback: unslotted equippables still render on the sprite
+          return e.item?.type === "equippable";
+        })
+        .sort((a: any, b: any) => {
+          const aOrder = SLOT_ORDER[a.item?.display_slot] ?? 0;
+          const bOrder = SLOT_ORDER[b.item?.display_slot] ?? 0;
+          return aOrder - bOrder;
+        });
+
+      setEquippedOverlays(characterItems.map((e: any) => resolveItemImage(e.item.image_path)));
 
       const animal = equipped.find((e: any) => e.item?.display_slot === "animal");
       setAnimalCompanion(animal ? resolveItemImage((animal as any).item.image_path) : null);

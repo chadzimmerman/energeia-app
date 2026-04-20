@@ -35,6 +35,7 @@ interface Item {
   requiredClass: string | null;
   imageSource: ImageSourcePropType;
   type: "consumable" | "equippable";
+  display_slot: string | null;
   flavorText: string;
   description: string;
   hiddenBonus: {
@@ -316,14 +317,15 @@ export default function ItemsTabScreen() {
         is_equipped,        
         is_locked,
         item:item_master_id ( 
-            id, 
-            name, 
-            flavor_text, 
-            description, 
-            base_energeia_cost, 
-            type, 
+            id,
+            name,
+            flavor_text,
+            description,
+            base_energeia_cost,
+            type,
             image_path,
-            hidden_stat_type,   
+            display_slot,
+            hidden_stat_type,
             hidden_buff_value,
             required_class
         )
@@ -359,6 +361,7 @@ export default function ItemsTabScreen() {
             imageSource: ResolvedImageSourceMap[itemId] ?? resolveItemImage(itemMaster.image_path),
             energeiaNumber: itemMaster.base_energeia_cost,
             type: itemMaster.type,
+            display_slot: itemMaster.display_slot ?? null,
             is_equipped: record.is_equipped ?? false,
             isLocked: record.is_locked ?? false,
             flavorText: itemMaster.flavor_text,
@@ -452,6 +455,25 @@ export default function ItemsTabScreen() {
     try {
       if (item.type === "equippable") {
         const newState = !item.is_equipped;
+
+        // Block equipping items restricted to another class
+        if (newState && item.requiredClass && item.requiredClass.toLowerCase() !== profile.player_class?.toLowerCase()) {
+          Alert.alert("Wrong Class", `Only a ${item.requiredClass} can equip this item.`);
+          return;
+        }
+
+        // Unequip any other item in the same slot before equipping this one
+        if (newState && item.display_slot?.startsWith("character_")) {
+          const sameSlotIds = inventory
+            .filter((i) => i.display_slot === item.display_slot && i.id !== item.id && i.is_equipped)
+            .map((i) => i.id);
+          if (sameSlotIds.length > 0) {
+            await supabase
+              .from("user_inventory")
+              .update({ is_equipped: false })
+              .in("id", sameSlotIds);
+          }
+        }
 
         await supabase
           .from("user_inventory")

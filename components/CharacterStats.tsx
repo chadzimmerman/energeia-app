@@ -1,11 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import {
+  Dimensions,
   Image,
   ImageSourcePropType,
+  Modal,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
+
+const { width: SCREEN_W } = Dimensions.get("window");
 
 // Define props for the component
 interface CharacterStatsProps {
@@ -37,9 +42,13 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   floorItems = [],
   handItems = [],
 }) => {
-  // Calculate bar percentages
+  const [modalVisible, setModalVisible] = useState(false);
+
   const healthPercent = (currentHealth / maxHealth) * 100;
   const energyPercent = (currentEnergy / maxEnergy) * 100;
+
+  // Modal cell size — square, most of the screen width
+  const CELL = SCREEN_W * 0.72;
 
   return (
     <View style={styles.container}>
@@ -48,11 +57,17 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
 
       {/* 2. Character Stats Card Area */}
       <View style={styles.card}>
-        {/* 3. Character Image + Equipment Overlays */}
-        <Image source={characterImageSource} style={styles.characterImage} />
-        {equippedOverlays.map((src, i) => (
-          <Image key={i} source={src} style={[styles.characterImage, styles.equipmentOverlay]} />
-        ))}
+        {/* 3. Character Image + Equipment Overlays — tappable to open modal */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => setModalVisible(true)}
+          style={styles.characterTouchable}
+        >
+          <Image source={characterImageSource} style={styles.characterImage} />
+          {equippedOverlays.map((src, i) => (
+            <Image key={i} source={src} style={[styles.characterImage, styles.equipmentOverlay]} />
+          ))}
+        </TouchableOpacity>
 
         {/* Animal Companion — small, to the left of the character */}
         {animalCompanion && (
@@ -73,6 +88,48 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         {floorItems.map((src, i) => (
           <Image key={`floor-${i}`} source={src} style={[styles.floorItem, { left: 65 - i * 36 }]} resizeMode="contain" />
         ))}
+
+        {/* ── Character Detail Modal ─────────────────────────────────────── */}
+        <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
+          <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
+            <View style={[styles.modalCard]} onStartShouldSetResponder={() => true}>
+              {/* Background scene */}
+              <View style={[styles.modalCell, { width: CELL, height: CELL }]}>
+                <Image source={backgroundImageSource} style={styles.modalBackground} />
+
+                {/* Floor items */}
+                {floorItems.map((src, i) => (
+                  <Image key={`mfloor-${i}`} source={src} style={[styles.modalFloorItem, { right: 12 + i * 48 }]} resizeMode="contain" />
+                ))}
+
+                {/* Character + overlays */}
+                <Image source={characterImageSource} style={styles.modalCharacter} />
+                {equippedOverlays.map((src, i) => (
+                  <Image key={`mo-${i}`} source={src} style={[styles.modalCharacter, { backgroundColor: "transparent" }]} />
+                ))}
+
+                {/* Hand items */}
+                {handItems.map((src, i) => (
+                  <Image key={`mhand-${i}`} source={src} style={[styles.modalHandItem, { bottom: CELL * 0.28 + i * 40 }]} resizeMode="contain" />
+                ))}
+
+                {/* Animal companion */}
+                {animalCompanion && (
+                  <Image source={animalCompanion} style={styles.modalAnimal} resizeMode="contain" />
+                )}
+
+                {/* Level badge */}
+                <View style={styles.modalLevelBadge}>
+                  <Text style={styles.modalLevelText}>Lv. {level}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setModalVisible(false)}>
+                <Text style={styles.modalCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* 4. Stats Bars Container */}
         <View style={styles.statsContainer}>
@@ -278,6 +335,103 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     zIndex: 23,
+  },
+  characterTouchable: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 100,
+    height: 100,
+    zIndex: 20,
+  },
+
+  // ── Character detail modal ─────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalCard: {
+    alignItems: "center",
+    gap: 16,
+  },
+  modalCell: {
+    borderRadius: 16,
+    overflow: "hidden",
+    position: "relative",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  modalBackground: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  modalCharacter: {
+    position: "absolute",
+    bottom: 0,
+    alignSelf: "center",
+    left: "50%",
+    marginLeft: -100,
+    width: 200,
+    height: 200,
+    resizeMode: "contain",
+  },
+  modalWallItem: {
+    position: "absolute",
+    top: 12,
+    width: 52,
+    height: 52,
+  },
+  modalFloorItem: {
+    position: "absolute",
+    bottom: 12,
+    width: 58,
+    height: 58,
+  },
+  modalHandItem: {
+    position: "absolute",
+    right: "35%",
+    width: 60,
+    height: 60,
+  },
+  modalAnimal: {
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+    width: 72,
+    height: 72,
+  },
+  modalLevelBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  modalLevelText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+  modalCloseButton: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 12,
+    paddingHorizontal: 36,
+    paddingVertical: 11,
+  },
+  modalCloseText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
 
