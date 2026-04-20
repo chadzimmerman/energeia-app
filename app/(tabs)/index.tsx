@@ -419,6 +419,15 @@ export default function HabitScreen() {
           await checkBossAttack(userId);
           await fetchHabits(userId);
           await refreshProfile();
+
+          // Anniversary achievements — checked lazily on each focus
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.created_at) {
+            const yearsOld = (Date.now() - new Date(session.user.created_at).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+            if (yearsOld >= 1) grantAchievement(userId, "year_1");
+            if (yearsOld >= 2) grantAchievement(userId, "year_2");
+            if (yearsOld >= 3) grantAchievement(userId, "year_3");
+          }
         }
       };
 
@@ -702,6 +711,10 @@ export default function HabitScreen() {
       // --- ACHIEVEMENT GRANTS ---
       if (direction === "up") {
         grantAchievement(userId, "first_task");
+        if (newStreakLevel >= 7)   grantAchievement(userId, "streak_7");
+        if (newStreakLevel >= 30)  grantAchievement(userId, "streak_30");
+        if (newStreakLevel >= 180) grantAchievement(userId, "streak_180");
+        if (newStreakLevel >= 365) grantAchievement(userId, "streak_365");
       }
       if (newLevel >= 10) grantAchievement(userId, "level_10");
       if (newLevel >= 20) grantAchievement(userId, "level_20");

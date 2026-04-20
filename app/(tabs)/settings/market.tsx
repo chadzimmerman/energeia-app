@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { grantAchievement } from "@/utils/grantAchievement";
 import { resolveItemImage } from "@/utils/resolveItemImage";
 import { getCurrentSeason } from "@/utils/seasons";
 import { useFocusEffect } from "expo-router";
@@ -45,6 +46,7 @@ interface MarketItem {
   price: number;
   isLocked: boolean;
   type: "consumable" | "equippable";
+  display_slot: string | null;
   flavorText: string;
   description: string;
   season: string | null;
@@ -120,7 +122,49 @@ const MarketDetailsModal: React.FC<{
 
       console.log("Money deducted successfully.");
 
-      // 3. Success
+      // 3. Achievement grants
+      if (userId) {
+        if (item.type === "equippable") grantAchievement(userId, "first_weapon");
+        if (item.display_slot === "wall") grantAchievement(userId, "first_icon");
+
+        // Collection achievements — check if user now owns everything in a category
+        const { data: allInv } = await supabase
+          .from("user_inventory")
+          .select("item_master_id")
+          .eq("user_id", userId);
+        const ownedIds = new Set((allInv ?? []).map((r: any) => r.item_master_id));
+        ownedIds.add(item.id); // include the just-purchased item
+
+        // all_icons: own every wall-slot item
+        const { data: allIcons } = await supabase.from("items_master").select("id").eq("display_slot", "wall");
+        if (allIcons && allIcons.length > 0 && allIcons.every((i: any) => ownedIds.has(i.id)))
+          grantAchievement(userId, "all_icons");
+
+        // all_items: own every market item
+        const { data: allItems } = await supabase.from("items_master").select("id").eq("is_in_market", true);
+        if (allItems && allItems.length > 0 && allItems.every((i: any) => ownedIds.has(i.id)))
+          grantAchievement(userId, "all_items");
+
+        // Seasonal gear achievements
+        const seasonMap: Record<string, string> = {
+          "Winter (Dec–Feb)": "all_winter_gear",
+          "Spring (Mar–May)": "all_spring_gear",
+          "Summer (Jun–Aug)": "all_summer_gear",
+          "Autumn (Sep–Nov)": "all_autumn_gear",
+        };
+        for (const [season, achievementId] of Object.entries(seasonMap)) {
+          const { data: seasonItems } = await supabase.from("items_master").select("id").eq("season", season);
+          if (seasonItems && seasonItems.length > 0 && seasonItems.every((i: any) => ownedIds.has(i.id)))
+            grantAchievement(userId, achievementId);
+        }
+
+        // all_year_gear: own every seasonal item across all seasons
+        const { data: allSeasonalItems } = await supabase.from("items_master").select("id").not("season", "is", null);
+        if (allSeasonalItems && allSeasonalItems.length > 0 && allSeasonalItems.every((i: any) => ownedIds.has(i.id)))
+          grantAchievement(userId, "all_year_gear");
+      }
+
+      // 4. Success
       onPurchaseSuccess();
       onClose();
       alert("Purchase Successful!");
@@ -385,6 +429,7 @@ export default function MarketScreen() {
           price: item.base_energeia_cost,
           isLocked: false,
           type: item.type,
+          display_slot: item.display_slot ?? null,
           flavorText: item.flavor_text,
           description: item.description,
           season: item.season,

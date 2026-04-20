@@ -6,34 +6,42 @@ import {
   ImageSourcePropType,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 
 interface AchievementItemProps {
   title: string;
   description: string;
-  imageSource: ImageSourcePropType; // Already resolved image source
+  imageSource: ImageSourcePropType;
+  isAchieved: boolean;
+  onPress?: () => void;
 }
 
 const AchievementItem: React.FC<AchievementItemProps> = ({
   title,
   description,
   imageSource,
+  isAchieved,
+  onPress,
 }) => {
   return (
-    <View style={styles.itemContainer}>
+    <TouchableOpacity
+      style={[styles.itemContainer, !isAchieved && styles.lockedItem]}
+      onPress={isAchieved ? onPress : undefined}
+      activeOpacity={isAchieved ? 0.7 : 1}
+    >
       {/* Achievement Image */}
-      <Image source={imageSource} style={styles.icon} />
+      <Image source={imageSource} style={[styles.icon, !isAchieved && styles.lockedIcon]} />
 
       {/* Text Content */}
       <View style={styles.textContainer}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.description}>{description}</Text>
+        <Text style={[styles.title, !isAchieved && styles.lockedText]}>{title}</Text>
+        <Text style={[styles.description, !isAchieved && styles.lockedText]}>
+          {isAchieved ? description : "Not yet earned."}
+        </Text>
       </View>
-
-      {/* Optional: Placeholder for a count/status icon on the right */}
-      <View style={styles.rightPlaceholder} />
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -43,18 +51,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: "#fff", // White background for the item
-    marginBottom: 1, // Slight separator between items
+    backgroundColor: "#fff",
+    marginBottom: 1,
+  },
+  lockedItem: {
+    backgroundColor: "#f9f9f9",
   },
   icon: {
     width: 48,
     height: 48,
-    borderRadius: 24, // Makes the circular border style
+    borderRadius: 24,
     marginRight: 15,
-    resizeMode: "cover", // Ensure the image fits well
-    // Add a light gray border for the circle effect
+    resizeMode: "cover",
     borderWidth: 1,
     borderColor: "#E0E0E0",
+  },
+  lockedIcon: {
+    opacity: 0.35,
   },
   textContainer: {
     flex: 1,
@@ -63,17 +76,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#333", // Dark text
+    color: "#333",
   },
   description: {
     fontSize: 12,
-    color: "#666", // Lighter text for description
+    color: "#666",
     marginTop: 2,
   },
-  rightPlaceholder: {
-    width: 24, // Space for a right-side icon (like the square grid icon in your image)
-    height: 24,
-    marginLeft: 10,
+  lockedText: {
+    color: "#bbb",
   },
 });
 

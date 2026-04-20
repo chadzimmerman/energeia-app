@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { grantAchievement } from "@/utils/grantAchievement";
 import { useProfile } from "@/contexts/ProfileContext";
 import { getSeasonalColor } from "@/utils/seasons";
 const seasonColor = getSeasonalColor();
@@ -168,6 +169,18 @@ const AnimalModal: React.FC<{
         .eq("id", userId);
 
       if (profileError) throw profileError;
+
+      // Achievement grants
+      if (userId) {
+        grantAchievement(userId, "first_pet");
+
+        // all_pets: own every animal item
+        const { data: allAnimals } = await supabase.from("items_master").select("id").eq("type", "animal");
+        const { data: ownedAnimals } = await supabase.from("user_inventory").select("item_master_id").eq("user_id", userId);
+        const ownedIds = new Set([...(ownedAnimals ?? []).map((r: any) => r.item_master_id), animal.id]);
+        if (allAnimals && allAnimals.length > 0 && allAnimals.every((a: any) => ownedIds.has(a.id)))
+          grantAchievement(userId, "all_pets");
+      }
 
       onPurchaseSuccess();
       onClose();

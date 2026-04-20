@@ -321,15 +321,16 @@ export default function CalendarTabScreen() {
           setUserId(id);
           refreshProfile();
 
-          // ONLY fetch habits if we don't have them yet
-          if (myHabits.length === 0) {
-            const { data: habits } = await supabase
-              .from("user_habits")
-              .select("*");
-            if (habits && habits.length > 0 && isActive) {
-              setMyHabits(habits);
-              setSelectedHabit(habits[0]);
-            }
+          // Always refresh habit list to pick up reordering changes
+          const { data: habits } = await supabase
+            .from("user_habits")
+            .select("*")
+            .order("order_index", { ascending: true, nullsFirst: false })
+            .order("created_at", { ascending: false });
+          if (habits && habits.length > 0 && isActive) {
+            setMyHabits(habits);
+            // Only default to first habit on initial load — preserve selection after that
+            setSelectedHabit((prev: any) => prev ?? habits[0]);
           }
         }
       };
@@ -395,17 +396,6 @@ export default function CalendarTabScreen() {
     setHabitLogs(logMap || {});
   };
 
-  //Fetch your habits on mount
-  useEffect(() => {
-    const loadHabits = async () => {
-      const { data } = await supabase.from("user_habits").select("*");
-      if (data && data.length > 0) {
-        setMyHabits(data);
-        setSelectedHabit(data[0]); // Default to the first habit (e.g., "Kiss Wife")
-      }
-    };
-    loadHabits();
-  }, []);
 
   /**
    * Handler function called when a calendar day is pressed.

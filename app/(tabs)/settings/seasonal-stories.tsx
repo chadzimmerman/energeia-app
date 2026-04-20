@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { grantAchievement } from "@/utils/grantAchievement";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -114,6 +115,12 @@ export default function StorylineScreen() {
     setStories(storyData || []);
     setUserProgress(progressMap);
     setLoading(false);
+
+    // Grant first_journey if any story has been completed
+    const anyCompleted = progressData?.some((p) => p.is_completed === true);
+    if (anyCompleted && session?.user?.id) {
+      grantAchievement(session.user.id, "first_journey");
+    }
   }, []);
 
   // Reload every time the screen comes into focus so damage/drops show immediately

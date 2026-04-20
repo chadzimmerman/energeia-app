@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { supabase } from "@/utils/supabase";
+import { grantAchievement } from "@/utils/grantAchievement";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { resolveItemImage } from "@/utils/resolveItemImage";
 import { useFocusEffect } from "expo-router";
@@ -264,6 +265,7 @@ export default function MonasteryScreen() {
       return;
     }
     await supabase.from("profiles").update({ group_id: newGroup.id }).eq("id", userId);
+    if (userId) grantAchievement(userId, "first_friend");
     setSaving(false);
     setCreateModalVisible(false);
     setGroupName("");
@@ -294,6 +296,7 @@ export default function MonasteryScreen() {
       return;
     }
     await supabase.from("profiles").update({ group_id: foundGroup.id }).eq("id", userId);
+    if (userId) grantAchievement(userId, "first_friend");
     setSaving(false);
     setJoinModalVisible(false);
     setInviteCodeInput("");
