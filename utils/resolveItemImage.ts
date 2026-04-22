@@ -4,6 +4,8 @@ import { ImageSourcePropType } from "react-native";
 // Store the image_path DB key as the record key (no extension).
 // Metro requires static require() paths — add new items here as art arrives.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
+const PLACEHOLDER = require("../assets/sprites/items/item-placeholder.png");
+
 const ITEM_IMAGE_MAP: Record<string, ImageSourcePropType> = {
   // ── Existing items (bundled locally for faster loading) ───────────────────
   "bone-relic":         require("../assets/sprites/items/bone-relic.png"),
@@ -57,7 +59,7 @@ const ITEM_IMAGE_MAP: Record<string, ImageSourcePropType> = {
  * Falls back to remote URI for existing Supabase Storage URLs.
  */
 export const resolveItemImage = (path: string | null | undefined): ImageSourcePropType => {
-  if (!path) return ITEM_IMAGE_MAP.candle; // generic fallback
+  if (!path) return PLACEHOLDER;
   if (path.startsWith("http")) return { uri: path };
-  return ITEM_IMAGE_MAP[path] ?? { uri: path };
+  return ITEM_IMAGE_MAP[path] ?? PLACEHOLDER;
 };
