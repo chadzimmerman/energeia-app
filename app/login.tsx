@@ -18,21 +18,39 @@ import {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSubmit = async () => {
+    setError(null);
+
+    if (mode === "forgot") {
+      if (!email) { setError("Please enter your email address."); return; }
+      setLoading(true);
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: "https://pnhfekszpoaeelbbvtyw.supabase.co",
+        });
+        if (error) throw error;
+        setResetSent(true);
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!email || !password) {
       setError("Please enter your email and password.");
       return;
     }
 
     setLoading(true);
-    setError(null);
-
     try {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -41,8 +59,6 @@ export default function LoginScreen() {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
 
-        // Insert a default profile row so onboarding can find it.
-        // Onboarding will UPDATE this row with username/class/character.
         if (data.user) {
           const { error: profileError } = await supabase
             .from("profiles")
@@ -59,12 +75,17 @@ export default function LoginScreen() {
         router.replace("/onboarding");
         return;
       }
-      // Login success: onAuthStateChange in _layout.tsx navigates to /(tabs).
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const switchMode = (next: "login" | "signup" | "forgot") => {
+    setMode(next);
+    setError(null);
+    setResetSent(false);
   };
 
   return (
@@ -80,58 +101,79 @@ export default function LoginScreen() {
 
       {/* Form Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{mode === "login" ? "Log In" : "Sign Up"}</Text>
+        <Text style={styles.cardTitle}>
+          {mode === "login" ? "Log In" : mode === "signup" ? "Sign Up" : "Reset Password"}
+        </Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="rgba(255,255,255,0.6)"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="rgba(255,255,255,0.6)"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoComplete={mode === "signup" ? "new-password" : "current-password"}
-        />
-
-        {error && <Text style={styles.errorText}>{error}</Text>}
-
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitButtonText}>
-              {mode === "login" ? "Log In" : "Sign Up"}
+        {/* Forgot password success state */}
+        {mode === "forgot" && resetSent ? (
+          <>
+            <Text style={styles.resetSentText}>
+              Check your email for a reset link. Once you've reset your password, come back and log in.
             </Text>
-          )}
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.submitButton} onPress={() => switchMode("login")}>
+              <Text style={styles.submitButtonText}>Back to Log In</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="rgba(255,255,255,0.6)"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+            />
 
-        <TouchableOpacity
-          style={styles.toggleButton}
-          onPress={() => {
-            setMode(mode === "login" ? "signup" : "login");
-            setError(null);
-          }}
-        >
-          <Text style={styles.toggleText}>
-            {mode === "login"
-              ? "Don't have an account? Sign up"
-              : "Already have an account? Log in"}
-          </Text>
-        </TouchableOpacity>
+            {mode !== "forgot" && (
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="rgba(255,255,255,0.6)"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              />
+            )}
+
+            {error && <Text style={styles.errorText}>{error}</Text>}
+
+            <TouchableOpacity
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>
+                  {mode === "login" ? "Log In" : mode === "signup" ? "Sign Up" : "Send Reset Link"}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {mode === "login" && (
+              <TouchableOpacity style={styles.toggleButton} onPress={() => switchMode("forgot")}>
+                <Text style={styles.toggleText}>Forgot your password?</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => switchMode(mode === "signup" ? "login" : "signup")}
+            >
+              <Text style={styles.toggleText}>
+                {mode === "login" || mode === "forgot"
+                  ? "Don't have an account? Sign up"
+                  : "Already have an account? Log in"}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -215,5 +257,12 @@ const styles = StyleSheet.create({
   toggleText: {
     color: seasonColor,
     fontSize: 14,
+  },
+  resetSentText: {
+    fontSize: 15,
+    color: "#444",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 24,
   },
 });
