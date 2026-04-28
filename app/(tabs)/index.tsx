@@ -513,7 +513,7 @@ export default function HabitScreen() {
       // Negative always resets to 0. Positive only increments once per period.
       let newStreakLevel: number;
       if (direction === "down") {
-        newStreakLevel = 0;
+        newStreakLevel = Math.max(streak_level - 1, -1);
       } else {
         // Check if habit was already scored green this period to prevent double-counting
         let periodStart: string;
