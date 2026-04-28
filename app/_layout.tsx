@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from '@/components/useColorScheme';
 import { supabase } from '@/utils/supabase';
+import { checkMinVersion } from '@/utils/versionCheck';
+import ForceUpdateModal from '@/components/ForceUpdateModal';
 
 export {
   ErrorBoundary,
@@ -26,9 +28,10 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  // Run the session check in parallel with font loading so the splash
-  // hides only when BOTH are done — no blank screen in between.
+  // Run the session + version checks in parallel with font loading so the
+  // splash hides only when ALL three are done — no blank screen in between.
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [versionOk, setVersionOk] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
     if (fontError) throw fontError;
@@ -38,20 +41,26 @@ export default function RootLayout() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
+    checkMinVersion().then(setVersionOk);
   }, []);
 
-  // Hide the splash only once fonts AND the initial session check are ready.
+  // Hide the splash only once fonts, session, and version check are all ready.
   useEffect(() => {
-    if (loaded && session !== undefined) {
+    if (loaded && session !== undefined && versionOk !== undefined) {
       SplashScreen.hideAsync();
     }
-  }, [loaded, session]);
+  }, [loaded, session, versionOk]);
 
-  if (!loaded || session === undefined) {
-    return null; // Splash stays visible while either check is still pending
+  if (!loaded || session === undefined || versionOk === undefined) {
+    return null; // Splash stays visible while any check is still pending
   }
 
-  return <RootLayoutNav initialSession={session} />;
+  return (
+    <>
+      <RootLayoutNav initialSession={session} />
+      <ForceUpdateModal visible={versionOk === false} />
+    </>
+  );
 }
 
 function RootLayoutNav({ initialSession }: { initialSession: Session | null }) {
