@@ -20,6 +20,7 @@ import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
 import { getSeasonalBackground } from "@/utils/seasons";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
+import { recomputeStreak } from "@/utils/recomputeStreak";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useFocusEffect } from "expo-router";
 import DailyLogModal from "../calendar-modal";
@@ -377,6 +378,8 @@ export default function CalendarTabScreen() {
       await fetchLogs();
     } else {
       setIsModalVisible(false);
+      // Keep streak_level in sync with what the calendar shows
+      recomputeStreak(selectedHabit.id, userId, selectedHabit.reset_frequency);
     }
   };
 
