@@ -69,7 +69,7 @@ interface MarketItem {
 
 const STAT_LABELS: Record<string, string> = {
   health: "Max Health",
-  energeia: "Max Energeia",
+  energeia: "Bonus XP per Habit",
   currency: "Energeia Earned",
 };
 

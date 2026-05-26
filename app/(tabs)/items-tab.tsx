@@ -48,7 +48,7 @@ interface Item {
 
 const STAT_LABELS: Record<string, string> = {
   health: "Max Health",
-  energeia: "Max Energeia",
+  energeia: "Bonus XP per Habit",
   currency: "Energeia Earned",
 };
 
@@ -505,16 +505,21 @@ export default function ItemsTabScreen() {
           }
         }
 
-        // Unequip any other item in the same slot before equipping this one
+        // Unequip any other item in the same slot before equipping this one,
+        // and roll back their stat bonuses so max_health doesn't drift.
+        let displacedHealthBuff = 0;
         if (newState && item.display_slot?.startsWith("character_")) {
-          const sameSlotIds = inventory
-            .filter((i) => i.display_slot === item.display_slot && i.id !== item.id && i.is_equipped)
-            .map((i) => i.id);
-          if (sameSlotIds.length > 0) {
+          const sameSlotItems = inventory.filter(
+            (i) => i.display_slot === item.display_slot && i.id !== item.id && i.is_equipped
+          );
+          if (sameSlotItems.length > 0) {
             await supabase
               .from("user_inventory")
               .update({ is_equipped: false })
-              .in("id", sameSlotIds);
+              .in("id", sameSlotItems.map((i) => i.id));
+            displacedHealthBuff = sameSlotItems
+              .filter((i) => i.hiddenBonus.stat === "health")
+              .reduce((sum, i) => sum + i.hiddenBonus.buff, 0);
           }
         }
 
@@ -523,10 +528,10 @@ export default function ItemsTabScreen() {
           .update({ is_equipped: newState })
           .eq("id", item.id);
 
-        if (item.hiddenBonus.stat === "health" && item.hiddenBonus.buff > 0) {
+        if (item.hiddenBonus.stat === "health" && (item.hiddenBonus.buff > 0 || displacedHealthBuff > 0)) {
           const buff = item.hiddenBonus.buff;
           const newMaxHealth = newState
-            ? profile.max_health + buff
+            ? profile.max_health - displacedHealthBuff + buff
             : profile.max_health - buff;
           const newCurrentHealth = Math.min(profile.current_health, newMaxHealth);
 

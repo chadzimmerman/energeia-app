@@ -566,6 +566,7 @@ export default function HabitScreen() {
       // Sum bonuses from all currently equipped items
       let energeiaFlatBonus = 0;
       let healthEquipBonus = 0;
+      let currencyFlatBonus = 0;
       if (energeiaChange > 0) {
         const { data: equippedBonuses } = await supabase
           .from("user_inventory")
@@ -583,6 +584,12 @@ export default function HabitScreen() {
           equippedBonuses
             ?.filter((e: any) => e.item?.hidden_stat_type === "health")
             .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
+
+        // Currency gear bonus added to wallet each time a habit is scored positive (nobles)
+        currencyFlatBonus =
+          equippedBonuses
+            ?.filter((e: any) => e.item?.hidden_stat_type === "currency")
+            .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
       }
 
       let newHealth = Math.min(Math.max(current_health + healthChange, 0), max_health);
@@ -594,7 +601,7 @@ export default function HabitScreen() {
 
       if (energeiaChange > 0) {
         // Earning: tick up the wallet and handle level-up with overflow carry-forward
-        newCurrency = energeia_currency + energeiaChange;
+        newCurrency = energeia_currency + energeiaChange + currencyFlatBonus;
 
         // Class bonuses (applied to raw earned amount before level-up processing)
         const cls = player_class?.toLowerCase();
