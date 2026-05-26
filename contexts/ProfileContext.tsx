@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { ImageSourcePropType } from "react-native";
 import { supabase } from "@/utils/supabase";
-import { resolveItemImage } from "@/utils/resolveItemImage";
+import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
 
 export interface Profile {
   id: string;
@@ -19,6 +19,7 @@ export interface Profile {
 
 interface ProfileContextValue {
   profile: Profile | null;
+  equippedCharacterSet: ImageSourcePropType | null;
   equippedOverlays: ImageSourcePropType[];
   animalCompanion: ImageSourcePropType | null;
   wallItems: ImageSourcePropType[];
@@ -29,6 +30,7 @@ interface ProfileContextValue {
 
 const ProfileContext = createContext<ProfileContextValue>({
   profile: null,
+  equippedCharacterSet: null,
   equippedOverlays: [],
   animalCompanion: null,
   wallItems: [],
@@ -39,6 +41,7 @@ const ProfileContext = createContext<ProfileContextValue>({
 
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [equippedCharacterSet, setEquippedCharacterSet] = useState<ImageSourcePropType | null>(null);
   const [equippedOverlays, setEquippedOverlays] = useState<ImageSourcePropType[]>([]);
   const [animalCompanion, setAnimalCompanion] = useState<ImageSourcePropType | null>(null);
   const [wallItems, setWallItems] = useState<ImageSourcePropType[]>([]);
@@ -77,6 +80,30 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     if (profileData) setProfile(profileData as Profile);
 
+    // Unequip any items that no longer match the profile's class or gender.
+    // Runs on every refresh so a class/gender change is always reflected immediately.
+    const pathParts = (profileData?.character_image_path ?? "").split("_");
+    const playerGender = pathParts[pathParts.length - 1] === "female" ? "female" : "male";
+    const playerClass = profileData?.player_class?.toLowerCase() ?? null;
+
+    const { data: equippedCheck } = await supabase
+      .from("user_inventory")
+      .select("id, item:item_master_id(required_class, gender)")
+      .eq("user_id", userId)
+      .eq("is_equipped", true);
+
+    const mismatchIds = ((equippedCheck ?? []) as any[])
+      .filter((r) => {
+        const classMismatch = r.item?.required_class && playerClass && r.item.required_class !== playerClass;
+        const genderMismatch = r.item?.gender && r.item.gender !== playerGender;
+        return classMismatch || genderMismatch;
+      })
+      .map((r) => r.id);
+
+    if (mismatchIds.length > 0) {
+      await supabase.from("user_inventory").update({ is_equipped: false }).in("id", mismatchIds);
+    }
+
     const { data: equipped } = await supabase
       .from("user_inventory")
       .select("item:item_master_id(image_path, type, display_slot)")
@@ -93,10 +120,16 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         character_head: 4,
       };
 
+      // character_set replaces the base sprite entirely — handle it separately
+      const charSetItem = equipped.find((e: any) => e.item?.display_slot === "character_set");
+      setEquippedCharacterSet(
+        charSetItem ? resolveCharacterSetImage((charSetItem as any).item.image_path) : null
+      );
+
       const characterItems = equipped
         .filter((e: any) => {
           const slot = e.item?.display_slot;
-          if (slot) return slot.startsWith("character_");
+          if (slot) return slot.startsWith("character_") && slot !== "character_set";
           // Fallback: unslotted equippables still render on the sprite
           return e.item?.type === "equippable";
         })
@@ -136,7 +169,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [refreshProfile]);
 
   return (
-    <ProfileContext.Provider value={{ profile, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile }}>
+    <ProfileContext.Provider value={{ profile, equippedCharacterSet, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile }}>
       {children}
     </ProfileContext.Provider>
   );

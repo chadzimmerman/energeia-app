@@ -1,6 +1,6 @@
 import { supabase } from "@/utils/supabase";
 import { grantAchievement } from "@/utils/grantAchievement";
-import { resolveItemImage } from "@/utils/resolveItemImage";
+import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
 import { getCurrentSeason } from "@/utils/seasons";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -39,12 +39,20 @@ const SEASON_DIALOGUE: Record<string, string> = {
   autumn: "The harvest is in. Come, see what the season has brought to market.",
 };
 
+interface CharacterSetGroup {
+  setGroup: string;
+  isBaseClass: boolean;
+  season: string | null;
+  items: MarketItem[];
+}
+
 interface MarketItem {
   id: string;
   name: string;
   imageSource: ReturnType<typeof resolveItemImage>;
   price: number;
   isLocked: boolean;
+  lockedReason: string | null;
   type: "consumable" | "equippable";
   display_slot: string | null;
   flavorText: string;
@@ -54,6 +62,9 @@ interface MarketItem {
     stat: "energeia" | "defense" | "health";
     buff: number;
   };
+  set_group: string | null;
+  stage_order: number | null;
+  prerequisite_set_group: string | null;
 }
 
 // Get screen width to calculate responsive card size (for 2 columns with padding)
@@ -88,22 +99,59 @@ const MarketDetailsModal: React.FC<{
   const canAfford = playerEnergeia >= item.price;
 
   const handleBuy = async () => {
+    if (item.isLocked) {
+      alert("Locked: " + (item.lockedReason ?? "Complete prerequisites first."));
+      return;
+    }
+
     console.log("Starting purchase...");
 
     try {
-      // 1. Insert into inventory
-      const { data: invData, error: invError } = await supabase
-        .from("user_inventory")
-        .insert({
-          user_id: userId,
-          item_master_id: item.id,
-        })
-        .select(); // Add .select() to verify data return
+      // 1. Add to inventory — character_set upgrades replace the existing stage row
+      //    so the inventory stays at one entry per set_group instead of accumulating.
+      if (item.display_slot === "character_set" && item.set_group) {
+        const { data: groupItems } = await supabase
+          .from("items_master")
+          .select("id")
+          .eq("set_group", item.set_group);
+        const groupIds = (groupItems ?? []).map((i: any) => i.id);
 
-      if (invError) {
-        console.error("INVENTORY ERROR:", invError.message);
-        alert("Inventory Error: " + invError.message);
-        return;
+        const { data: existingRow } = await supabase
+          .from("user_inventory")
+          .select("id")
+          .eq("user_id", userId)
+          .in("item_master_id", groupIds)
+          .maybeSingle();
+
+        if (existingRow) {
+          const { error: updateErr } = await supabase
+            .from("user_inventory")
+            .update({ item_master_id: item.id })
+            .eq("id", existingRow.id);
+          if (updateErr) {
+            console.error("INVENTORY ERROR:", updateErr.message);
+            alert("Inventory Error: " + updateErr.message);
+            return;
+          }
+        } else {
+          const { error: insertErr } = await supabase
+            .from("user_inventory")
+            .insert({ user_id: userId, item_master_id: item.id });
+          if (insertErr) {
+            console.error("INVENTORY ERROR:", insertErr.message);
+            alert("Inventory Error: " + insertErr.message);
+            return;
+          }
+        }
+      } else {
+        const { error: invError } = await supabase
+          .from("user_inventory")
+          .insert({ user_id: userId, item_master_id: item.id });
+        if (invError) {
+          console.error("INVENTORY ERROR:", invError.message);
+          alert("Inventory Error: " + invError.message);
+          return;
+        }
       }
 
       console.log("Item added to inventory table.");
@@ -223,24 +271,33 @@ const MarketDetailsModal: React.FC<{
             {item.description}
           </ThemedText>
 
-          {/* Hidden Bonus (Visually hidden, kept for component consistency) */}
-          <View style={modalStyles.hiddenBonusBox}>
-            <ThemedText style={modalStyles.hiddenBonusText}>
-              Hidden Bonus: +{item.hiddenBonus.buff} {item.hiddenBonus.stat}
-            </ThemedText>
-          </View>
+          {item.hiddenBonus.buff > 0 && (
+            <View style={modalStyles.hiddenBonusBox}>
+              <ThemedText style={modalStyles.hiddenBonusText}>
+                +{item.hiddenBonus.buff} {item.hiddenBonus.stat.charAt(0).toUpperCase() + item.hiddenBonus.stat.slice(1)} when equipped
+              </ThemedText>
+            </View>
+          )}
+
+          {/* Lock reason banner */}
+          {item.isLocked && item.lockedReason && (
+            <View style={modalStyles.lockedBanner}>
+              <FontAwesome name="lock" size={13} color="#C0392B" />
+              <ThemedText style={modalStyles.lockedBannerText}>{item.lockedReason}</ThemedText>
+            </View>
+          )}
 
           {/* Action Button: BUY */}
           <TouchableOpacity
             style={[
               modalStyles.buyButton,
-              !canAfford && modalStyles.disabledButton, // Visually disable if cannot afford
+              (!canAfford || item.isLocked) && modalStyles.disabledButton,
             ]}
             onPress={handleBuy}
-            disabled={!canAfford}
+            disabled={!canAfford || item.isLocked}
           >
             <Text style={modalStyles.buyButtonText}>
-              {canAfford ? "BUY" : "CANNOT AFFORD"}
+              {item.isLocked ? "LOCKED" : canAfford ? "BUY" : "CANNOT AFFORD"}
             </Text>
             {/* Price Tag */}
             <View style={modalStyles.priceTag}>
@@ -270,7 +327,7 @@ const MarketItemCard: React.FC<{
       ]}
       onPress={() => onPress(item)} // Open modal on press
       activeOpacity={0.7}
-      disabled={item.isLocked} // Optional: Prevent opening locked items
+      // Locked items can still be tapped so the modal shows the lock reason
     >
       <Image
         source={item.imageSource}
@@ -299,6 +356,55 @@ const MarketItemCard: React.FC<{
 };
 
 /**
+ * Horizontal row of stage cards for one character set group.
+ * Stages are shown in purchase order with arrows between them.
+ * Locked stages are dimmed but still tappable to show the lock reason.
+ */
+const CharacterSetGroupRow: React.FC<{
+  group: CharacterSetGroup;
+  onPress: (item: MarketItem) => void;
+}> = ({ group, onPress }) => (
+  <ScrollView
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    nestedScrollEnabled
+    contentContainerStyle={marketStyles.charSetRow}
+  >
+    {group.items.map((item, index) => (
+      <React.Fragment key={item.id}>
+        {index > 0 && <Text style={marketStyles.stageArrow}>→</Text>}
+        <TouchableOpacity
+          style={[marketStyles.stageCard, item.isLocked && marketStyles.stageCardLocked]}
+          onPress={() => onPress(item)}
+          activeOpacity={0.75}
+        >
+          <Image source={item.imageSource} style={marketStyles.stageCardImage} resizeMode="contain" />
+          <Text style={marketStyles.stageCardName} numberOfLines={2}>{item.name}</Text>
+          {item.hiddenBonus.buff > 0 && (
+            <Text style={marketStyles.stageCardBonus}>
+              +{item.hiddenBonus.buff} {item.hiddenBonus.stat.charAt(0).toUpperCase() + item.hiddenBonus.stat.slice(1)}
+            </Text>
+          )}
+          <View style={marketStyles.stageCardPrice}>
+            <FontAwesome
+              name={item.isLocked ? "lock" : "flash"}
+              size={11}
+              color={item.isLocked ? "#999" : "#A06E00"}
+            />
+            <Text style={[
+              marketStyles.stageCardPriceText,
+              item.isLocked && marketStyles.stageCardPriceTextLocked,
+            ]}>
+              {item.price}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </React.Fragment>
+    ))}
+  </ScrollView>
+);
+
+/**
  * Renders the main item grid structure including the shop header.
  */
 const MarketGrid: React.FC<{
@@ -308,7 +414,9 @@ const MarketGrid: React.FC<{
   regularItems: MarketItem[];
   seasonLabel: string;
   seasonDialogue: string;
-}> = ({ onSelectItem, seasonalItems, regularItems, seasonLabel, seasonDialogue }) => {
+  seasonalCharSetGroups: CharacterSetGroup[];
+  baseCharSetGroups: CharacterSetGroup[];
+}> = ({ onSelectItem, seasonalItems, regularItems, seasonLabel, seasonDialogue, seasonalCharSetGroups, baseCharSetGroups }) => {
   return (
     <ScrollView
       style={marketStyles.gridContainer}
@@ -319,7 +427,7 @@ const MarketGrid: React.FC<{
         <Text style={marketStyles.dialogueText}>{seasonDialogue}</Text>
       </View>
 
-      {/* Seasonal section */}
+      {/* Seasonal items section */}
       {seasonalItems.length > 0 && (
         <>
           <View style={marketStyles.sectionHeader}>
@@ -333,7 +441,19 @@ const MarketGrid: React.FC<{
         </>
       )}
 
-      {/* Regular section */}
+      {/* Seasonal character sets */}
+      {seasonalCharSetGroups.length > 0 && (
+        <>
+          <View style={marketStyles.sectionHeader}>
+            <Text style={marketStyles.sectionHeaderText}>⚔ Character Sets — {seasonLabel}</Text>
+          </View>
+          {seasonalCharSetGroups.map((group) => (
+            <CharacterSetGroupRow key={group.setGroup} group={group} onPress={onSelectItem} />
+          ))}
+        </>
+      )}
+
+      {/* Regular items section */}
       {regularItems.length > 0 && (
         <>
           <View style={marketStyles.sectionHeader}>
@@ -344,6 +464,18 @@ const MarketGrid: React.FC<{
               <MarketItemCard key={item.id} item={item} onPress={onSelectItem} />
             ))}
           </View>
+        </>
+      )}
+
+      {/* Base class character progression (monk / nun) */}
+      {baseCharSetGroups.length > 0 && (
+        <>
+          <View style={marketStyles.sectionHeader}>
+            <Text style={marketStyles.sectionHeaderText}>Character Progression</Text>
+          </View>
+          {baseCharSetGroups.map((group) => (
+            <CharacterSetGroupRow key={group.setGroup} group={group} onPress={onSelectItem} />
+          ))}
         </>
       )}
 
@@ -361,6 +493,8 @@ export default function MarketScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [seasonalItems, setSeasonalItems] = useState<MarketItem[]>([]);
   const [regularItems, setRegularItems] = useState<MarketItem[]>([]);
+  const [seasonalCharSetGroups, setSeasonalCharSetGroups] = useState<CharacterSetGroup[]>([]);
+  const [baseCharSetGroups, setBaseCharSetGroups] = useState<CharacterSetGroup[]>([]);
   const currentSeason = getCurrentSeason();
   const seasonLabel = SEASON_LABELS[currentSeason];
   const seasonDialogue = SEASON_DIALOGUE[currentSeason];
@@ -375,72 +509,185 @@ export default function MarketScreen() {
     setSelectedItem(null);
   };
 
-  // 2. Single fetch: loads profile (currency + class) then filters market items by class
+  // Fetch: profile (currency + class + gender), regular items, character set items
   const fetchMarketData = useCallback(async (currentUserId: string) => {
     try {
-      // Fetch currency and class together
+      // 1. Profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("energeia_currency, player_class")
+        .select("energeia_currency, player_class, character_image_path")
         .eq("id", currentUserId)
         .single();
-
       if (profileError) throw profileError;
 
       setPlayerEnergeia(profile.energeia_currency);
       const playerClass: string | null = profile.player_class;
+      // Derive gender from character_image_path (e.g. "fighter_male" → "male")
+      const pathParts = (profile.character_image_path ?? "").split("_");
+      const playerGender = pathParts[pathParts.length - 1] === "female" ? "female" : "male";
+      const cls = playerClass?.toLowerCase() ?? null;
 
-      // Build market query — show class-specific items only for the right class
+      // 2. Regular market items (everything except character sets)
       let itemQuery = supabase
         .from("items_master")
         .select("*")
-        .eq("is_in_market", true);
-
-      if (playerClass) {
-        const cls = playerClass.toLowerCase();
-        itemQuery = itemQuery.or(
-          `required_class.is.null,required_class.eq.${cls}`
-        );
+        .eq("is_in_market", true)
+        .neq("display_slot", "character_set");
+      if (cls) {
+        itemQuery = itemQuery.or(`required_class.is.null,required_class.eq.${cls}`);
       } else {
         itemQuery = itemQuery.is("required_class", null);
       }
-
+      itemQuery = itemQuery.or(`gender.is.null,gender.eq.${playerGender}`);
       const { data: items, error: marketError } = await itemQuery;
       if (marketError) throw marketError;
 
-      // Filter out unique items already owned
+      // 3. Character set items filtered by class AND gender
+      let charSetQuery = supabase
+        .from("items_master")
+        .select("*")
+        .eq("is_in_market", true)
+        .eq("display_slot", "character_set")
+        .order("set_group")
+        .order("stage_order");
+      if (cls) {
+        charSetQuery = charSetQuery.or(`required_class.is.null,required_class.eq.${cls}`);
+      } else {
+        charSetQuery = charSetQuery.is("required_class", null);
+      }
+      charSetQuery = charSetQuery.or(`gender.is.null,gender.eq.${playerGender}`);
+      const { data: charSetRaw } = await charSetQuery;
+
+      // 4. User inventory
       const { data: userInv } = await supabase
         .from("user_inventory")
         .select("item_master_id")
         .eq("user_id", currentUserId);
-
       const ownedIds = userInv?.map((i) => i.item_master_id) || [];
-      const currentSeasonLabel = SEASON_LABELS[getCurrentSeason()];
 
-      const availableItems: MarketItem[] = items
-        .filter((item) => {
-          if (item.is_unique && ownedIds.includes(item.id)) return false;
-          return true;
-        })
-        .map((item) => ({
+      const currentSeasonKey = getCurrentSeason(); // "spring" | "summer" | "autumn" | "winter"
+      const currentSeasonLabel = SEASON_LABELS[currentSeasonKey];
+
+      // 5. Ownership detail for stage-gate checks
+      const { data: ownedWithDetails } = await supabase
+        .from("user_inventory")
+        .select("item_master_id, item:item_master_id(set_group, stage_order)")
+        .eq("user_id", currentUserId);
+      const ownedSetStages = new Set(
+        (ownedWithDetails ?? [])
+          .filter((r: any) => r.item?.set_group)
+          .map((r: any) => `${r.item.set_group}:${r.item.stage_order}`)
+      );
+      // Highest stage owned per set_group — used to hide already-surpassed stages from market
+      const maxOwnedStage: Record<string, number> = {};
+      for (const r of (ownedWithDetails ?? []) as any[]) {
+        if (r.item?.set_group && r.item?.stage_order) {
+          const g = r.item.set_group as string;
+          const s = r.item.stage_order as number;
+          if (!maxOwnedStage[g] || s > maxOwnedStage[g]) maxOwnedStage[g] = s;
+        }
+      }
+
+      // 6. Prerequisite group totals for monk/nun base-class gate
+      const prereqGroups = [
+        ...new Set(
+          (charSetRaw ?? [])
+            .filter((i: any) => i.prerequisite_set_group)
+            .map((i: any) => i.prerequisite_set_group as string)
+        ),
+      ];
+      // Max stage that exists per prereq group — compared against maxOwnedStage to check completion
+      const prereqMaxStage: Record<string, number> = {};
+      if (prereqGroups.length > 0) {
+        const { data: prereqItems } = await supabase
+          .from("items_master")
+          .select("set_group, stage_order")
+          .in("set_group", prereqGroups);
+        for (const pi of prereqItems ?? []) {
+          if (pi.stage_order > (prereqMaxStage[pi.set_group] ?? 0))
+            prereqMaxStage[pi.set_group] = pi.stage_order;
+        }
+      }
+
+      const getLockInfo = (item: any): { isLocked: boolean; lockedReason: string | null } => {
+        if (item.stage_order && item.stage_order > 1) {
+          const prevKey = `${item.set_group}:${item.stage_order - 1}`;
+          if (!ownedSetStages.has(prevKey))
+            return { isLocked: true, lockedReason: `Purchase Stage ${item.stage_order - 1} first` };
+        }
+        if (item.prerequisite_set_group) {
+          const maxTotal = prereqMaxStage[item.prerequisite_set_group] ?? 0;
+          const maxOwned = maxOwnedStage[item.prerequisite_set_group] ?? 0;
+          if (maxOwned < maxTotal)
+            return { isLocked: true, lockedReason: `Complete the base class progression first (stage ${maxOwned}/${maxTotal})` };
+        }
+        return { isLocked: false, lockedReason: null };
+      };
+
+      const toMarketItem = (item: any, isCharSet: boolean): MarketItem => {
+        const lockInfo = isCharSet ? getLockInfo(item) : { isLocked: false, lockedReason: null };
+        return {
           id: item.id,
           name: item.name,
-          imageSource: resolveItemImage(item.image_path),
+          imageSource: isCharSet
+            ? (resolveCharacterSetImage(item.image_path) ?? resolveItemImage(item.image_path))
+            : resolveItemImage(item.image_path),
           price: item.base_energeia_cost,
-          isLocked: false,
+          isLocked: lockInfo.isLocked,
+          lockedReason: lockInfo.lockedReason,
           type: item.type,
           display_slot: item.display_slot ?? null,
-          flavorText: item.flavor_text,
-          description: item.description,
-          season: item.season,
-          hiddenBonus: {
-            stat: item.hidden_stat_type,
-            buff: item.hidden_buff_value,
-          },
-        }));
+          flavorText: item.flavor_text ?? "",
+          description: item.description ?? "",
+          season: item.season ?? null,
+          hiddenBonus: { stat: item.hidden_stat_type, buff: item.hidden_buff_value },
+          set_group: item.set_group ?? null,
+          stage_order: item.stage_order ?? null,
+          prerequisite_set_group: item.prerequisite_set_group ?? null,
+        };
+      };
 
+      // 7. Regular items (non-character-set)
+      const availableItems = (items ?? [])
+        .filter((item: any) => !(item.is_unique && ownedIds.includes(item.id)))
+        .map((item: any) => toMarketItem(item, false));
       setSeasonalItems(availableItems.filter((i) => i.season === currentSeasonLabel));
       setRegularItems(availableItems.filter((i) => !i.season));
+
+      // 8. Character set items — group by set_group
+      // Hide stages already surpassed (stage_order <= max owned stage for that group)
+      const mappedCharSets = (charSetRaw ?? [])
+        .filter((item: any) => {
+          const maxOwned = item.set_group ? (maxOwnedStage[item.set_group] ?? 0) : 0;
+          return item.stage_order > maxOwned;
+        })
+        .map((item: any) => toMarketItem(item, true));
+
+      const groupMap = new Map<string, CharacterSetGroup>();
+      for (const item of mappedCharSets) {
+        if (!item.set_group) continue;
+        if (!groupMap.has(item.set_group)) {
+          groupMap.set(item.set_group, {
+            setGroup: item.set_group,
+            isBaseClass: item.set_group.includes("-base"),
+            season: item.season,
+            items: [],
+          });
+        }
+        groupMap.get(item.set_group)!.items.push(item);
+      }
+
+      // Normalize season key: character_sets.sql uses 'spring', market labels use 'Spring (Mar–May)'
+      const normalizeSeasonKey = (s: string | null): string | null => {
+        if (!s) return null;
+        return s.toLowerCase().split(" ")[0];
+      };
+
+      const allGroups = [...groupMap.values()];
+      setSeasonalCharSetGroups(
+        allGroups.filter((g) => normalizeSeasonKey(g.season) === currentSeasonKey && !g.isBaseClass)
+      );
+      setBaseCharSetGroups(allGroups.filter((g) => g.isBaseClass));
     } catch (e: any) {
       console.error("Error loading market:", e.message);
     }
@@ -491,6 +738,8 @@ export default function MarketScreen() {
         regularItems={regularItems}
         seasonLabel={seasonLabel}
         seasonDialogue={seasonDialogue}
+        seasonalCharSetGroups={seasonalCharSetGroups}
+        baseCharSetGroups={baseCharSetGroups}
       />
 
       <MarketDetailsModal
@@ -660,6 +909,72 @@ const marketStyles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1,
   },
+  // ── Character set group row ──────────────────────────────────────────────
+  charSetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: cardPadding,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  stageArrow: {
+    fontSize: 18,
+    color: "#B0895A",
+    marginHorizontal: 2,
+  },
+  stageCard: {
+    width: 112,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#ddd",
+    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  stageCardLocked: {
+    opacity: 0.55,
+    borderColor: "#ccc",
+  },
+  stageCardImage: {
+    width: 80,
+    height: 80,
+    marginBottom: 4,
+  },
+  stageCardName: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+    paddingHorizontal: 4,
+    height: 30,
+  },
+  stageCardBonus: {
+    fontSize: 10,
+    color: "#5a8a3c",
+    fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  stageCardPrice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  stageCardPriceText: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#A06E00",
+  },
+  stageCardPriceTextLocked: {
+    color: "#999",
+  },
 });
 
 // --- MODAL STYLES ---
@@ -742,13 +1057,13 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   hiddenBonusBox: {
-    height: 1,
-    opacity: 0,
-    overflow: "hidden",
-    marginBottom: 0,
+    marginBottom: 10,
   },
   hiddenBonusText: {
-    fontSize: 10,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#5a8a3c",
+    textAlign: "center",
   },
   // --- BUY Button Specifics ---
   buyButton: {
@@ -788,5 +1103,20 @@ const modalStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
     marginLeft: 4,
+  },
+  lockedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FDECEA",
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 4,
+    gap: 6,
+    width: "100%",
+  },
+  lockedBannerText: {
+    fontSize: 12,
+    color: "#C0392B",
+    flex: 1,
   },
 });

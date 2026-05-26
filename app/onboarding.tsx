@@ -16,10 +16,10 @@ import {
 type Gender = "male" | "female";
 type PlayerClass = "Monk" | "Fighter" | "Noble";
 
-const CLASS_OPTIONS: { id: PlayerClass; label: string; tagline: string; bonus: string; lockedGender: Gender }[] = [
-  { id: "Monk",    label: "Monk",    tagline: "Prayer & fasting",      bonus: "+10% XP from all habits",    lockedGender: "male"   },
-  { id: "Fighter", label: "Fighter", tagline: "Shield & sword",        bonus: "+10% damage to bosses",      lockedGender: "male"   },
-  { id: "Noble",   label: "Noble",   tagline: "Wisdom & stewardship",  bonus: "+10% Energeia earned",       lockedGender: "female" },
+const CLASS_OPTIONS: { id: PlayerClass; label: string; tagline: string; bonus: string }[] = [
+  { id: "Monk",    label: "Monk",    tagline: "Prayer & fasting",      bonus: "+10% XP from all habits" },
+  { id: "Fighter", label: "Fighter", tagline: "Shield & sword",        bonus: "+10% damage to bosses"   },
+  { id: "Noble",   label: "Noble",   tagline: "Wisdom & stewardship",  bonus: "+10% Energeia earned"    },
 ];
 
 export default function OnboardingScreen() {
@@ -113,10 +113,8 @@ export default function OnboardingScreen() {
           style={[
             styles.genderButton,
             gender === "male" && styles.genderButtonActive,
-            !!selectedClass && styles.genderButtonDisabled,
           ]}
-          onPress={() => !selectedClass && setGender("male")}
-          disabled={!!selectedClass}
+          onPress={() => setGender("male")}
         >
           <Text
             style={[
@@ -131,10 +129,8 @@ export default function OnboardingScreen() {
           style={[
             styles.genderButton,
             gender === "female" && styles.genderButtonActive,
-            !!selectedClass && styles.genderButtonDisabled,
           ]}
-          onPress={() => !selectedClass && setGender("female")}
-          disabled={!!selectedClass}
+          onPress={() => setGender("female")}
         >
           <Text
             style={[
@@ -146,11 +142,6 @@ export default function OnboardingScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-      {!!selectedClass && (
-        <Text style={styles.genderNote}>
-          More character art coming in a future update.
-        </Text>
-      )}
 
       {/* Class Selection */}
       <Text style={styles.sectionLabel}>Choose Your Class</Text>
@@ -162,7 +153,7 @@ export default function OnboardingScreen() {
               styles.classCard,
               selectedClass === cls.id && styles.classCardActive,
             ]}
-            onPress={() => { setSelectedClass(cls.id); setGender(cls.lockedGender); }}
+            onPress={() => setSelectedClass(cls.id)}
           >
             <Text
               style={[
@@ -170,7 +161,7 @@ export default function OnboardingScreen() {
                 selectedClass === cls.id && styles.classLabelActive,
               ]}
             >
-              {cls.label}
+              {cls.id === "Monk" && gender === "female" ? "Nun" : cls.label}
             </Text>
             <Text
               style={[
@@ -351,17 +342,6 @@ const styles = StyleSheet.create({
   },
   classBonusActive: {
     color: "#FFD700",
-  },
-  genderButtonDisabled: {
-    opacity: 0.35,
-  },
-  genderNote: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.35)",
-    fontStyle: "italic",
-    marginTop: -20,
-    marginBottom: 20,
-    textAlign: "center",
   },
   beginButton: {
     backgroundColor: PURPLE,

@@ -16,6 +16,7 @@ const { width: SCREEN_W } = Dimensions.get("window");
 interface CharacterStatsProps {
   backgroundImageSource: ImageSourcePropType;
   characterImageSource: ImageSourcePropType;
+  equippedCharacterSet?: ImageSourcePropType | null;
   currentHealth: number;
   maxHealth: number;
   currentEnergy: number;
@@ -31,6 +32,7 @@ interface CharacterStatsProps {
 const CharacterStats: React.FC<CharacterStatsProps> = ({
   backgroundImageSource,
   characterImageSource,
+  equippedCharacterSet = null,
   currentHealth,
   maxHealth,
   currentEnergy,
@@ -43,6 +45,9 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   handItems = [],
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
+
+  // When a character set is equipped it replaces the base sprite entirely.
+  const characterSrc = equippedCharacterSet ?? characterImageSource;
 
   const healthPercent = (currentHealth / maxHealth) * 100;
   const energyPercent = (currentEnergy / maxEnergy) * 100;
@@ -63,7 +68,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           onPress={() => setModalVisible(true)}
           style={styles.characterTouchable}
         >
-          <Image source={characterImageSource} style={styles.characterImage} />
+          <Image source={characterSrc} style={styles.characterImage} />
           {equippedOverlays.map((src, i) => (
             <Image key={i} source={src} style={[styles.characterImage, styles.equipmentOverlay]} />
           ))}
@@ -103,7 +108,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
                 ))}
 
                 {/* Character + overlays */}
-                <Image source={characterImageSource} style={styles.modalCharacter} />
+                <Image source={characterSrc} style={styles.modalCharacter} />
                 {equippedOverlays.map((src, i) => (
                   <Image key={`mo-${i}`} source={src} style={[styles.modalCharacter, { backgroundColor: "transparent" }]} />
                 ))}

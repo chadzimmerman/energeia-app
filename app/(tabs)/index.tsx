@@ -331,7 +331,7 @@ const checkScrollDrop = async (userId: string): Promise<void> => {
 
 export default function HabitScreen() {
   const router = useRouter();
-  const { profile, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile } = useProfile();
+  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile } = useProfile();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -809,6 +809,7 @@ export default function HabitScreen() {
       <CharacterStats
         backgroundImageSource={getSeasonalBackground()}
         characterImageSource={resolveCharacterImage(profile.character_image_path, profile.level)}
+        equippedCharacterSet={equippedCharacterSet}
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}
         currentEnergy={profile.current_energeia}

@@ -56,22 +56,12 @@ export default function LoginScreen() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
 
-        if (data.user) {
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .upsert({
-              id: data.user.id,
-              current_health: 100,
-              max_health: 100,
-              current_energeia: 0,
-              energeia_currency: 0,
-              level: 1,
-            });
-          if (profileError) throw profileError;
-        }
+        // Profile row is created automatically by the on_auth_user_created
+        // DB trigger (SECURITY DEFINER), so no client-side insert is needed here.
+        // With email confirmation ON, there is no session yet at this point anyway.
         router.replace("/onboarding");
         return;
       }

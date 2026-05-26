@@ -23,11 +23,11 @@ interface SubscriptionProfile {
 const BENEFITS = [
   {
     id: "guide",
-    text: "AI Spiritual Guide — personalized reflection from a wise elder",
+    text: "Support an independent developer",
   },
   {
     id: "items",
-    text: "Exclusive subscriber-only seasonal items",
+    text: "Change your class or gender as many times as you want",
   },
   {
     id: "achievement",
