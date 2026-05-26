@@ -306,7 +306,7 @@ export default function CalendarTabScreen() {
   }>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
-  const { profile, equippedOverlays, animalCompanion, wallItems, floorItems, refreshProfile } = useProfile();
+  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, wallItems, floorItems, refreshProfile } = useProfile();
 
   useFocusEffect(
     useCallback(() => {
@@ -434,6 +434,7 @@ export default function CalendarTabScreen() {
       <CharacterStats
         backgroundImageSource={getSeasonalBackground()}
         characterImageSource={resolveCharacterImage(profile?.character_image_path)}
+        equippedCharacterSet={equippedCharacterSet}
         currentHealth={profile?.current_health ?? 0}
         maxHealth={profile?.max_health ?? 100}
         currentEnergy={profile?.current_energeia ?? 0}

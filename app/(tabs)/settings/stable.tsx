@@ -401,7 +401,7 @@ export default function StableScreen() {
       {/* Header image with currency overlay */}
       <View style={styles.headerImageContainer}>
         <Image
-          source={require("../../../assets/sprites/ui-elements/stable-cover.png")}
+          source={require("../../../assets/sprites/ui-elements/grand finale/stable.png")}
           style={styles.headerImage}
           resizeMode="cover"
         />

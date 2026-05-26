@@ -13,14 +13,25 @@ export function getCurrentSeason(): Season {
 
 // require() must use static strings — Metro bundler resolves these at build time
 const SEASON_BACKGROUNDS: Record<Season, ImageSourcePropType> = {
-  winter: require('../assets/sprites/ui-elements/winter-background.png'),
-  spring: require('../assets/sprites/ui-elements/spring-background.jpeg'),
-  summer: require('../assets/sprites/ui-elements/summer-background.jpeg'),
-  autumn: require('../assets/sprites/ui-elements/autumn-background.jpeg'),
+  spring: require('../assets/sprites/ui-elements/grand finale/fin_spring_header.png'),
+  summer: require('../assets/sprites/ui-elements/grand finale/fin_summer_header.png'),
+  autumn: require('../assets/sprites/ui-elements/grand finale/fin_autumn_header.png'),
+  winter: require('../assets/sprites/ui-elements/grand finale/fin_winter_header.png'),
 };
 
 export function getSeasonalBackground(): ImageSourcePropType {
   return SEASON_BACKGROUNDS[getCurrentSeason()];
+}
+
+const SEASON_LOGIN_BACKGROUNDS: Record<Season, ImageSourcePropType> = {
+  spring: require('../assets/sprites/ui-elements/grand finale/fin_spring splash.png'),
+  summer: require('../assets/sprites/ui-elements/grand finale/fin_summer splash.png'),
+  autumn: require('../assets/sprites/ui-elements/grand finale/fin_autumn splash.png'),
+  winter: require('../assets/sprites/ui-elements/grand finale/fin_splash winter.png'),
+};
+
+export function getLoginBackground(): ImageSourcePropType {
+  return SEASON_LOGIN_BACKGROUNDS[getCurrentSeason()];
 }
 
 // Primary UI accent color — replaces purple (#A737FD) throughout the app

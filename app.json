@@ -8,7 +8,7 @@
     "scheme": "energeiaapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash screen/energeia-alpha-splash.png",
+      "image": "./assets/sprites/ui-elements/grand finale/fin_plate_spring.png",
       "resizeMode": "cover",
       "backgroundColor": "#7aa8e3"
     },
@@ -17,7 +17,7 @@
       "bundleIdentifier": "com.chadzimmerman.energeia",
       "buildNumber": "7",
       "splash": {
-        "image": "./assets/splash screen/energeia-alpha-splash.png",
+        "image": "./assets/sprites/ui-elements/grand finale/fin_plate_spring.png",
         "resizeMode": "cover",
         "backgroundColor": "#7aa8e3"
       },
@@ -27,7 +27,7 @@
     },
     "android": {
       "splash": {
-        "image": "./assets/splash screen/energeia-alpha-splash.png",
+        "image": "./assets/sprites/ui-elements/grand finale/fin_plate_spring.png",
         "resizeMode": "cover",
         "backgroundColor": "#7aa8e3"
       },

@@ -59,13 +59,19 @@ interface MarketItem {
   description: string;
   season: string | null;
   hiddenBonus: {
-    stat: "energeia" | "defense" | "health";
+    stat: "energeia" | "defense" | "health" | "currency";
     buff: number;
   };
   set_group: string | null;
   stage_order: number | null;
   prerequisite_set_group: string | null;
 }
+
+const STAT_LABELS: Record<string, string> = {
+  health: "Max Health",
+  energeia: "Max Energeia",
+  currency: "Energeia Earned",
+};
 
 // Get screen width to calculate responsive card size (for 2 columns with padding)
 const screenWidth = Dimensions.get("window").width;
@@ -274,7 +280,7 @@ const MarketDetailsModal: React.FC<{
           {item.hiddenBonus.buff > 0 && (
             <View style={modalStyles.hiddenBonusBox}>
               <ThemedText style={modalStyles.hiddenBonusText}>
-                +{item.hiddenBonus.buff} {item.hiddenBonus.stat.charAt(0).toUpperCase() + item.hiddenBonus.stat.slice(1)} when equipped
+                +{item.hiddenBonus.buff} {STAT_LABELS[item.hiddenBonus.stat] ?? item.hiddenBonus.stat} when equipped
               </ThemedText>
             </View>
           )}
@@ -382,7 +388,7 @@ const CharacterSetGroupRow: React.FC<{
           <Text style={marketStyles.stageCardName} numberOfLines={2}>{item.name}</Text>
           {item.hiddenBonus.buff > 0 && (
             <Text style={marketStyles.stageCardBonus}>
-              +{item.hiddenBonus.buff} {item.hiddenBonus.stat.charAt(0).toUpperCase() + item.hiddenBonus.stat.slice(1)}
+              +{item.hiddenBonus.buff} {STAT_LABELS[item.hiddenBonus.stat] ?? item.hiddenBonus.stat}
             </Text>
           )}
           <View style={marketStyles.stageCardPrice}>
@@ -715,7 +721,7 @@ export default function MarketScreen() {
       {/* 1. Static Shop Header Image */}
       <View style={marketStyles.headerImageContainer}>
         <Image
-          source={require("../../../assets/sprites/ui-elements/Orthodox Icon Shop in Warm Tones.png")}
+          source={require("../../../assets/sprites/ui-elements/grand finale/fin_store.png")}
           style={marketStyles.headerImage}
           resizeMode="cover"
         />

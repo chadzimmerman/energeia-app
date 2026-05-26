@@ -34,16 +34,23 @@ interface Item {
   isLocked: boolean; // Tracking locked state (from items_master, if you add it)
   requiredClass: string | null;
   requiredGender: string | null;
+  isUsable: boolean;
   imageSource: ImageSourcePropType;
   type: "consumable" | "equippable";
   display_slot: string | null;
   flavorText: string;
   description: string;
   hiddenBonus: {
-    stat: "energeia" | "defense" | "health";
+    stat: "energeia" | "defense" | "health" | "currency";
     buff: number;
   };
 }
+
+const STAT_LABELS: Record<string, string> = {
+  health: "Max Health",
+  energeia: "Max Energeia",
+  currency: "Energeia Earned",
+};
 
 
 // Get screen width to calculate responsive card size
@@ -180,7 +187,7 @@ const ItemDetailsModal: React.FC<{
           {item.hiddenBonus.buff > 0 && (
             <View style={modalStyles.hiddenBonusBox}>
               <ThemedText style={modalStyles.hiddenBonusText}>
-                +{item.hiddenBonus.buff} {item.hiddenBonus.stat.charAt(0).toUpperCase() + item.hiddenBonus.stat.slice(1)} when equipped
+                +{item.hiddenBonus.buff} {STAT_LABELS[item.hiddenBonus.stat] ?? item.hiddenBonus.stat} when equipped
               </ThemedText>
             </View>
           )}
@@ -232,6 +239,7 @@ const ItemCard: React.FC<{ item: Item; onPress: (item: Item) => void }> = ({
         styles.itemCard,
         { width: cardSize, height: cardSize * 1.5 },
         item.is_equipped && styles.equippedBorder,
+        !item.isUsable && styles.unusableCard,
       ]}
       onPress={() => onPress(item)}
     >
@@ -381,8 +389,24 @@ export default function ItemsTabScreen() {
         }
       });
 
-      // Convert our map back into an array for the state
-      setInventory(Object.values(groupedItems));
+      // Compute usability and sort: equipped → usable → unusable
+      const playerClass = profile?.player_class?.toLowerCase() ?? null;
+      const pathParts = (profile?.character_image_path ?? "").split("_");
+      const playerGender = pathParts[pathParts.length - 1] === "female" ? "female" : "male";
+
+      const sorted = Object.values(groupedItems)
+        .map((item) => ({
+          ...item,
+          isUsable:
+            (!item.requiredClass || !playerClass || item.requiredClass.toLowerCase() === playerClass) &&
+            (!item.requiredGender || item.requiredGender === playerGender),
+        }))
+        .sort((a, b) => {
+          const rank = (i: Item) => (i.is_equipped ? 2 : i.isUsable ? 1 : 0);
+          return rank(b) - rank(a);
+        });
+
+      setInventory(sorted);
       // --- GROUPING LOGIC END ---
     } catch (e: any) {
       console.error("Inventory Fetch Error:", e.message);
@@ -624,11 +648,14 @@ const styles = StyleSheet.create({
   },
   // ADDED: Style for equipped items
   equippedBorder: {
-    borderColor: "#2ECC71", // Green color
+    borderColor: "#2ECC71",
     borderWidth: 3,
     elevation: 4,
     shadowColor: "#2ECC71",
     shadowOpacity: 0.8,
+  },
+  unusableCard: {
+    opacity: 0.35,
   },
   gridContainer: {
     flex: 1,

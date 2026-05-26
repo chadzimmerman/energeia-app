@@ -1,12 +1,12 @@
 import { supabase } from "@/utils/supabase";
-import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
-import { useRouter } from "expo-router";
+import { getSeasonalColor, getSeasonalDarkColor, getLoginBackground } from "@/utils/seasons";
 import React, { useState } from "react";
 
 const seasonColor = getSeasonalColor();
 const seasonDarkColor = getSeasonalDarkColor();
 import {
   ActivityIndicator,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -17,13 +17,13 @@ import {
 } from "react-native";
 
 export default function LoginScreen() {
-  const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+  const [signupSent, setSignupSent] = useState(false);
 
   const handleSubmit = async () => {
     setError(null);
@@ -56,13 +56,17 @@ export default function LoginScreen() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: "energeiaapp://auth/callback" },
+        });
         if (error) throw error;
 
-        // Profile row is created automatically by the on_auth_user_created
-        // DB trigger (SECURITY DEFINER), so no client-side insert is needed here.
-        // With email confirmation ON, there is no session yet at this point anyway.
-        router.replace("/onboarding");
+        // No session yet — email confirmation is required.
+        // Profile row is created by the DB trigger once they confirm.
+        // The tabs index will route to onboarding once they have a session.
+        setSignupSent(true);
         return;
       }
     } catch (e: any) {
@@ -79,24 +83,31 @@ export default function LoginScreen() {
   };
 
   return (
+    <ImageBackground source={getLoginBackground()} style={styles.background} resizeMode="cover">
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* App Title */}
-      <View style={styles.headerSection}>
-        <Text style={styles.appName}>Energe.ia</Text>
-        <Text style={styles.subtitle}>Your Journey Awaits</Text>
-      </View>
-
       {/* Form Card */}
       <View style={styles.card}>
+        <Text style={styles.appName}>Energe.ia</Text>
+        <Text style={styles.subtitle}>Your Journey Awaits</Text>
+        <View style={styles.cardDivider} />
         <Text style={styles.cardTitle}>
           {mode === "login" ? "Log In" : mode === "signup" ? "Sign Up" : "Reset Password"}
         </Text>
 
-        {/* Forgot password success state */}
-        {mode === "forgot" && resetSent ? (
+        {/* Sign up success state — waiting for email confirmation */}
+        {mode === "signup" && signupSent ? (
+          <>
+            <Text style={styles.resetSentText}>
+              We sent a confirmation link to {email}. Open it to activate your account, then come back and log in.
+            </Text>
+            <TouchableOpacity style={styles.submitButton} onPress={() => { setMode("login"); setSignupSent(false); }}>
+              <Text style={styles.submitButtonText}>Back to Log In</Text>
+            </TouchableOpacity>
+          </>
+        ) : mode === "forgot" && resetSent ? (
           <>
             <Text style={styles.resetSentText}>
               Check your email for a reset link. Once you've reset your password, come back and log in.
@@ -166,31 +177,37 @@ export default function LoginScreen() {
         )}
       </View>
     </KeyboardAvoidingView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: "#F0F0F0",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
   },
-  headerSection: {
-    alignItems: "center",
-    marginBottom: 40,
-  },
   appName: {
-    fontSize: 48,
+    fontSize: 42,
     fontWeight: "bold",
     color: seasonColor,
     letterSpacing: 1,
+    textAlign: "center",
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#888",
-    marginTop: 6,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#E0E0E0",
+    marginVertical: 16,
   },
   card: {
     width: "100%",

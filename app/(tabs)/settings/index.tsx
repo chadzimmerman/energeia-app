@@ -92,13 +92,13 @@ const cautionSection = [
 ];
 
 // --- Component 1: Dynamic User Header ---
-const UserHeader = ({ profile, equippedOverlays }: { profile: Profile; equippedOverlays: ImageSourcePropType[] }) => {
+const UserHeader = ({ profile, equippedCharacterSet, equippedOverlays }: { profile: Profile; equippedCharacterSet: ImageSourcePropType | null; equippedOverlays: ImageSourcePropType[] }) => {
   return (
     <View style={headerStyles.headerContainer}>
       <View style={headerStyles.userInfo}>
         <View style={headerStyles.avatarContainer}>
           <Image
-            source={resolveCharacterImage(profile.character_image_path)}
+            source={equippedCharacterSet ?? resolveCharacterImage(profile.character_image_path)}
             style={headerStyles.avatar}
             resizeMode="contain"
           />
@@ -254,7 +254,7 @@ const CautionSection = ({ section }: { section: any }) => {
 export default function SettingsTabScreen() {
   const navigation = useNavigation();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const { equippedOverlays } = useProfile();
+  const { equippedCharacterSet, equippedOverlays } = useProfile();
   const [loading, setLoading] = useState(true);
   const [isTutorialVisible, setIsTutorialVisible] = useState(false);
 
@@ -291,7 +291,7 @@ export default function SettingsTabScreen() {
 
   return (
     <View style={styles.container}>
-      <UserHeader profile={profile} equippedOverlays={equippedOverlays} />
+      <UserHeader profile={profile} equippedCharacterSet={equippedCharacterSet} equippedOverlays={equippedOverlays} />
       <ScrollView style={styles.listContainer}>
         {settingsSections.map((section, index) => (
           <SettingsSection

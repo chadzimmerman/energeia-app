@@ -148,7 +148,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
               <View
                 style={[
                   styles.barBackground,
-                  { height: 35, backgroundColor: "#c5c5c5" },
+                  { height: 35, backgroundColor: "rgba(197, 197, 197, 0.5)" },
                 ]}
               >
                 <View
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     position: "relative", // Keep relative for progress fill
     // height is defined inline in the component
     width: "100%", // Fill the barWrapper width
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 4,
     overflow: "hidden",
     borderWidth: 1,
