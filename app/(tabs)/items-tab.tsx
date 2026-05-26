@@ -3,7 +3,7 @@ import { Text as ThemedText, View as ThemedView } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
 import { getSeasonalBackground } from "@/utils/seasons";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
-import { resolveItemImage } from "@/utils/resolveItemImage";
+import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -33,6 +33,7 @@ interface Item {
   is_equipped: boolean; // Tracking equipped state (from user_inventory)
   isLocked: boolean; // Tracking locked state (from items_master, if you add it)
   requiredClass: string | null;
+  requiredGender: string | null;
   imageSource: ImageSourcePropType;
   type: "consumable" | "equippable";
   display_slot: string | null;
@@ -176,12 +177,13 @@ const ItemDetailsModal: React.FC<{
             {item.description}
           </ThemedText>
 
-          {/* Hidden Bonus */}
-          <View style={modalStyles.hiddenBonusBox}>
-            <ThemedText style={modalStyles.hiddenBonusText}>
-              Hidden Bonus: +{item.hiddenBonus.buff} {item.hiddenBonus.stat}
-            </ThemedText>
-          </View>
+          {item.hiddenBonus.buff > 0 && (
+            <View style={modalStyles.hiddenBonusBox}>
+              <ThemedText style={modalStyles.hiddenBonusText}>
+                +{item.hiddenBonus.buff} {item.hiddenBonus.stat.charAt(0).toUpperCase() + item.hiddenBonus.stat.slice(1)} when equipped
+              </ThemedText>
+            </View>
+          )}
 
           {/* Action Buttons */}
           <View style={modalStyles.buttonRow}>
@@ -300,7 +302,7 @@ const ItemGrid: React.FC<{
 export default function ItemsTabScreen() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const { profile, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile } = useProfile();
+  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile } = useProfile();
   const [inventory, setInventory] = useState<Item[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -327,7 +329,8 @@ export default function ItemsTabScreen() {
             display_slot,
             hidden_stat_type,
             hidden_buff_value,
-            required_class
+            required_class,
+            gender
         )
       `,
         )
@@ -358,7 +361,9 @@ export default function ItemsTabScreen() {
             item_id: itemId,
             quantity: 1,
             name: itemMaster.name,
-            imageSource: ResolvedImageSourceMap[itemId] ?? resolveItemImage(itemMaster.image_path),
+            imageSource: ResolvedImageSourceMap[itemId]
+              ?? (itemMaster.display_slot === "character_set" ? resolveCharacterSetImage(itemMaster.image_path) : null)
+              ?? resolveItemImage(itemMaster.image_path),
             energeiaNumber: itemMaster.base_energeia_cost,
             type: itemMaster.type,
             display_slot: itemMaster.display_slot ?? null,
@@ -367,6 +372,7 @@ export default function ItemsTabScreen() {
             flavorText: itemMaster.flavor_text,
             description: itemMaster.description,
             requiredClass: itemMaster.required_class,
+            requiredGender: itemMaster.gender ?? null,
             hiddenBonus: {
               stat: itemMaster.hidden_stat_type,
               buff: itemMaster.hidden_buff_value,
@@ -456,10 +462,23 @@ export default function ItemsTabScreen() {
       if (item.type === "equippable") {
         const newState = !item.is_equipped;
 
-        // Block equipping items restricted to another class
-        if (newState && item.requiredClass && item.requiredClass.toLowerCase() !== profile.player_class?.toLowerCase()) {
-          Alert.alert("Wrong Class", `Only a ${item.requiredClass} can equip this item.`);
-          return;
+        // Block equipping items that don't match the player's class or gender
+        if (newState) {
+          const playerClass = profile.player_class?.toLowerCase() ?? null;
+          const pathParts = (profile.character_image_path ?? "").split("_");
+          const playerGender = pathParts[pathParts.length - 1] === "female" ? "female" : "male";
+          const classMismatch = item.requiredClass && playerClass && item.requiredClass.toLowerCase() !== playerClass;
+          const genderMismatch = item.requiredGender && item.requiredGender !== playerGender;
+          if (classMismatch || genderMismatch) {
+            const reqClass = item.requiredClass?.toLowerCase() ?? null;
+            const reqGender = item.requiredGender;
+            const label =
+              reqClass === "monk" && reqGender === "female" ? "Nun" :
+              reqClass === "monk" && reqGender === "male"   ? "Monk" :
+              reqClass ? reqClass.charAt(0).toUpperCase() + reqClass.slice(1) : "this class";
+            Alert.alert("Can't Equip", `Only a ${label} can equip this item.`);
+            return;
+          }
         }
 
         // Unequip any other item in the same slot before equipping this one
@@ -565,6 +584,7 @@ export default function ItemsTabScreen() {
       <CharacterStats
         backgroundImageSource={getSeasonalBackground()}
         characterImageSource={resolveCharacterImage(profile.character_image_path)}
+        equippedCharacterSet={equippedCharacterSet}
         currentHealth={profile.current_health}
         maxHealth={profile.max_health}
         currentEnergy={profile.current_energeia}
@@ -834,13 +854,13 @@ const modalStyles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   hiddenBonusBox: {
-    height: 15,
-    opacity: 0.01,
-    overflow: "hidden",
     marginBottom: 10,
   },
   hiddenBonusText: {
-    fontSize: 10,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#5a8a3c",
+    textAlign: "center",
   },
   buttonRow: {
     flexDirection: "row",
