@@ -404,7 +404,7 @@ export default function HabitScreen() {
   // --- Show tutorial on first ever visit (after profile is ready) ---
   useEffect(() => {
     if (!userId || !profile || !profile.player_class) return;
-    hasTutorialBeenSeen().then((seen) => {
+    hasTutorialBeenSeen(userId).then((seen) => {
       if (!seen) setIsTutorialVisible(true);
     });
   }, [userId, profile]);
@@ -849,6 +849,7 @@ export default function HabitScreen() {
       <TutorialOverlay
         visible={isTutorialVisible}
         onDismiss={() => setIsTutorialVisible(false)}
+        userId={userId ?? ""}
       />
     </View>
   );

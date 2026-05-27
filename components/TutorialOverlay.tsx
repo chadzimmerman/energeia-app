@@ -21,25 +21,25 @@ const seasonColor = getSeasonalColor();
 
 // ─── Persistence helpers ──────────────────────────────────────────────────────
 
-export const TUTORIAL_STORAGE_KEY = "energeia_tutorial_v1_seen";
+const tutorialKey = (userId: string) => `energeia_tutorial_v1_seen_${userId}`;
 
-export async function hasTutorialBeenSeen(): Promise<boolean> {
+export async function hasTutorialBeenSeen(userId: string): Promise<boolean> {
   try {
-    return (await AsyncStorage.getItem(TUTORIAL_STORAGE_KEY)) === "true";
+    return (await AsyncStorage.getItem(tutorialKey(userId))) === "true";
   } catch {
     return false;
   }
 }
 
-export async function markTutorialSeen(): Promise<void> {
+export async function markTutorialSeen(userId: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(TUTORIAL_STORAGE_KEY, "true");
+    await AsyncStorage.setItem(tutorialKey(userId), "true");
   } catch {}
 }
 
-export async function resetTutorial(): Promise<void> {
+export async function resetTutorial(userId: string): Promise<void> {
   try {
-    await AsyncStorage.removeItem(TUTORIAL_STORAGE_KEY);
+    await AsyncStorage.removeItem(tutorialKey(userId));
   } catch {}
 }
 
@@ -177,11 +177,13 @@ const STEPS: TutorialStep[] = [
 interface TutorialOverlayProps {
   visible: boolean;
   onDismiss: () => void;
+  userId: string;
 }
 
 export default function TutorialOverlay({
   visible,
   onDismiss,
+  userId,
 }: TutorialOverlayProps) {
   const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
@@ -296,7 +298,7 @@ export default function TutorialOverlay({
 
   const goNext = () => {
     if (isLast) {
-      markTutorialSeen();
+      markTutorialSeen(userId);
       // Return user to the habits screen after finishing
       router.navigate("/(tabs)" as any);
       onDismiss();
@@ -310,7 +312,7 @@ export default function TutorialOverlay({
   };
 
   const skip = () => {
-    markTutorialSeen();
+    markTutorialSeen(userId);
     onDismiss();
   };
 
