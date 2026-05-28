@@ -185,7 +185,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const userId = session?.user?.id;
     if (!userId) return;
     const today = new Date().toISOString().split("T")[0];
-    await supabase.from("user_inventory").update({ last_pet_tap_date: today }).eq("id", animalInventoryId);
+    const { data: inv } = await supabase.from("user_inventory").select("happiness").eq("id", animalInventoryId).single();
+    const newHappiness = Math.min(10, (inv?.happiness ?? 5) + 1);
+    await supabase.from("user_inventory").update({
+      last_pet_tap_date: today,
+      happiness: newHappiness,
+      happiness_decay_date: today,
+    }).eq("id", animalInventoryId);
     await supabase.from("profiles").update({ energeia_currency: (profile?.energeia_currency ?? 0) + 1 }).eq("id", userId);
     await refreshProfile();
   }, [petTappedToday, animalInventoryId, profile?.energeia_currency, refreshProfile]);

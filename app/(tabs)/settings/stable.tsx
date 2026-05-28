@@ -5,7 +5,7 @@ import { getSeasonalColor } from "@/utils/seasons";
 const seasonColor = getSeasonalColor();
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -62,6 +63,7 @@ interface StableAnimal {
   id: string;           // item_master_id
   name: string;
   defaultPetName: string;
+  customPetName: string | null;  // user's rename, overrides defaultPetName
   imageSource: ImageSourcePropType;
   price: number;
   flavorText: string;
@@ -71,6 +73,7 @@ interface StableAnimal {
   isSubscriberOnly: boolean;
   inventoryId: string | null;   // null = not owned
   isEquipped: boolean;
+  happiness: number;
 }
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -157,6 +160,17 @@ const AnimalModal: React.FC<{
   onPurchaseSuccess: () => void;
   onEquipSuccess: () => void;
 }> = ({ visible, animal, playerEnergeia, userId, allAnimalItemIds, onClose, onPurchaseSuccess, onEquipSuccess }) => {
+  const [nameInput, setNameInput] = useState("");
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  useEffect(() => {
+    if (animal) {
+      setNameInput(animal.customPetName ?? animal.defaultPetName);
+      setIsEditingName(false);
+    }
+  }, [animal?.inventoryId]);
+
   if (!animal) return null;
 
   const canAfford = playerEnergeia >= animal.price;
@@ -240,6 +254,23 @@ const AnimalModal: React.FC<{
     }
   };
 
+  const handleSaveName = async () => {
+    if (!animal.inventoryId) return;
+    setIsSavingName(true);
+    try {
+      await supabase
+        .from("user_inventory")
+        .update({ pet_name: nameInput.trim() || null })
+        .eq("id", animal.inventoryId);
+      setIsEditingName(false);
+      onEquipSuccess();
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={modal.overlay} activeOpacity={1} onPress={onClose}>
@@ -248,58 +279,105 @@ const AnimalModal: React.FC<{
             <FontAwesome name="times" size={22} color="#888" />
           </TouchableOpacity>
 
-          {!isOwned && (
-            <View style={modal.currencyChip}>
-              <FontAwesome name="flash" size={14} color="#FFC800" />
-              <Text style={modal.currencyText}>{playerEnergeia}</Text>
-            </View>
-          )}
-
-          <Image
-            source={animal.imageSource}
-            style={modal.image}
-            resizeMode="contain"
-          />
-
-          <Text style={modal.name}>{animal.defaultPetName}</Text>
-          <Text style={modal.flavor}>{animal.flavorText}</Text>
-          <Text style={modal.desc}>{animal.description}</Text>
-
           {isOwned ? (
-            // Owned — show equip or unequip
-            animal.isEquipped ? (
-              <TouchableOpacity style={[modal.buyBtn, modal.unequipBtn]} onPress={handleUnequip}>
-                <FontAwesome name="times-circle" size={15} color="#fff" />
-                <Text style={modal.buyText}>UNEQUIP</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={[modal.buyBtn, modal.equipBtn]} onPress={handleEquip}>
-                <FontAwesome name="check-circle" size={15} color="#fff" />
-                <Text style={modal.buyText}>EQUIP COMPANION</Text>
-              </TouchableOpacity>
-            )
-          ) : (
-            // Not owned — show buy button
-            <TouchableOpacity
-              style={[modal.buyBtn, isLocked ? modal.subscriberBtn : !canAfford && modal.disabledBtn]}
-              onPress={handleBuy}
-              disabled={isLocked || !canAfford}
-            >
-              {isLocked ? (
-                <>
-                  <FontAwesome name="star" size={15} color="#fff" />
-                  <Text style={modal.buyText}>SUBSCRIBERS ONLY</Text>
-                </>
+            // ── Owned animal — barn view ──────────────────────────────
+            <ScrollView style={{ width: "100%" }} contentContainerStyle={{ alignItems: "center", paddingTop: 8 }} showsVerticalScrollIndicator={false}>
+              {/* Barn background with animal */}
+              <View style={modal.barnContainer}>
+                <Image
+                  source={require("../../../assets/sprites/ui-elements/barn-square-background.jpg")}
+                  style={modal.barnBackground}
+                />
+                <Image source={animal.imageSource} style={modal.barnAnimal} resizeMode="contain" />
+              </View>
+
+              {/* Editable name */}
+              {isEditingName ? (
+                <View style={modal.nameEditRow}>
+                  <TextInput
+                    style={modal.nameInput}
+                    value={nameInput}
+                    onChangeText={setNameInput}
+                    maxLength={24}
+                    autoFocus
+                  />
+                  <TouchableOpacity onPress={handleSaveName} disabled={isSavingName} style={{ padding: 4 }}>
+                    <FontAwesome name="check" size={20} color="#2ECC71" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { setIsEditingName(false); setNameInput(animal.customPetName ?? animal.defaultPetName); }} style={{ padding: 4 }}>
+                    <FontAwesome name="times" size={20} color="#E74C3C" />
+                  </TouchableOpacity>
+                </View>
               ) : (
-                <>
-                  <Text style={modal.buyText}>{canAfford ? "ADOPT" : "CANNOT AFFORD"}</Text>
-                  <View style={modal.priceTag}>
-                    <FontAwesome name="flash" size={13} color="#A06E00" />
-                    <Text style={modal.priceTagText}>{animal.price}</Text>
-                  </View>
-                </>
+                <TouchableOpacity style={modal.nameRow} onPress={() => setIsEditingName(true)}>
+                  <Text style={modal.name}>{nameInput || animal.defaultPetName}</Text>
+                  <FontAwesome name="pencil" size={13} color="#bbb" style={{ marginLeft: 6 }} />
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+
+              {/* Happiness bar */}
+              <Text style={modal.happinessLabel}>Happiness</Text>
+              <View style={modal.happinessRow}>
+                {Array.from({ length: 10 }, (_, i) => (
+                  <FontAwesome
+                    key={i}
+                    name={i < animal.happiness ? "heart" : "heart-o"}
+                    size={18}
+                    color={i < animal.happiness ? "#E74C3C" : "#ddd"}
+                    style={{ marginHorizontal: 2 }}
+                  />
+                ))}
+              </View>
+
+              <Text style={modal.flavor}>{animal.flavorText}</Text>
+              <Text style={modal.desc}>{animal.description}</Text>
+
+              {animal.isEquipped ? (
+                <TouchableOpacity style={[modal.buyBtn, modal.unequipBtn]} onPress={handleUnequip}>
+                  <FontAwesome name="times-circle" size={15} color="#fff" />
+                  <Text style={modal.buyText}>UNEQUIP</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={[modal.buyBtn, modal.equipBtn]} onPress={handleEquip}>
+                  <FontAwesome name="check-circle" size={15} color="#fff" />
+                  <Text style={modal.buyText}>EQUIP COMPANION</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          ) : (
+            // ── Unowned animal — shop view ────────────────────────────
+            <>
+              <View style={modal.currencyChip}>
+                <FontAwesome name="flash" size={14} color="#FFC800" />
+                <Text style={modal.currencyText}>{playerEnergeia}</Text>
+              </View>
+
+              <Image source={animal.imageSource} style={modal.image} resizeMode="contain" />
+              <Text style={modal.name}>{animal.defaultPetName}</Text>
+              <Text style={modal.flavor}>{animal.flavorText}</Text>
+              <Text style={modal.desc}>{animal.description}</Text>
+
+              <TouchableOpacity
+                style={[modal.buyBtn, isLocked ? modal.subscriberBtn : !canAfford && modal.disabledBtn]}
+                onPress={handleBuy}
+                disabled={isLocked || !canAfford}
+              >
+                {isLocked ? (
+                  <>
+                    <FontAwesome name="star" size={15} color="#fff" />
+                    <Text style={modal.buyText}>SUBSCRIBERS ONLY</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={modal.buyText}>{canAfford ? "ADOPT" : "CANNOT AFFORD"}</Text>
+                    <View style={modal.priceTag}>
+                      <FontAwesome name="flash" size={13} color="#A06E00" />
+                      <Text style={modal.priceTagText}>{animal.price}</Text>
+                    </View>
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
           )}
         </View>
       </TouchableOpacity>
@@ -334,18 +412,35 @@ export default function StableScreen() {
 
       if (error) throw error;
 
-      // Fetch inventory with equipped state
+      // Fetch inventory with equipped state and pet data
       const { data: inventory } = await supabase
         .from("user_inventory")
-        .select("id, item_master_id, is_equipped")
+        .select("id, item_master_id, is_equipped, pet_name, happiness, happiness_decay_date, last_pet_tap_date")
         .eq("user_id", uid);
 
-      // Build a map: item_master_id → { inventoryId, isEquipped }
-      const ownedMap: Record<string, { inventoryId: string; isEquipped: boolean }> = {};
+      // Apply happiness decay for any owned animals not yet checked today
+      const today = new Date().toISOString().split("T")[0];
+      for (const inv of (inventory ?? []) as any[]) {
+        if (inv.happiness_decay_date === today) continue;
+        let daysDecay = 0;
+        if (inv.last_pet_tap_date) {
+          const diffMs = new Date(today).getTime() - new Date(inv.last_pet_tap_date).getTime();
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          daysDecay = Math.max(0, diffDays - 1);
+        }
+        const newHappiness = Math.max(0, (inv.happiness ?? 5) - daysDecay);
+        await supabase.from("user_inventory").update({ happiness: newHappiness, happiness_decay_date: today }).eq("id", inv.id);
+        inv.happiness = newHappiness;
+      }
+
+      // Build a map: item_master_id → owned data
+      const ownedMap: Record<string, { inventoryId: string; isEquipped: boolean; happiness: number; customPetName: string | null }> = {};
       (inventory ?? []).forEach((inv: any) => {
         ownedMap[inv.item_master_id] = {
           inventoryId: inv.id,
           isEquipped: inv.is_equipped ?? false,
+          happiness: inv.happiness ?? 5,
+          customPetName: inv.pet_name ?? null,
         };
       });
 
@@ -357,6 +452,7 @@ export default function StableScreen() {
             id: item.id,
             name: item.name,
             defaultPetName: item.default_pet_name ?? item.name,
+            customPetName: ownedMap[item.id]?.customPetName ?? null,
             imageSource: resolveAnimalImage(item.image_path ?? ""),
             price: item.base_energeia_cost,
             flavorText: item.flavor_text,
@@ -366,6 +462,7 @@ export default function StableScreen() {
             isSubscriberOnly: (item.is_subscriber_only ?? false) || isOutOfSeason,
             inventoryId: ownedMap[item.id]?.inventoryId ?? null,
             isEquipped: ownedMap[item.id]?.isEquipped ?? false,
+            happiness: ownedMap[item.id]?.happiness ?? 5,
           };
         });
 
@@ -694,4 +791,59 @@ const modal = StyleSheet.create({
     gap: 4,
   },
   priceTagText: { color: "#fff", fontSize: 15, fontWeight: "bold" },
+  barnContainer: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 12,
+    position: "relative",
+  },
+  barnBackground: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  barnAnimal: {
+    position: "absolute",
+    bottom: 0,
+    alignSelf: "center",
+    width: "55%",
+    height: "55%",
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  nameEditRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+    width: "100%",
+  },
+  nameInput: {
+    flex: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: "#999",
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#333",
+    paddingVertical: 2,
+    textAlign: "center",
+  },
+  happinessLabel: {
+    fontSize: 11,
+    color: "#aaa",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 6,
+  },
+  happinessRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
 });

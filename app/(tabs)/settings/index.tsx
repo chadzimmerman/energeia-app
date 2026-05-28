@@ -137,7 +137,7 @@ const SettingsSection = ({
 }) => {
   const handlePress = (itemId: string) => {
     if (itemId === "tutorial") {
-      resetTutorial().then(() => onTutorial?.());
+      onTutorial?.();
     } else if (itemId === "privacy-policy") {
       Linking.openURL("https://chadzimmerman.github.io/energeia-app/privacy.html");
     } else if (itemId === "restore-purchases") {
@@ -185,7 +185,7 @@ const SettingsSection = ({
 };
 
 // --- Component 3: Caution Section ---
-const CautionSection = ({ section }: { section: any }) => {
+const CautionSection = ({ section, onTutorial }: { section: any; onTutorial?: () => void }) => {
   const handleCautionPress = async (itemId: string) => {
     if (itemId === "logout") {
       Alert.alert(
@@ -222,6 +222,8 @@ const CautionSection = ({ section }: { section: any }) => {
           },
         ]
       );
+    } else if (itemId === "tutorial") {
+      onTutorial?.();
     } else {
       Alert.alert("Coming Soon", "This feature is currently in development and will be available in a future update.");
     }
@@ -257,6 +259,7 @@ export default function SettingsTabScreen() {
   const { equippedCharacterSet, equippedOverlays } = useProfile();
   const [loading, setLoading] = useState(true);
   const [isTutorialVisible, setIsTutorialVisible] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const fetchSettingsProfile = useCallback(async () => {
     try {
@@ -264,6 +267,7 @@ export default function SettingsTabScreen() {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session?.user) return;
+      setUserId(session.user.id);
 
       const { data, error } = await supabase
         .from("profiles")
@@ -309,12 +313,19 @@ export default function SettingsTabScreen() {
           />
         ))}
         {cautionSection.map((section, index) => (
-          <CautionSection key={`caution-${index}`} section={section} />
+          <CautionSection
+            key={`caution-${index}`}
+            section={section}
+            onTutorial={() => {
+              if (userId) resetTutorial(userId).then(() => setIsTutorialVisible(true));
+            }}
+          />
         ))}
       </ScrollView>
       <TutorialOverlay
         visible={isTutorialVisible}
         onDismiss={() => setIsTutorialVisible(false)}
+        userId={userId ?? ""}
       />
     </View>
   );
