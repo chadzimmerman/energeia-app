@@ -310,7 +310,7 @@ const ItemGrid: React.FC<{
 export default function ItemsTabScreen() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile } = useProfile();
+  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, refreshProfile } = useProfile();
   const [inventory, setInventory] = useState<Item[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -621,6 +621,9 @@ export default function ItemsTabScreen() {
         level={profile.level}
         equippedOverlays={equippedOverlays}
         animalCompanion={animalCompanion}
+        petName={petName}
+        petTappedToday={petTappedToday}
+        onPetTap={handlePetTap}
         wallItems={wallItems}
         floorItems={floorItems}
         handItems={handItems}

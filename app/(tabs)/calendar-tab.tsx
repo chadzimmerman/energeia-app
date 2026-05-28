@@ -306,7 +306,7 @@ export default function CalendarTabScreen() {
   }>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
-  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, wallItems, floorItems, refreshProfile } = useProfile();
+  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, refreshProfile } = useProfile();
 
   useFocusEffect(
     useCallback(() => {
@@ -442,6 +442,9 @@ export default function CalendarTabScreen() {
         level={profile?.level ?? 1}
         equippedOverlays={equippedOverlays}
         animalCompanion={animalCompanion}
+        petName={petName}
+        petTappedToday={petTappedToday}
+        onPetTap={handlePetTap}
         wallItems={wallItems}
         floorItems={floorItems}
       />

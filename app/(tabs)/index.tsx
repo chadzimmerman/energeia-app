@@ -331,7 +331,7 @@ const checkScrollDrop = async (userId: string): Promise<void> => {
 
 export default function HabitScreen() {
   const router = useRouter();
-  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile } = useProfile();
+  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, refreshProfile } = useProfile();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -824,6 +824,9 @@ export default function HabitScreen() {
         equippedOverlays={equippedOverlays}
         level={profile.level}
         animalCompanion={animalCompanion}
+        petName={petName}
+        petTappedToday={petTappedToday}
+        onPetTap={handlePetTap}
         wallItems={wallItems}
         floorItems={floorItems}
         handItems={handItems}

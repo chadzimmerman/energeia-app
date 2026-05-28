@@ -25,13 +25,20 @@ const ITEM_IMAGE_MAP: Record<string, ImageSourcePropType> = {
   "noble-princess-mirror": require("../assets/sprites/items/noble-princess-mirror.png"),
 
   // ── Animal companions ─────────────────────────────────────────────────────
-  "puppy":            require("../assets/sprites/animals/puppy.webp"),
-  "kitten":           require("../assets/sprites/animals/kitten.webp"),
-  "baby-rabbit":      require("../assets/sprites/animals/baby-rabbit.webp"),
-  "baby-bear":        require("../assets/sprites/animals/baby-bear.webp"),
-  "baby-crocodile":   require("../assets/sprites/animals/baby-crocodile.webp"),
-  "bear":             require("../assets/sprites/animals/bear.webp"),
-  "baby-lion":        require("../assets/sprites/animals/baby-lion.webp"),
+  "hen":      require("../assets/sprites/animals/new_animals/hen.png"),
+  "bear_cub": require("../assets/sprites/animals/new_animals/bear_cub.png"),
+  "bunny":    require("../assets/sprites/animals/new_animals/bunny.png"),
+  "calf":     require("../assets/sprites/animals/new_animals/calf.png"),
+  "duckling": require("../assets/sprites/animals/new_animals/duckling.png"),
+  "goat_kid": require("../assets/sprites/animals/new_animals/goat_kid.png"),
+  "hedgehog": require("../assets/sprites/animals/new_animals/hedgehog.png"),
+  "kitten":   require("../assets/sprites/animals/new_animals/kitten.png"),
+  "lamb":     require("../assets/sprites/animals/new_animals/lamb.png"),
+  "mouse":    require("../assets/sprites/animals/new_animals/mouse.png"),
+  "pig":      require("../assets/sprites/animals/new_animals/pig.png"),
+  "pony":     require("../assets/sprites/animals/new_animals/pony.png"),
+  "puppy":    require("../assets/sprites/animals/new_animals/puppy.png"),
+  "squirrel": require("../assets/sprites/animals/new_animals/squirrel.png"),
 
   // ── Equipment overlays (transparent PNGs, layered over character) ────────
   "monk-hat":              require("../assets/sprites/characters/monk/monk-hat.png"),

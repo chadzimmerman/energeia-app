@@ -53,6 +53,7 @@ interface MarketItem {
   price: number;
   isLocked: boolean;
   lockedReason: string | null;
+  isSubscriberOnly: boolean;
   type: "consumable" | "equippable";
   display_slot: string | null;
   flavorText: string;
@@ -297,13 +298,13 @@ const MarketDetailsModal: React.FC<{
           <TouchableOpacity
             style={[
               modalStyles.buyButton,
-              (!canAfford || item.isLocked) && modalStyles.disabledButton,
+              (!canAfford || item.isLocked || item.isSubscriberOnly) && modalStyles.disabledButton,
             ]}
             onPress={handleBuy}
-            disabled={!canAfford || item.isLocked}
+            disabled={!canAfford || item.isLocked || item.isSubscriberOnly}
           >
             <Text style={modalStyles.buyButtonText}>
-              {item.isLocked ? "LOCKED" : canAfford ? "BUY" : "CANNOT AFFORD"}
+              {item.isSubscriberOnly ? "SUBSCRIBERS ONLY" : item.isLocked ? "LOCKED" : canAfford ? "BUY" : "CANNOT AFFORD"}
             </Text>
             {/* Price Tag */}
             <View style={modalStyles.priceTag}>
@@ -351,10 +352,18 @@ const MarketItemCard: React.FC<{
         <ThemedText style={marketStyles.priceText}>{item.price}</ThemedText>
       </ThemedView>
 
+      {/* Subscriber badge */}
+      {item.isSubscriberOnly && (
+        <View style={marketStyles.subscriberBadge}>
+          <FontAwesome name="star" size={9} color="#fff" />
+          <Text style={marketStyles.subscriberBadgeText}>SUB</Text>
+        </View>
+      )}
+
       {/* Lock Overlay (if locked) */}
-      {item.isLocked && (
+      {(item.isLocked || item.isSubscriberOnly) && (
         <View style={marketStyles.lockOverlay}>
-          <FontAwesome name="lock" size={40} color="rgba(0,0,0,0.5)" />
+          <FontAwesome name={item.isSubscriberOnly ? "star" : "lock"} size={40} color="rgba(0,0,0,0.5)" />
         </View>
       )}
     </TouchableOpacity>
@@ -418,11 +427,13 @@ const MarketGrid: React.FC<{
   playerEnergeia: number;
   seasonalItems: MarketItem[];
   regularItems: MarketItem[];
+  subscriberItems: MarketItem[];
   seasonLabel: string;
   seasonDialogue: string;
   seasonalCharSetGroups: CharacterSetGroup[];
   baseCharSetGroups: CharacterSetGroup[];
-}> = ({ onSelectItem, seasonalItems, regularItems, seasonLabel, seasonDialogue, seasonalCharSetGroups, baseCharSetGroups }) => {
+  subscriberCharSetGroups: CharacterSetGroup[];
+}> = ({ onSelectItem, seasonalItems, regularItems, subscriberItems, seasonLabel, seasonDialogue, seasonalCharSetGroups, baseCharSetGroups, subscriberCharSetGroups }) => {
   return (
     <ScrollView
       style={marketStyles.gridContainer}
@@ -485,6 +496,25 @@ const MarketGrid: React.FC<{
         </>
       )}
 
+      {/* Subscriber / out-of-season section */}
+      {(subscriberItems.length > 0 || subscriberCharSetGroups.length > 0) && (
+        <>
+          <View style={marketStyles.sectionHeader}>
+            <Text style={marketStyles.sectionHeaderText}>★ Subscriber Exclusives</Text>
+          </View>
+          {subscriberCharSetGroups.map((group) => (
+            <CharacterSetGroupRow key={group.setGroup} group={group} onPress={onSelectItem} />
+          ))}
+          {subscriberItems.length > 0 && (
+            <View style={marketStyles.itemGrid}>
+              {subscriberItems.map((item) => (
+                <MarketItemCard key={item.id} item={item} onPress={onSelectItem} />
+              ))}
+            </View>
+          )}
+        </>
+      )}
+
       <View style={{ height: 50 }} />
     </ScrollView>
   );
@@ -499,8 +529,10 @@ export default function MarketScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [seasonalItems, setSeasonalItems] = useState<MarketItem[]>([]);
   const [regularItems, setRegularItems] = useState<MarketItem[]>([]);
+  const [subscriberItems, setSubscriberItems] = useState<MarketItem[]>([]);
   const [seasonalCharSetGroups, setSeasonalCharSetGroups] = useState<CharacterSetGroup[]>([]);
   const [baseCharSetGroups, setBaseCharSetGroups] = useState<CharacterSetGroup[]>([]);
+  const [subscriberCharSetGroups, setSubscriberCharSetGroups] = useState<CharacterSetGroup[]>([]);
   const currentSeason = getCurrentSeason();
   const seasonLabel = SEASON_LABELS[currentSeason];
   const seasonDialogue = SEASON_DIALOGUE[currentSeason];
@@ -641,6 +673,7 @@ export default function MarketScreen() {
           price: item.base_energeia_cost,
           isLocked: lockInfo.isLocked,
           lockedReason: lockInfo.lockedReason,
+          isSubscriberOnly: item.is_subscriber_only ?? false,
           type: item.type,
           display_slot: item.display_slot ?? null,
           flavorText: item.flavor_text ?? "",
@@ -657,8 +690,13 @@ export default function MarketScreen() {
       const availableItems = (items ?? [])
         .filter((item: any) => !(item.is_unique && ownedIds.includes(item.id)))
         .map((item: any) => toMarketItem(item, false));
-      setSeasonalItems(availableItems.filter((i) => i.season === currentSeasonLabel));
-      setRegularItems(availableItems.filter((i) => !i.season));
+      setSeasonalItems(availableItems.filter((i) => i.season === currentSeasonLabel && !i.isSubscriberOnly));
+      setRegularItems(availableItems.filter((i) => !i.season && !i.isSubscriberOnly));
+      setSubscriberItems(
+        availableItems
+          .filter((i) => i.isSubscriberOnly || (!!i.season && i.season !== currentSeasonLabel))
+          .map((i) => ({ ...i, isSubscriberOnly: true }))
+      );
 
       // 8. Character set items — group by set_group
       // Hide stages already surpassed (stage_order <= max owned stage for that group)
@@ -694,6 +732,14 @@ export default function MarketScreen() {
         allGroups.filter((g) => normalizeSeasonKey(g.season) === currentSeasonKey && !g.isBaseClass)
       );
       setBaseCharSetGroups(allGroups.filter((g) => g.isBaseClass));
+      setSubscriberCharSetGroups(
+        allGroups
+          .filter((g) => !g.isBaseClass && normalizeSeasonKey(g.season) !== currentSeasonKey)
+          .map((g) => ({
+            ...g,
+            items: g.items.map((i) => ({ ...i, isLocked: true, isSubscriberOnly: true, lockedReason: "Subscribers only" })),
+          }))
+      );
     } catch (e: any) {
       console.error("Error loading market:", e.message);
     }
@@ -742,10 +788,12 @@ export default function MarketScreen() {
         playerEnergeia={playerEnergeia}
         seasonalItems={seasonalItems}
         regularItems={regularItems}
+        subscriberItems={subscriberItems}
         seasonLabel={seasonLabel}
         seasonDialogue={seasonDialogue}
         seasonalCharSetGroups={seasonalCharSetGroups}
         baseCharSetGroups={baseCharSetGroups}
+        subscriberCharSetGroups={subscriberCharSetGroups}
       />
 
       <MarketDetailsModal
@@ -772,15 +820,15 @@ const marketStyles = StyleSheet.create({
   // --- Header Image ---
   headerImageContainer: {
     width: "100%",
-    height: 180, // Fixed height for the shop banner
-    overflow: "hidden",
+    height: Math.round(screenWidth * (1024 / 1536)),
     position: "relative",
     borderBottomWidth: 3,
-    borderBottomColor: "#5D4037", // Dark brown border for a wooden shelf look
+    borderBottomColor: "#5D4037",
   },
   headerImage: {
     width: "100%",
     height: "100%",
+    resizeMode: "contain",
   },
   // --- Currency Overlay ---
   currencyOverlay: {
@@ -980,6 +1028,24 @@ const marketStyles = StyleSheet.create({
   },
   stageCardPriceTextLocked: {
     color: "#999",
+  },
+  subscriberBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: "#9B59B6",
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    zIndex: 10,
+  },
+  subscriberBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "bold",
   },
 });
 

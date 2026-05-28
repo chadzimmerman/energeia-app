@@ -25,13 +25,20 @@ import {
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const ANIMAL_IMAGE_MAP: Record<string, ImageSourcePropType> = {
-  puppy:           require("../../../assets/sprites/animals/puppy.webp"),
-  kitten:          require("../../../assets/sprites/animals/kitten.webp"),
-  "baby-rabbit":   require("../../../assets/sprites/animals/baby-rabbit.webp"),
-  "baby-bear":     require("../../../assets/sprites/animals/baby-bear.webp"),
-  "baby-crocodile":require("../../../assets/sprites/animals/baby-crocodile.webp"),
-  bear:            require("../../../assets/sprites/animals/bear.webp"),
-  "baby-lion":     require("../../../assets/sprites/animals/baby-lion.webp"),
+  hen:      require("../../../assets/sprites/animals/new_animals/hen.png"),
+  bear_cub: require("../../../assets/sprites/animals/new_animals/bear_cub.png"),
+  bunny:    require("../../../assets/sprites/animals/new_animals/bunny.png"),
+  calf:     require("../../../assets/sprites/animals/new_animals/calf.png"),
+  duckling: require("../../../assets/sprites/animals/new_animals/duckling.png"),
+  goat_kid: require("../../../assets/sprites/animals/new_animals/goat_kid.png"),
+  hedgehog: require("../../../assets/sprites/animals/new_animals/hedgehog.png"),
+  kitten:   require("../../../assets/sprites/animals/new_animals/kitten.png"),
+  lamb:     require("../../../assets/sprites/animals/new_animals/lamb.png"),
+  mouse:    require("../../../assets/sprites/animals/new_animals/mouse.png"),
+  pig:      require("../../../assets/sprites/animals/new_animals/pig.png"),
+  pony:     require("../../../assets/sprites/animals/new_animals/pony.png"),
+  puppy:    require("../../../assets/sprites/animals/new_animals/puppy.png"),
+  squirrel: require("../../../assets/sprites/animals/new_animals/squirrel.png"),
 };
 
 const resolveAnimalImage = (key: string): ImageSourcePropType => {
@@ -54,6 +61,7 @@ const getCurrentSeason = (): string => {
 interface StableAnimal {
   id: string;           // item_master_id
   name: string;
+  defaultPetName: string;
   imageSource: ImageSourcePropType;
   price: number;
   flavorText: string;
@@ -88,7 +96,7 @@ const AnimalCard: React.FC<{
       style={styles.cardImage}
       resizeMode="contain"
     />
-    <Text style={styles.cardName} numberOfLines={2}>{animal.name}</Text>
+    <Text style={styles.cardName} numberOfLines={2}>{animal.defaultPetName}</Text>
     {animal.isSeasonal && (
       <View style={styles.seasonBadge}>
         <Text style={styles.seasonBadgeText}>{animal.season ?? "Seasonal"}</Text>
@@ -123,7 +131,7 @@ const OwnedAnimalCard: React.FC<{
       style={styles.cardImage}
       resizeMode="contain"
     />
-    <Text style={styles.cardName} numberOfLines={2}>{animal.name}</Text>
+    <Text style={styles.cardName} numberOfLines={2}>{animal.defaultPetName}</Text>
     <View style={[styles.priceRow, animal.isEquipped && styles.equippedBadge]}>
       <FontAwesome
         name={animal.isEquipped ? "check" : "plus"}
@@ -184,7 +192,7 @@ const AnimalModal: React.FC<{
 
       onPurchaseSuccess();
       onClose();
-      Alert.alert("Welcome Home!", `${animal.name} has joined your stable.`);
+      Alert.alert("Welcome Home!", `${animal.defaultPetName} has joined your stable.`);
     } catch (e: any) {
       Alert.alert("Error", e.message);
     }
@@ -253,7 +261,7 @@ const AnimalModal: React.FC<{
             resizeMode="contain"
           />
 
-          <Text style={modal.name}>{animal.name}</Text>
+          <Text style={modal.name}>{animal.defaultPetName}</Text>
           <Text style={modal.flavor}>{animal.flavorText}</Text>
           <Text style={modal.desc}>{animal.description}</Text>
 
@@ -343,27 +351,23 @@ export default function StableScreen() {
 
       const currentSeason = getCurrentSeason();
 
-      const mapped = (items ?? [])
-        .filter((item) => {
-          if (item.is_subscriber_only) return true;
-          if (!item.is_permanent && item.season) {
-            return item.season.startsWith(currentSeason);
-          }
-          return true;
-        })
-        .map((item) => ({
-          id: item.id,
-          name: item.name,
-          imageSource: resolveAnimalImage(item.image_path ?? ""),
-          price: item.base_energeia_cost,
-          flavorText: item.flavor_text,
-          description: item.description,
-          isSeasonal: !item.is_permanent,
-          season: item.season ?? null,
-          isSubscriberOnly: item.is_subscriber_only ?? false,
-          inventoryId: ownedMap[item.id]?.inventoryId ?? null,
-          isEquipped: ownedMap[item.id]?.isEquipped ?? false,
-        }));
+      const mapped = (items ?? []).map((item) => {
+          const isOutOfSeason = !item.is_permanent && !!item.season && !item.season.startsWith(currentSeason);
+          return {
+            id: item.id,
+            name: item.name,
+            defaultPetName: item.default_pet_name ?? item.name,
+            imageSource: resolveAnimalImage(item.image_path ?? ""),
+            price: item.base_energeia_cost,
+            flavorText: item.flavor_text,
+            description: item.description,
+            isSeasonal: !item.is_permanent,
+            season: item.season ?? null,
+            isSubscriberOnly: (item.is_subscriber_only ?? false) || isOutOfSeason,
+            inventoryId: ownedMap[item.id]?.inventoryId ?? null,
+            isEquipped: ownedMap[item.id]?.isEquipped ?? false,
+          };
+        });
 
       setAnimals(mapped);
     } catch (e: any) {
@@ -386,10 +390,11 @@ export default function StableScreen() {
     }, [fetchStableData]),
   );
 
-  const myAnimals  = animals.filter((a) => a.inventoryId !== null);
-  const shopAnimals = animals.filter((a) => a.inventoryId === null);
-  const regular    = shopAnimals.filter((a) => !a.isSeasonal);
-  const seasonal   = shopAnimals.filter((a) => a.isSeasonal);
+  const myAnimals        = animals.filter((a) => a.inventoryId !== null);
+  const shopAnimals      = animals.filter((a) => a.inventoryId === null);
+  const regular          = shopAnimals.filter((a) => !a.isSeasonal && !a.isSubscriberOnly);
+  const inSeason         = shopAnimals.filter((a) => a.isSeasonal && !a.isSubscriberOnly);
+  const subscriberLocked = shopAnimals.filter((a) => a.isSubscriberOnly);
 
   // All owned animal item IDs — used to unequip all before equipping a new one
   const allAnimalItemIds = myAnimals.map((a) => a.id);
@@ -434,9 +439,7 @@ export default function StableScreen() {
         {/* Regular Animals */}
         <Text style={styles.sectionTitle}>Animals</Text>
         {regular.length === 0 ? (
-          <Text style={styles.emptyText}>
-            No animals available yet. Check back soon.
-          </Text>
+          <Text style={styles.emptyText}>No animals available yet. Check back soon.</Text>
         ) : (
           <View style={styles.grid}>
             {regular.map((a) => (
@@ -445,18 +448,28 @@ export default function StableScreen() {
           </View>
         )}
 
-        {/* Seasonal Animals */}
-        <Text style={styles.sectionTitle}>Seasonal Companions</Text>
-        {seasonal.length === 0 ? (
-          <Text style={styles.emptyText}>
-            No seasonal companions available right now.
-          </Text>
-        ) : (
-          <View style={styles.grid}>
-            {seasonal.map((a) => (
-              <AnimalCard key={a.id} animal={a} onPress={setSelected} />
-            ))}
-          </View>
+        {/* In-Season Companions */}
+        {inSeason.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Seasonal Companions</Text>
+            <View style={styles.grid}>
+              {inSeason.map((a) => (
+                <AnimalCard key={a.id} animal={a} onPress={setSelected} />
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Subscriber / Out-of-Season Companions */}
+        {subscriberLocked.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Subscriber Companions</Text>
+            <View style={styles.grid}>
+              {subscriberLocked.map((a) => (
+                <AnimalCard key={a.id} animal={a} onPress={setSelected} />
+              ))}
+            </View>
+          </>
         )}
 
         <View style={{ height: 40 }} />
@@ -488,8 +501,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F0F0F0" },
   headerImageContainer: {
     width: "100%",
-    height: 180,
-    overflow: "hidden",
+    height: Math.round(screenWidth * (720 / 1280)),
     position: "relative",
     borderBottomWidth: 3,
     borderBottomColor: "#5D4037",
@@ -497,6 +509,7 @@ const styles = StyleSheet.create({
   headerImage: {
     width: "100%",
     height: "100%",
+    resizeMode: "contain",
   },
   currencyOverlay: {
     position: "absolute",

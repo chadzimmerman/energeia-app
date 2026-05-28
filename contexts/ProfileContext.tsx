@@ -22,10 +22,14 @@ interface ProfileContextValue {
   equippedCharacterSet: ImageSourcePropType | null;
   equippedOverlays: ImageSourcePropType[];
   animalCompanion: ImageSourcePropType | null;
+  animalInventoryId: string | null;
+  petName: string | null;
+  petTappedToday: boolean;
   wallItems: ImageSourcePropType[];
   floorItems: ImageSourcePropType[];
   handItems: ImageSourcePropType[];
   refreshProfile: () => Promise<void>;
+  handlePetTap: () => Promise<void>;
 }
 
 const ProfileContext = createContext<ProfileContextValue>({
@@ -33,10 +37,14 @@ const ProfileContext = createContext<ProfileContextValue>({
   equippedCharacterSet: null,
   equippedOverlays: [],
   animalCompanion: null,
+  animalInventoryId: null,
+  petName: null,
+  petTappedToday: false,
   wallItems: [],
   floorItems: [],
   handItems: [],
   refreshProfile: async () => {},
+  handlePetTap: async () => {},
 });
 
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -44,6 +52,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [equippedCharacterSet, setEquippedCharacterSet] = useState<ImageSourcePropType | null>(null);
   const [equippedOverlays, setEquippedOverlays] = useState<ImageSourcePropType[]>([]);
   const [animalCompanion, setAnimalCompanion] = useState<ImageSourcePropType | null>(null);
+  const [animalInventoryId, setAnimalInventoryId] = useState<string | null>(null);
+  const [petName, setPetName] = useState<string | null>(null);
+  const [petTappedToday, setPetTappedToday] = useState(false);
   const [wallItems, setWallItems] = useState<ImageSourcePropType[]>([]);
   const [floorItems, setFloorItems] = useState<ImageSourcePropType[]>([]);
   const [handItems, setHandItems] = useState<ImageSourcePropType[]>([]);
@@ -106,7 +117,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const { data: equipped } = await supabase
       .from("user_inventory")
-      .select("item:item_master_id(image_path, type, display_slot)")
+      .select("id, pet_name, last_pet_tap_date, item:item_master_id(image_path, type, display_slot, default_pet_name)")
       .eq("user_id", userId)
       .eq("is_equipped", true);
 
@@ -141,8 +152,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       setEquippedOverlays(characterItems.map((e: any) => resolveItemImage(e.item.image_path)));
 
-      const animal = equipped.find((e: any) => e.item?.display_slot === "animal");
-      setAnimalCompanion(animal ? resolveItemImage((animal as any).item.image_path) : null);
+      const animal = equipped.find((e: any) => e.item?.display_slot === "animal") as any ?? null;
+      setAnimalCompanion(animal ? resolveItemImage(animal.item.image_path) : null);
+      setAnimalInventoryId(animal ? animal.id : null);
+      setPetName(animal ? (animal.pet_name ?? animal.item?.default_pet_name ?? null) : null);
+      const today = new Date().toISOString().split("T")[0];
+      setPetTappedToday(animal ? animal.last_pet_tap_date === today : false);
 
       setWallItems(
         equipped
@@ -164,12 +179,23 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
+  const handlePetTap = useCallback(async () => {
+    if (petTappedToday || !animalInventoryId) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+    if (!userId) return;
+    const today = new Date().toISOString().split("T")[0];
+    await supabase.from("user_inventory").update({ last_pet_tap_date: today }).eq("id", animalInventoryId);
+    await supabase.from("profiles").update({ energeia_currency: (profile?.energeia_currency ?? 0) + 1 }).eq("id", userId);
+    await refreshProfile();
+  }, [petTappedToday, animalInventoryId, profile?.energeia_currency, refreshProfile]);
+
   useEffect(() => {
     refreshProfile();
   }, [refreshProfile]);
 
   return (
-    <ProfileContext.Provider value={{ profile, equippedCharacterSet, equippedOverlays, animalCompanion, wallItems, floorItems, handItems, refreshProfile }}>
+    <ProfileContext.Provider value={{ profile, equippedCharacterSet, equippedOverlays, animalCompanion, animalInventoryId, petName, petTappedToday, wallItems, floorItems, handItems, refreshProfile, handlePetTap }}>
       {children}
     </ProfileContext.Provider>
   );

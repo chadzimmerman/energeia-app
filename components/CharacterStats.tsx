@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
+  Animated,
   Dimensions,
   Image,
   ImageSourcePropType,
@@ -24,6 +25,9 @@ interface CharacterStatsProps {
   level?: number;
   equippedOverlays?: ImageSourcePropType[];
   animalCompanion?: ImageSourcePropType | null;
+  petName?: string | null;
+  petTappedToday?: boolean;
+  onPetTap?: () => void;
   wallItems?: ImageSourcePropType[];
   floorItems?: ImageSourcePropType[];
   handItems?: ImageSourcePropType[];
@@ -40,11 +44,39 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   level = 1,
   equippedOverlays = [],
   animalCompanion = null,
+  petName = null,
+  petTappedToday = false,
+  onPetTap,
   wallItems = [],
   floorItems = [],
   handItems = [],
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [showBonus, setShowBonus] = useState(false);
+  const jumpAnim = useRef(new Animated.Value(0)).current;
+  const floatY = useRef(new Animated.Value(0)).current;
+  const floatOpacity = useRef(new Animated.Value(0)).current;
+
+  const handleAnimalTap = () => {
+    Animated.sequence([
+      Animated.timing(jumpAnim, { toValue: -18, duration: 120, useNativeDriver: true }),
+      Animated.spring(jumpAnim, { toValue: 0, friction: 4, tension: 40, useNativeDriver: true }),
+    ]).start();
+
+    if (!petTappedToday) {
+      floatY.setValue(0);
+      floatOpacity.setValue(1);
+      setShowBonus(true);
+      Animated.parallel([
+        Animated.timing(floatY, { toValue: -50, duration: 1000, useNativeDriver: true }),
+        Animated.sequence([
+          Animated.delay(500),
+          Animated.timing(floatOpacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        ]),
+      ]).start(() => setShowBonus(false));
+      onPetTap?.();
+    }
+  };
 
   // When a character set is equipped it replaces the base sprite entirely.
   const characterSrc = equippedCharacterSet ?? characterImageSource;
@@ -74,9 +106,25 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           ))}
         </TouchableOpacity>
 
-        {/* Animal Companion — small, to the left of the character */}
+        {/* Animal Companion — tappable, sits on the background */}
         {animalCompanion && (
-          <Image source={animalCompanion} style={styles.animalCompanion} resizeMode="contain" />
+          <TouchableOpacity
+            onPress={handleAnimalTap}
+            activeOpacity={petTappedToday ? 1 : 0.8}
+            style={styles.animalCompanion}
+          >
+            <Animated.Image
+              source={animalCompanion}
+              style={[styles.animalCompanionImage, { transform: [{ translateY: jumpAnim }] }]}
+              resizeMode="contain"
+            />
+            {petName && <Text style={styles.petNameText}>{petName}</Text>}
+            {showBonus && (
+              <Animated.Text style={[styles.bonusText, { transform: [{ translateY: floatY }], opacity: floatOpacity }]}>
+                +1
+              </Animated.Text>
+            )}
+          </TouchableOpacity>
         )}
 
         {/* Hand Items — right side of character, mid-height */}
@@ -183,7 +231,9 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   );
 };
 
-const CARD_HEIGHT = 170; // Total height of the card area
+// Match the natural aspect ratio of the 1170×786 header images so the full
+// artwork is visible without cropping, regardless of screen width.
+const CARD_HEIGHT = Math.round(SCREEN_W * (786 / 1170));
 
 const styles = StyleSheet.create({
   container: {
@@ -194,7 +244,7 @@ const styles = StyleSheet.create({
   backgroundImage: {
     width: "100%",
     height: CARD_HEIGHT,
-    resizeMode: "cover",
+    resizeMode: "contain",
     position: "absolute",
     top: 0,
     left: 0,
@@ -211,8 +261,8 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
   characterImage: {
-    width: 100,
-    height: 100,
+    width: 120,
+    height: 120,
     backgroundColor: "white",
     borderRadius: 8,
     borderWidth: 2,
@@ -220,7 +270,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
     position: "absolute",
     left: 0,
-    top: 0,
+    top: 60,
     zIndex: 20,
   },
   equipmentOverlay: {
@@ -231,7 +281,7 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     position: "absolute",
-    left: 115,
+    left: 0,
     right: 0,
     top: 10,
     height: 120,
@@ -314,11 +364,34 @@ const styles = StyleSheet.create({
   },
   animalCompanion: {
     position: "absolute",
-    left: 8,
-    bottom: 73,
-    width: 38,
-    height: 38,
+    left: 140,
+    bottom: 40,
     zIndex: 22,
+    alignItems: "center",
+  },
+  animalCompanionImage: {
+    width: 56,
+    height: 56,
+  },
+  petNameText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "bold",
+    textShadowColor: "rgba(0,0,0,0.9)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+    marginTop: 2,
+  },
+  bonusText: {
+    position: "absolute",
+    top: 0,
+    alignSelf: "center",
+    color: "#FFD700",
+    fontSize: 18,
+    fontWeight: "bold",
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   wallItem: {
     position: "absolute",
@@ -344,9 +417,9 @@ const styles = StyleSheet.create({
   characterTouchable: {
     position: "absolute",
     left: 0,
-    top: 0,
-    width: 100,
-    height: 100,
+    top: 70,
+    width: 120,
+    height: 120,
     zIndex: 20,
   },
 
