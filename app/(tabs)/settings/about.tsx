@@ -5,6 +5,7 @@ const seasonColor = getSeasonalColor();
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -28,7 +29,7 @@ const ABOUT_DATA = [
   {
     title: null,
     items: [
-      { id: "website", label: "Website", detail: "energe.ia", action: "link" },
+      { id: "website", label: "Website", detail: "TBD", action: "link" },
       { id: "twitter", label: "Twitter", detail: "@ThatsMyChad", action: "link" },
       { id: "linkedin", label: "LinkedIn", detail: "chad-zimmerman-codes", action: "link" },
       { id: "github", label: "Github", detail: "@chadzimmerman", action: "link" },
@@ -145,7 +146,7 @@ const AboutSection = ({
       return;
     }
 
-    if (item.action === "link" && item.detail) {
+    if (item.action === "link" && item.detail && item.detail !== "TBD") {
       let url = "";
       if (item.id === "website") url = `https://${item.detail}`;
       if (item.id === "twitter") url = `https://twitter.com/${item.detail.replace("@", "")}`;
@@ -203,10 +204,12 @@ export default function AboutScreen() {
     <View style={aboutStyles.container}>
       <ScrollView style={aboutStyles.scrollView}>
         <View style={aboutStyles.banner}>
-          <Text style={aboutStyles.logo}>
-            <Text style={{ fontSize: 40 }}>🐉</Text>
-          </Text>
-          <Text style={aboutStyles.versionText}>Version 0.1.0-alpha</Text>
+          <Image
+            source={require("../../../assets/sprites/animals/new_animals/hen.png")}
+            style={{ width: 80, height: 80 }}
+            resizeMode="contain"
+          />
+          <Text style={aboutStyles.versionText}>Version 0.2.3 (Beta)</Text>
         </View>
 
         {ABOUT_DATA.map((section, index) => (

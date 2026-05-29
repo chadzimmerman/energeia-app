@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { getSeasonalColor } from "@/utils/seasons";
 const seasonColor = getSeasonalColor();
 import {
@@ -22,8 +23,27 @@ import { getSeasonalBackground } from "@/utils/seasons";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { recomputeStreak } from "@/utils/recomputeStreak";
 import { useProfile } from "@/contexts/ProfileContext";
+import { hasTutorialBeenSeen } from "@/components/TutorialOverlay";
 import { useFocusEffect } from "expo-router";
 import DailyLogModal from "../calendar-modal";
+
+const buildTutorialMockLogs = (): { [key: string]: { status: HabitStatus; notes: string } } => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const today = now.getDate();
+  const entries: [number, HabitStatus][] = [
+    [1, "green"], [2, "green"], [3, "orange"], [4, "green"], [5, "red"],
+    [6, "green"], [7, "green"], [8, "green"], [9, "red"], [10, "green"],
+    [11, "orange"], [12, "green"], [13, "green"], [14, "green"], [15, "red"],
+    [16, "green"], [17, "green"], [18, "orange"], [19, "green"], [20, "green"],
+  ];
+  return Object.fromEntries(
+    entries
+      .filter(([day]) => day <= today)
+      .map(([day, status]) => [`${year}-${month}-${String(day).padStart(2, "0")}`, { status, notes: "" }])
+  );
+};
 
 // Get screen width for responsive sizing
 const screenWidth = Dimensions.get("window").width;
@@ -208,14 +228,14 @@ const CalendarView: React.FC<CalendarViewProps> = ({
           onPress={handlePrevMonth}
           style={calendarStyles.navButton}
         >
-          <Text style={calendarStyles.navText}>{"<"}</Text>
+          <FontAwesome name="caret-left" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={calendarStyles.monthTitle}>{monthYearString}</Text>
         <TouchableOpacity
           onPress={handleNextMonth}
           style={calendarStyles.navButton}
         >
-          <Text style={calendarStyles.navText}>{">"}</Text>
+          <FontAwesome name="caret-right" size={24} color="#333" />
         </TouchableOpacity>
       </View>
 
@@ -306,6 +326,7 @@ export default function CalendarTabScreen() {
   }>({});
   const [userId, setUserId] = useState<string | null>(null);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
+  const [showTutorialMocks, setShowTutorialMocks] = useState(false);
   const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, refreshProfile } = useProfile();
 
   useFocusEffect(
@@ -321,6 +342,7 @@ export default function CalendarTabScreen() {
         if (id && isActive) {
           setUserId(id);
           refreshProfile();
+          hasTutorialBeenSeen(id).then((seen) => { if (isActive) setShowTutorialMocks(!seen); });
 
           // Always refresh habit list to pick up reordering changes
           const { data: habits } = await supabase
@@ -451,7 +473,7 @@ export default function CalendarTabScreen() {
 
       {/* 2. Scrollable Content (Calendar and Habit Tracker) */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <CalendarView onDayPress={handleDayPress} habitLogs={habitLogs} />
+        <CalendarView onDayPress={handleDayPress} habitLogs={showTutorialMocks && Object.keys(habitLogs).length === 0 ? buildTutorialMockLogs() : habitLogs} />
         <HabitTrackerSection
           // This ensures the title at the bottom matches the habit you're actually viewing
           title={selectedHabit?.title || "Daily 30-Minute Run"}
@@ -547,7 +569,7 @@ const calendarStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 8,
   },
   monthTitle: {
     fontSize: 26,
@@ -612,18 +634,18 @@ const calendarStyles = StyleSheet.create({
   },
   // --- Habit Tracker ---
   habitTrackerBox: {
-    marginTop: 30,
-    padding: 20,
+    marginTop: 10,
+    padding: 10,
     width: "90%",
     alignItems: "center",
   },
   habitTrackerLabel: {
-    fontSize: 14,
+    fontSize: 11,
     color: "#666",
-    marginBottom: 5,
+    marginBottom: 3,
   },
   habitTrackerName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#333",
   },

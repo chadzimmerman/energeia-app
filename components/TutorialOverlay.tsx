@@ -53,7 +53,7 @@ interface Spotlight {
 
 interface TutorialStep {
   title: string;
-  body: string;
+  body: React.ReactNode;
   spotlight: Spotlight | null;
   // Where the text card appears (not where the spotlight is)
   cardSide: "top" | "bottom" | "center";
@@ -75,31 +75,40 @@ interface TutorialStep {
 
 const STEPS: TutorialStep[] = [
   {
-    title: "Welcome, Seeker",
-    body:
-      "Welcome to Energe.ia — where daily habits become a path toward God.\n\n" +
-      "Let the brothers guide you.",
+    title: "Welcome, Seeker!",
+    body: (
+      <>
+        {"This is the world of Energe.ia, where daily habits become a path towards "}
+        <Text style={{ fontStyle: "italic" }}>theosis</Text>
+        {", to participation with the energies of creation!\n\n"}
+        <Text style={{ fontStyle: "italic" }}>Let the fathers of our traditions guide you.</Text>
+      </>
+    ),
     spotlight: null,
     cardSide: "center",
     tabRoute: "/(tabs)",
   },
   {
     title: "Your Avatar",
-    body:
-      "Your character reflects your spiritual journey.\n\n" +
-      "Grow in faithfulness to level up and earn sacred vestments.",
-    // cx/cy centers on the 100×100 character sprite box:
-    // card left=25, char center X=75 → cx≈0.19; header≈91pt, card top=25, char center Y=166 → cy≈0.20
-    spotlight: { cx: 0.19, cy: 0.20, r: 55 },
+    body: "Grow in your good works in real life to level up your avatar here.",
+    // cx/cy centers on the 120×120 character sprite box:
+    // card left=25, char center X=85 → cx≈0.20; nav≈91pt, card top=25, char top=60, center Y=236 → cy≈0.28
+    spotlight: { cx: 0.20, cy: 0.331, r: 65 },
     cardSide: "bottom",
     tabRoute: "/(tabs)",
   },
   {
     title: "Health & Energeia",
-    body:
-      "❤️ Health — let it reach zero and face death: level reset, item lost.\n\n" +
-      "⚡ Energeia — complete habits to fill it and rise in level.",
-    spotlight: { cx: 0.58, cy: 0.18, r: 58 },
+    body: (
+      <>
+        {"❤️ "}
+        <Text style={{ fontStyle: "italic" }}>Health</Text>
+        {" — let it reach zero and face death: level reset, and item loss.\n\n⚡ "}
+        <Text style={{ fontStyle: "italic" }}>Energeia</Text>
+        {" — complete good habits or avoid bad ones to fill it and rise in level."}
+      </>
+    ),
+    spotlight: { cx: 0.188, cy: 0.188, r: 58 },
     cardSide: "bottom",
     tabRoute: "/(tabs)",
   },
@@ -108,7 +117,7 @@ const STEPS: TutorialStep[] = [
     body:
       "Your Habits are the practices you've sworn to uphold — daily, weekly, or monthly.\n\n" +
       "Tap a habit's name to edit it. Hold the grip on the left to reorder.",
-    spotlight: { cx: 0.5, cy: 0.64, r: 88 },
+    spotlight: { cx: 0.5, cy: 0.563, r: 88 },
     cardSide: "top",
     tabRoute: "/(tabs)",
   },
@@ -117,7 +126,7 @@ const STEPS: TutorialStep[] = [
     body:
       "⊕ Complete a habit — earn Energeia and grow your Streak.\n\n" +
       "⊖ Fall to temptation — lose Health and reset your Streak to zero.",
-    spotlight: { cx: 0.5, cy: 0.64, r: 88 },
+    spotlight: { cx: 0.5, cy: 0.563, r: 88 },
     cardSide: "top",
     tabRoute: "/(tabs)",
   },
@@ -133,9 +142,13 @@ const STEPS: TutorialStep[] = [
   },
   {
     title: "The Treasury",
-    body:
-      "Buy and equip sacred items with your Energeia.\n\n" +
-      "Each grants hidden blessings. Some are earned only through Seasonal Stories.",
+    body: (
+      <>
+        {"Buy and equip sacred items with "}
+        <Text style={{ fontStyle: "italic" }}>Energeia</Text>
+        {" earned from your labors."}
+      </>
+    ),
     spotlight: { cx: 0.625, cy: 0.935, r: 36 },
     cardSide: "top",
     tabRoute: "/(tabs)/items-tab",
@@ -161,11 +174,7 @@ const STEPS: TutorialStep[] = [
   },
   {
     title: "Go Forth",
-    body:
-      "The monastery awaits your disciplines.\n\n" +
-      "May your habits become virtues, and your character draw you " +
-      "ever nearer to theosis.\n\n" +
-      "☩  May your journey begin  ☩",
+    body: null, // rendered dynamically based on playerClass — see component
     spotlight: null,
     cardSide: "center",
     tabRoute: null,
@@ -178,12 +187,30 @@ interface TutorialOverlayProps {
   visible: boolean;
   onDismiss: () => void;
   userId: string;
+  playerClass?: string;
 }
+
+const buildLastStepBody = (playerClass?: string): React.ReactNode => {
+  const cls = playerClass?.toLowerCase();
+  let opening = "The monastery awaits your discipline.";
+  if (cls === "fighter") opening = "The battlefield awaits your discipline.";
+  else if (cls === "noble") opening = "The great hall awaits your discipline.";
+
+  return (
+    <>
+      {opening + "\n\n"}
+      {"May your habits become virtues, and your character draw you ever nearer to "}
+      <Text style={{ fontStyle: "italic" }}>theosis</Text>
+      {".\n\n☩  Your journey has only just begun.  ☩"}
+    </>
+  );
+};
 
 export default function TutorialOverlay({
   visible,
   onDismiss,
   userId,
+  playerClass,
 }: TutorialOverlayProps) {
   const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
@@ -393,7 +420,7 @@ export default function TutorialOverlay({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 2 }}
           >
-            <Text style={styles.body}>{step.body}</Text>
+            <Text style={styles.body}>{isLast ? buildLastStepBody(playerClass) : step.body}</Text>
           </ScrollView>
 
           {/* Progress dots */}
@@ -485,11 +512,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 20,
     right: 20,
-    backgroundColor: "#120A2A",
+    backgroundColor: "#fff",
     borderRadius: 18,
     padding: 22,
     borderWidth: 1,
-    borderColor: "rgba(167, 55, 253, 0.35)",
+    borderColor: "rgba(0,0,0,0.08)",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.55,
@@ -499,7 +526,7 @@ const styles = StyleSheet.create({
 
   stepCounter: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.32)",
+    color: "rgba(0,0,0,0.35)",
     textAlign: "center",
     letterSpacing: 1.4,
     marginBottom: 8,
@@ -509,7 +536,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#EDE0FF",
+    color: "#1a1a2e",
     textAlign: "center",
     letterSpacing: 0.4,
     marginBottom: 12,
@@ -527,7 +554,7 @@ const styles = StyleSheet.create({
 
   body: {
     fontSize: 17,
-    color: "#C9B8E8",
+    color: "#444",
     lineHeight: 26,
     textAlign: "center",
   },
@@ -545,7 +572,7 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(0,0,0,0.15)",
   },
 
   dotActive: {
@@ -569,7 +596,7 @@ const styles = StyleSheet.create({
   },
 
   backText: {
-    color: "rgba(255,255,255,0.50)",
+    color: "rgba(0,0,0,0.45)",
     fontSize: 14,
   },
 

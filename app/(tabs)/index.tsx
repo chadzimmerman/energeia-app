@@ -18,6 +18,12 @@ import DeathModal from "../DeathModal";
 import { useProfile } from "@/contexts/ProfileContext";
 import TutorialOverlay, { hasTutorialBeenSeen } from "@/components/TutorialOverlay";
 
+const TUTORIAL_MOCK_HABITS = [
+  { id: "mock-1", title: "No Smoking",                          is_positive: false, is_negative: true,  streak_level: -2, difficulty: 6, reset_frequency: "daily"  },
+  { id: "mock-2", title: "Donate food to women's shelter",      is_positive: true,  is_negative: true,  streak_level: 0,  difficulty: 5, reset_frequency: "weekly" },
+  { id: "mock-3", title: "Volunteer at the homeless shelter",   is_positive: true,  is_negative: false, streak_level: 4,  difficulty: 7, reset_frequency: "weekly" },
+];
+
 interface Habit {
   id: string;
   title: string;
@@ -832,10 +838,10 @@ export default function HabitScreen() {
         handItems={handItems}
       />
       <HabitList
-        habits={habits}
-        onScore={handleScoreHabit}
-        onEdit={handleEditHabit}
-        onReorder={handleReorder}
+        habits={isTutorialVisible && habits.length === 0 ? TUTORIAL_MOCK_HABITS : habits}
+        onScore={isTutorialVisible && habits.length === 0 ? () => {} : handleScoreHabit}
+        onEdit={isTutorialVisible && habits.length === 0 ? () => {} : handleEditHabit}
+        onReorder={isTutorialVisible && habits.length === 0 ? () => {} : handleReorder}
       />
       <HabitEditModal
         isVisible={isEditModalVisible}
@@ -853,6 +859,7 @@ export default function HabitScreen() {
         visible={isTutorialVisible}
         onDismiss={() => setIsTutorialVisible(false)}
         userId={userId ?? ""}
+        playerClass={profile?.player_class ?? ""}
       />
     </View>
   );
