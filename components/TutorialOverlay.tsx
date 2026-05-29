@@ -52,7 +52,7 @@ interface Spotlight {
 }
 
 interface TutorialStep {
-  title: string;
+  title: React.ReactNode;
   body: React.ReactNode;
   spotlight: Spotlight | null;
   // Where the text card appears (not where the spotlight is)
@@ -75,13 +75,21 @@ interface TutorialStep {
 
 const STEPS: TutorialStep[] = [
   {
-    title: "Welcome, Seeker!",
+    title: "...!",
+    body: "Hey — hey, you! Bwak!\n\nYou... Cluck! Cluck!...\n\n...You can actually understand me?!",
+    spotlight: null,
+    cardSide: "center",
+    tabRoute: "/(tabs)",
+  },
+  {
+    title: "Oh my goodness!",
     body: (
       <>
-        {"This is the world of Energe.ia, where daily habits become a path towards "}
+        {"I have not seen you around here before! Bwak bwak! You must already be on the path of "}
         <Text style={{ fontStyle: "italic" }}>theosis</Text>
-        {", to participation with the energies of creation!\n\n"}
-        <Text style={{ fontStyle: "italic" }}>Let the fathers of our traditions guide you.</Text>
+        {" if you found your way all the way here!\n\nWait... what? B-kawk?! What is theosis? You don't know?!\n\nTheosis is participation in the energies of this land — the "}
+        <Text style={{ fontStyle: "italic" }}>Energeia</Text>
+        {". Cluck cluck… As we grow closer to the source of all things, we participate in them more and more."}
       </>
     ),
     spotlight: null,
@@ -89,23 +97,33 @@ const STEPS: TutorialStep[] = [
     tabRoute: "/(tabs)",
   },
   {
-    title: "Your Avatar",
-    body: "Grow in your good works in real life to level up your avatar here.",
-    // cx/cy centers on the 120×120 character sprite box:
-    // card left=25, char center X=85 → cx≈0.20; nav≈91pt, card top=25, char top=60, center Y=236 → cy≈0.28
+    title: <>{"Welcome to the World of "}<Text style={{ fontStyle: "italic" }}>Energe.ia</Text></>,
+    body: (
+      <>
+        {"Well then — cluck — this is your little retreat from the world. A place to tend your daily habits, grow in virtue, and walk the ancient paths.\n\nCluck cluck… "}
+        <Text style={{ fontStyle: "italic" }}>The fathers of our traditions walk with you here.</Text>
+      </>
+    ),
+    spotlight: null,
+    cardSide: "center",
+    tabRoute: "/(tabs)",
+  },
+  {
+    title: "That's You",
+    body: "That little soul up there is yours. Bwak! Every good thing you do out in the real world shows up right here.\n\nGo on — grow!",
     spotlight: { cx: 0.20, cy: 0.331, r: 65 },
     cardSide: "bottom",
     tabRoute: "/(tabs)",
   },
   {
-    title: "Health & Energeia",
+    title: "Body & Spirit",
     body: (
       <>
         {"❤️ "}
         <Text style={{ fontStyle: "italic" }}>Health</Text>
-        {" — let it reach zero and face death: level reset, and item loss.\n\n⚡ "}
+        {" keeps you standing. Let it reach zero and you'll face a hard reset: your level progress will reset to 1, and a random item will disappear. B-kawk!\n\n⚡ "}
         <Text style={{ fontStyle: "italic" }}>Energeia</Text>
-        {" — complete good habits or avoid bad ones to fill it and rise in level."}
+        {" is what you earn doing good works and avoiding the bad ones. Bwak bwak! Fill it up. As you grow in good deeds, so does your level!"}
       </>
     ),
     spotlight: { cx: 0.188, cy: 0.188, r: 58 },
@@ -113,40 +131,39 @@ const STEPS: TutorialStep[] = [
     tabRoute: "/(tabs)",
   },
   {
-    title: "Your Disciplines",
-    body:
-      "Your Habits are the practices you've sworn to uphold — daily, weekly, or monthly.\n\n" +
-      "Tap a habit's name to edit it. Hold the grip on the left to reorder.",
+    title: "Your Daily Work",
+    body: "These are the habits you've sworn to — daily, weekly, or on your own schedule. Cluck.\n\nTap a habit's name to change it. Hold the grip on the left to move it around. Bwak!\n\nAll those who came before you tended themselves as farmers till soil. Tend to yourself diligently as they did.",
     spotlight: { cx: 0.5, cy: 0.563, r: 88 },
     cardSide: "top",
     tabRoute: "/(tabs)",
   },
   {
-    title: "Virtue & Vice",
-    body:
-      "⊕ Complete a habit — earn Energeia and grow your Streak.\n\n" +
-      "⊖ Fall to temptation — lose Health and reset your Streak to zero.",
+    title: "The Two Ways",
+    body: (
+      <>
+        {"⊕ marks a good day — earn "}
+        <Text style={{ fontStyle: "italic" }}>Energeia</Text>
+        {" and watch your streak grow. Bwak bwak!\n\n⊖ marks a stumble — lose some health and reset the streak. Cluck cluck…\n\nIt's alright. One father once told me 'Struggle until your last breath!' He was very wise."}
+      </>
+    ),
     spotlight: { cx: 0.5, cy: 0.563, r: 88 },
     cardSide: "top",
     tabRoute: "/(tabs)",
   },
   {
-    title: "The Chronicle",
-    body:
-      "The Calendar records every choice in color.\n\n" +
-      "Green = virtue. Red = failure.\n\n" +
-      "Select a habit to see its full history.",
+    title: "Your Record",
+    body: "Every choice gets written down in color. Cluck. Green for the good days, red for the hard ones.\n\nTap any day on the calendar to see what happened. Bwak! Honest records make for honest growth.",
     spotlight: { cx: 0.375, cy: 0.935, r: 36 },
     cardSide: "top",
     tabRoute: "/(tabs)/calendar-tab",
   },
   {
-    title: "The Treasury",
+    title: "The Market",
     body: (
       <>
-        {"Buy and equip sacred items with "}
+        {"Spend your "}
         <Text style={{ fontStyle: "italic" }}>Energeia</Text>
-        {" earned from your labors."}
+        {" on sacred items over in the market. B-kawk! Equip what you earn.\n\nSome items do more than just look nice, if you know what I mean. Cluck cluck…"}
       </>
     ),
     spotlight: { cx: 0.625, cy: 0.935, r: 36 },
@@ -154,27 +171,22 @@ const STEPS: TutorialStep[] = [
     tabRoute: "/(tabs)/items-tab",
   },
   {
-    title: "The Archives",
-    body:
-      "Settings holds your profile, achievements, and Seasonal Stories — " +
-      "quests tied to the ancient calendar.",
+    title: "Home Base",
+    body: "Settings holds your profile, achievements, and seasonal stories. Cluck!\n\nThere's a stable there too. Bwak… That one's my particular favorite — come on over when you're ready.",
     spotlight: { cx: 0.875, cy: 0.935, r: 36 },
     cardSide: "top",
     tabRoute: "/(tabs)/settings",
   },
   {
-    title: "Your Covenant",
-    body:
-      "Your profile and class sit at the top.\n\n" +
-      "Below: your Class Guild, Seasonal Stories, and Stable — " +
-      "places to journey, quest, and grow alongside others.",
+    title: "Right There",
+    body: "That's you at the top — your class, your guild, your stories. Cluck cluck! Everything you're building.\n\nCome back here when you want to see how far you've come.",
     spotlight: { cx: 0.20, cy: 0.30, r: 70 },
     cardSide: "bottom",
     tabRoute: "/(tabs)/settings",
   },
   {
-    title: "Go Forth",
-    body: null, // rendered dynamically based on playerClass — see component
+    title: "Off You Go",
+    body: null, // rendered dynamically based on playerClass — see buildLastStepBody
     spotlight: null,
     cardSide: "center",
     tabRoute: null,
@@ -190,21 +202,11 @@ interface TutorialOverlayProps {
   playerClass?: string;
 }
 
-const buildLastStepBody = (playerClass?: string): React.ReactNode => {
-  const cls = playerClass?.toLowerCase();
-  let opening = "The monastery awaits your discipline.";
-  if (cls === "fighter") opening = "The battlefield awaits your discipline.";
-  else if (cls === "noble") opening = "The great hall awaits your discipline.";
-
-  return (
-    <>
-      {opening + "\n\n"}
-      {"May your habits become virtues, and your character draw you ever nearer to "}
-      <Text style={{ fontStyle: "italic" }}>theosis</Text>
-      {".\n\n☩  Your journey has only just begun.  ☩"}
-    </>
-  );
-};
+const buildLastStepBody = (_playerClass?: string): React.ReactNode => (
+  <>
+    {"This hermitage awaits your practice and prayers.\n\nBwak! Every good work matters. Tend to your habits — they're the heartbeat of this little retreat from the world. Cluck cluck…\n\n☩  Your journey has only just begun.  ☩"}
+  </>
+);
 
 export default function TutorialOverlay({
   visible,
@@ -225,6 +227,15 @@ export default function TutorialOverlay({
   const pulseScale = useRef(new Animated.Value(1)).current;
   const pulseOpacity = useRef(new Animated.Value(1)).current;
   const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
+  const jumpAnim = useRef(new Animated.Value(0)).current;
+
+  const triggerJump = () => {
+    jumpAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(jumpAnim, { toValue: -18, duration: 120, useNativeDriver: true }),
+      Animated.spring(jumpAnim, { toValue: 0, friction: 4, tension: 40, useNativeDriver: true }),
+    ]).start();
+  };
 
   const step = STEPS[stepIndex];
   const isFirst = stepIndex === 0;
@@ -324,9 +335,9 @@ export default function TutorialOverlay({
   }, [stepIndex, visible]);
 
   const goNext = () => {
+    triggerJump();
     if (isLast) {
       markTutorialSeen(userId);
-      // Return user to the habits screen after finishing
       router.navigate("/(tabs)" as any);
       onDismiss();
     } else {
@@ -335,7 +346,10 @@ export default function TutorialOverlay({
   };
 
   const goBack = () => {
-    if (!isFirst) setStepIndex((i) => i - 1);
+    if (!isFirst) {
+      triggerJump();
+      setStepIndex((i) => i - 1);
+    }
   };
 
   const skip = () => {
@@ -403,6 +417,20 @@ export default function TutorialOverlay({
             },
           ]}
         >
+          {/* Henry mascot — top for bottom/center cards, bottom for top cards */}
+          <Animated.Image
+            source={require("../assets/sprites/animals/new_animals/hen.png")}
+            style={[
+              styles.henryMascot,
+              step.cardSide === "top" ? { bottom: -112 } : { top: -112 },
+              { transform: [{ translateY: jumpAnim }] },
+            ]}
+            resizeMode="contain"
+          />
+
+          {/* Speech bubble tail — flips direction with Henry */}
+          <View style={step.cardSide === "top" ? styles.speechTailBottom : styles.speechTail} />
+
           {/* Step counter */}
           <Text style={styles.stepCounter}>
             {stepIndex + 1} / {STEPS.length}
@@ -522,6 +550,50 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.55,
     shadowRadius: 16,
     elevation: 14,
+  },
+
+  cluckText: {
+    fontSize: 12,
+    color: "rgba(0,0,0,0.30)",
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 10,
+  },
+
+  henryMascot: {
+    position: "absolute",
+    left: 4,
+    width: 104,
+    height: 104,
+    zIndex: 20,
+  },
+
+  speechTail: {
+    position: "absolute",
+    top: -12,
+    left: 24,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 12,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: "#fff",
+  },
+
+  speechTailBottom: {
+    position: "absolute",
+    bottom: -12,
+    left: 24,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 12,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: "#fff",
   },
 
   stepCounter: {
