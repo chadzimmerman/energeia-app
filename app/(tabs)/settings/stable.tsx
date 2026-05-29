@@ -796,6 +796,7 @@ const modal = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 12,
     overflow: "hidden",
+    marginTop: 32,
     marginBottom: 12,
     position: "relative",
   },

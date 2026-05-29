@@ -365,22 +365,22 @@ const styles = StyleSheet.create({
   animalCompanion: {
     position: "absolute",
     left: 140,
-    bottom: 40,
+    bottom: 30,
     zIndex: 22,
     alignItems: "center",
   },
   animalCompanionImage: {
-    width: 56,
-    height: 56,
+    width: 67,
+    height: 67,
   },
   petNameText: {
     color: "#fff",
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: "bold",
     textShadowColor: "rgba(0,0,0,0.9)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
-    marginTop: 2,
+    marginTop: -8,
   },
   bonusText: {
     position: "absolute",
