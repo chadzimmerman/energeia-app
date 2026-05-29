@@ -97,7 +97,7 @@ export default function OnboardingScreen() {
         <TextInput
           style={styles.input}
           placeholder="Enter your name..."
-          placeholderTextColor="rgba(255,255,255,0.3)"
+          placeholderTextColor="rgba(0,0,0,0.3)"
           value={username}
           onChangeText={setUsername}
           maxLength={30}
@@ -208,7 +208,7 @@ const PURPLE = getSeasonalColor();
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1a0a2e",
+    backgroundColor: "#fff",
   },
   content: {
     paddingBottom: 50,
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: "rgba(255,255,255,0.6)",
+    color: "#999",
     marginTop: 6,
     letterSpacing: 2,
     textTransform: "uppercase",
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   previewContainer: {
     width: 180,
     height: 180,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#f5f5f5",
     borderRadius: 90,
     borderWidth: 2,
     borderColor: PURPLE,
@@ -253,14 +253,14 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   input: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#f5f5f5",
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "#ddd",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: "#fff",
+    color: "#1a1a1a",
   },
   genderRow: {
     flexDirection: "row",
@@ -272,14 +272,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.25)",
+    borderColor: "rgba(0,0,0,0.18)",
   },
   genderButtonActive: {
     backgroundColor: PURPLE,
     borderColor: PURPLE,
   },
   genderButtonText: {
-    color: "rgba(255,255,255,0.5)",
+    color: "#888",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 13,
     fontWeight: "bold",
-    color: "rgba(255,255,255,0.5)",
+    color: "#999",
     textTransform: "uppercase",
     letterSpacing: 2,
     marginBottom: 12,
@@ -308,40 +308,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.15)",
+    borderColor: "#e0e0e0",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "#fafafa",
   },
   classCardActive: {
     borderColor: PURPLE,
-    backgroundColor: "rgba(167,55,253,0.2)",
+    backgroundColor: "#f0f0f0",
   },
   classLabel: {
     fontSize: 15,
     fontWeight: "bold",
-    color: "rgba(255,255,255,0.6)",
+    color: "#555",
     marginBottom: 4,
   },
   classLabelActive: {
-    color: "#fff",
+    color: PURPLE,
   },
   classTagline: {
     fontSize: 11,
-    color: "rgba(255,255,255,0.35)",
+    color: "#aaa",
     textAlign: "center",
     marginBottom: 6,
   },
   classTaglineActive: {
-    color: "rgba(255,255,255,0.75)",
+    color: "#666",
   },
   classBonus: {
     fontSize: 10,
-    color: "rgba(255,255,255,0.25)",
+    color: "#bbb",
     textAlign: "center",
     fontStyle: "italic",
   },
   classBonusActive: {
-    color: "#FFD700",
+    color: "#A06E00",
   },
   beginButton: {
     backgroundColor: PURPLE,
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   beginButtonDisabled: {
-    backgroundColor: "rgba(167,55,253,0.3)",
+    backgroundColor: "#ccc",
   },
   beginButtonText: {
     color: "#fff",

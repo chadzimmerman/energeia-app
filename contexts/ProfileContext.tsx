@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { ImageSourcePropType } from "react-native";
 import { supabase } from "@/utils/supabase";
 import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
+import { BACKGROUND_COLORS, DEFAULT_BG } from "@/utils/backgroundColors";
 
 export interface Profile {
   id: string;
@@ -28,9 +29,11 @@ interface ProfileContextValue {
   wallItems: ImageSourcePropType[];
   floorItems: ImageSourcePropType[];
   handItems: ImageSourcePropType[];
+  characterBgColors: { wall: string; floor: string };
   refreshProfile: () => Promise<void>;
   handlePetTap: () => Promise<void>;
 }
+
 
 const ProfileContext = createContext<ProfileContextValue>({
   profile: null,
@@ -43,6 +46,7 @@ const ProfileContext = createContext<ProfileContextValue>({
   wallItems: [],
   floorItems: [],
   handItems: [],
+  characterBgColors: DEFAULT_BG,
   refreshProfile: async () => {},
   handlePetTap: async () => {},
 });
@@ -58,6 +62,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [wallItems, setWallItems] = useState<ImageSourcePropType[]>([]);
   const [floorItems, setFloorItems] = useState<ImageSourcePropType[]>([]);
   const [handItems, setHandItems] = useState<ImageSourcePropType[]>([]);
+  const [characterBgColors, setCharacterBgColors] = useState(DEFAULT_BG);
 
   const refreshProfile = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -140,7 +145,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const characterItems = equipped
         .filter((e: any) => {
           const slot = e.item?.display_slot;
-          if (slot) return slot.startsWith("character_") && slot !== "character_set";
+          if (slot) return slot.startsWith("character_") && slot !== "character_set" && slot !== "character_background";
           // Fallback: unslotted equippables still render on the sprite
           return e.item?.type === "equippable";
         })
@@ -176,6 +181,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           .filter((e: any) => e.item?.display_slot === "hand")
           .map((e: any) => resolveItemImage(e.item.image_path))
       );
+
+      const bgItem = equipped.find((e: any) => e.item?.display_slot === "character_background") as any ?? null;
+      setCharacterBgColors(bgItem ? (BACKGROUND_COLORS[bgItem.item.image_path] ?? DEFAULT_BG) : DEFAULT_BG);
     }
   }, []);
 
@@ -201,7 +209,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [refreshProfile]);
 
   return (
-    <ProfileContext.Provider value={{ profile, equippedCharacterSet, equippedOverlays, animalCompanion, animalInventoryId, petName, petTappedToday, wallItems, floorItems, handItems, refreshProfile, handlePetTap }}>
+    <ProfileContext.Provider value={{ profile, equippedCharacterSet, equippedOverlays, animalCompanion, animalInventoryId, petName, petTappedToday, wallItems, floorItems, handItems, characterBgColors, refreshProfile, handlePetTap }}>
       {children}
     </ProfileContext.Provider>
   );

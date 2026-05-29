@@ -327,7 +327,7 @@ export default function CalendarTabScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [showTutorialMocks, setShowTutorialMocks] = useState(false);
-  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, refreshProfile } = useProfile();
+  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, characterBgColors, refreshProfile } = useProfile();
 
   useFocusEffect(
     useCallback(() => {
@@ -469,6 +469,8 @@ export default function CalendarTabScreen() {
         onPetTap={handlePetTap}
         wallItems={wallItems}
         floorItems={floorItems}
+        handItems={handItems}
+        characterBgColors={characterBgColors}
       />
 
       {/* 2. Scrollable Content (Calendar and Habit Tracker) */}

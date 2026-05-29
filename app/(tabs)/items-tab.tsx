@@ -4,8 +4,9 @@ import { supabase } from "@/utils/supabase";
 import { getSeasonalBackground } from "@/utils/seasons";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
+import BgColorSwatch from "@/components/BgColorSwatch";
 import { useProfile } from "@/contexts/ProfileContext";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -38,6 +39,8 @@ interface Item {
   imageSource: ImageSourcePropType;
   type: "consumable" | "equippable";
   display_slot: string | null;
+  image_path: string | null;
+  is_quest_reward: boolean;
   flavorText: string;
   description: string;
   hiddenBonus: {
@@ -159,11 +162,11 @@ const ItemDetailsModal: React.FC<{
           </View>
 
           {/* Item Image */}
-          <Image
-            source={item.imageSource}
-            style={modalStyles.itemImage}
-            resizeMode="contain"
-          />
+          {item.display_slot === "character_background" && item.image_path ? (
+            <BgColorSwatch imagePath={item.image_path} style={modalStyles.itemImage} />
+          ) : (
+            <Image source={item.imageSource} style={modalStyles.itemImage} resizeMode="contain" />
+          )}
 
           {/* Item Name & Equipped Status */}
           <ThemedText style={modalStyles.itemName}>
@@ -243,11 +246,11 @@ const ItemCard: React.FC<{ item: Item; onPress: (item: Item) => void }> = ({
       ]}
       onPress={() => onPress(item)}
     >
-      <Image
-        source={item.imageSource}
-        style={styles.itemImage}
-        resizeMode="contain"
-      />
+      {item.display_slot === "character_background" && item.image_path ? (
+        <BgColorSwatch imagePath={item.image_path} style={styles.itemImage} />
+      ) : (
+        <Image source={item.imageSource} style={styles.itemImage} resizeMode="contain" />
+      )}
 
       {/* 🌟 NEW: Stack Quantity Badge */}
       {item.quantity > 1 && (
@@ -264,21 +267,36 @@ const ItemCard: React.FC<{ item: Item; onPress: (item: Item) => void }> = ({
   );
 };
 
-/**
- * Renders the main item grid structure.
- * NOW receives live inventory and currency.
- */
+const INVENTORY_SECTIONS: { key: string; label: string }[] = [
+  { key: "consumable",  label: "Consumables"      },
+  { key: "gear",        label: "Gear & Equipment" },
+  { key: "quest",       label: "Quests"           },
+  { key: "room",        label: "Room"             },
+];
+
+const getItemSection = (item: Item): string => {
+  if (item.is_quest_reward || item.image_path === "help-wanted-scroll") return "quest";
+  if (item.type === "consumable") return "consumable";
+  const slot = item.display_slot ?? "";
+  if (slot === "character_background" || slot === "wall" || slot === "floor" || slot === "hand") return "room";
+  return "gear";
+};
+
 const ItemGrid: React.FC<{
   onSelectItem: (item: Item) => void;
-  inventory: Item[]; // New prop
-  playerEnergeia: number; // New prop (Though only currency is displayed here)
+  inventory: Item[];
+  playerEnergeia: number;
 }> = ({ onSelectItem, inventory, playerEnergeia }) => {
+  const sections = INVENTORY_SECTIONS
+    .map((s) => ({ ...s, items: inventory.filter((i) => getItemSection(i) === s.key) }))
+    .filter((s) => s.items.length > 0);
+
   return (
     <ScrollView
       style={styles.gridContainer}
       contentContainerStyle={styles.gridContent}
     >
-      {/* Energy/Gem Indicators (Using live currency) */}
+      {/* Currency chip */}
       <View style={styles.currencyRow}>
         <View style={styles.currencyChip}>
           <View style={styles.coinIcon} />
@@ -286,7 +304,6 @@ const ItemGrid: React.FC<{
         </View>
       </View>
 
-      {/* Item Grid */}
       {inventory.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateText}>Nothing to see here!</Text>
@@ -295,11 +312,18 @@ const ItemGrid: React.FC<{
           </Text>
         </View>
       ) : (
-        <View style={styles.itemGridWrap}>
-          {inventory.map((item) => (
-            <ItemCard key={item.id} item={item} onPress={onSelectItem} />
-          ))}
-        </View>
+        sections.map((section) => (
+          <View key={section.key}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionHeaderText}>{section.label}</Text>
+            </View>
+            <View style={styles.itemGridWrap}>
+              {section.items.map((item) => (
+                <ItemCard key={item.id} item={item} onPress={onSelectItem} />
+              ))}
+            </View>
+          </View>
+        ))
       )}
     </ScrollView>
   );
@@ -308,9 +332,10 @@ const ItemGrid: React.FC<{
 // --- MAIN TAB SCREEN (UPDATED) ---
 
 export default function ItemsTabScreen() {
+  const router = useRouter();
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, refreshProfile } = useProfile();
+  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, characterBgColors, refreshProfile } = useProfile();
   const [inventory, setInventory] = useState<Item[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -335,6 +360,7 @@ export default function ItemsTabScreen() {
             type,
             image_path,
             display_slot,
+            is_quest_reward,
             hidden_stat_type,
             hidden_buff_value,
             required_class,
@@ -375,8 +401,11 @@ export default function ItemsTabScreen() {
             energeiaNumber: itemMaster.base_energeia_cost,
             type: itemMaster.type,
             display_slot: itemMaster.display_slot ?? null,
+            image_path: itemMaster.image_path ?? null,
+            is_quest_reward: itemMaster.is_quest_reward ?? false,
             is_equipped: record.is_equipped ?? false,
             isLocked: record.is_locked ?? false,
+            isUsable: true,
             flavorText: itemMaster.flavor_text,
             description: itemMaster.description,
             requiredClass: itemMaster.required_class,
@@ -541,6 +570,80 @@ export default function ItemsTabScreen() {
             .eq("id", userId);
         }
       } else if (item.type === "consumable") {
+        if (item.image_path === "scroll-of-undoing") {
+          handleCloseModal();
+          Alert.alert(
+            "Warning — This Cannot Be Undone",
+            "Using this scroll will:\n\n• Reset your level to 1\n• Wipe all your Energeia gold\n• Unequip all class-exclusive gear\n• Clear your class — you must choose a new one\n\nPets, room items, and seasonal stories will remain.\n\nThis action is permanent and cannot be reversed.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "I Understand",
+                style: "destructive",
+                onPress: () => {
+                  Alert.alert(
+                    "Final Warning",
+                    "There is no going back. Your level, gold, and class will be permanently erased.\n\nAre you absolutely certain?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Yes, Reset Everything",
+                        style: "destructive",
+                        onPress: async () => {
+                          try {
+                            // 1. Find and unequip all class-specific gear
+                            const { data: equipped } = await supabase
+                              .from("user_inventory")
+                              .select("id, item:item_master_id(required_class)")
+                              .eq("user_id", userId)
+                              .eq("is_equipped", true);
+                            const classGearIds = ((equipped ?? []) as any[])
+                              .filter((r) => r.item?.required_class)
+                              .map((r) => r.id);
+                            if (classGearIds.length > 0) {
+                              await supabase
+                                .from("user_inventory")
+                                .update({ is_equipped: false })
+                                .in("id", classGearIds);
+                            }
+
+                            // 2. Reset profile to level-1 blank slate
+                            await supabase
+                              .from("profiles")
+                              .update({
+                                level: 1,
+                                energeia_currency: 0,
+                                current_energeia: 0,
+                                max_health: 100,
+                                current_health: 100,
+                                player_class: null,
+                                character_image_path: null,
+                              })
+                              .eq("id", userId);
+
+                            // 3. Consume the scroll
+                            await supabase
+                              .from("user_inventory")
+                              .delete()
+                              .eq("id", item.id);
+
+                            // 4. Send to character creation
+                            router.replace("/onboarding");
+                          } catch (e: any) {
+                            console.error("Class reset error:", e.message);
+                            Alert.alert("Error", "Something went wrong. Please try again.");
+                          }
+                        },
+                      },
+                    ]
+                  );
+                },
+              },
+            ]
+          );
+          return;
+        }
+
         if (item.hiddenBonus.stat === "energeia") {
           const buff = item.hiddenBonus.buff;
           let newEnergeia = profile.current_energeia + buff;
@@ -627,6 +730,7 @@ export default function ItemsTabScreen() {
         wallItems={wallItems}
         floorItems={floorItems}
         handItems={handItems}
+        characterBgColors={characterBgColors}
       />
 
       {/* 2. Item Grid (Passing live inventory and currency) */}
@@ -672,6 +776,21 @@ const styles = StyleSheet.create({
   },
   gridContent: {
     paddingBottom: 20,
+  },
+  sectionHeader: {
+    marginHorizontal: 10,
+    marginTop: 18,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.08)",
+    paddingBottom: 6,
+  },
+  sectionHeaderText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#888",
+    textTransform: "uppercase",
+    letterSpacing: 1.2,
   },
   itemGridWrap: {
     flexDirection: "row",

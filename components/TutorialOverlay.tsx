@@ -76,7 +76,15 @@ interface TutorialStep {
 const STEPS: TutorialStep[] = [
   {
     title: "...!",
-    body: "Hey — hey, you! Bwak!\n\nYou... Cluck! Cluck!...\n\n...You can actually understand me?!",
+    body: (
+      <>
+        {"Hey — hey, you! "}
+        <Text style={{ fontStyle: "italic" }}>Bwak!</Text>
+        {"\n\nYou... "}
+        <Text style={{ fontStyle: "italic" }}>Cluck! Cluck!</Text>
+        {"...\n\n...You can actually understand me?!"}
+      </>
+    ),
     spotlight: null,
     cardSide: "center",
     tabRoute: "/(tabs)",
@@ -85,11 +93,17 @@ const STEPS: TutorialStep[] = [
     title: "Oh my goodness!",
     body: (
       <>
-        {"I have not seen you around here before! Bwak bwak! You must already be on the path of "}
+        {"I have not seen you around here before! "}
+        <Text style={{ fontStyle: "italic" }}>Bwak bwak!</Text>
+        {" You must already be on the path of "}
         <Text style={{ fontStyle: "italic" }}>theosis</Text>
-        {" if you found your way all the way here!\n\nWait... what? B-kawk?! What is theosis? You don't know?!\n\nTheosis is participation in the energies of this land — the "}
+        {" if you found your way all the way here!\n\nWait... what? "}
+        <Text style={{ fontStyle: "italic" }}>B-kawk?!</Text>
+        {" What is theosis? You don't know?!\n\nTheosis is participation in the energies of this land — the "}
         <Text style={{ fontStyle: "italic" }}>Energeia</Text>
-        {". Cluck cluck… As we grow closer to the source of all things, we participate in them more and more."}
+        {". "}
+        <Text style={{ fontStyle: "italic" }}>Cluck cluck…</Text>
+        {" As we grow closer to the source of all things, we participate in them more and more."}
       </>
     ),
     spotlight: null,
@@ -100,7 +114,11 @@ const STEPS: TutorialStep[] = [
     title: <>{"Welcome to the World of "}<Text style={{ fontStyle: "italic" }}>Energe.ia</Text></>,
     body: (
       <>
-        {"Well then — cluck — this is your little retreat from the world. A place to tend your daily habits, grow in virtue, and walk the ancient paths.\n\nCluck cluck… "}
+        {"Well then — "}
+        <Text style={{ fontStyle: "italic" }}>cluck</Text>
+        {" — this is your little retreat from the world. A place to tend your daily habits, grow in virtue, and walk the ancient paths.\n\n"}
+        <Text style={{ fontStyle: "italic" }}>Cluck cluck…</Text>
+        {" "}
         <Text style={{ fontStyle: "italic" }}>The fathers of our traditions walk with you here.</Text>
       </>
     ),
@@ -110,8 +128,14 @@ const STEPS: TutorialStep[] = [
   },
   {
     title: "That's You",
-    body: "That little soul up there is yours. Bwak! Every good thing you do out in the real world shows up right here.\n\nGo on — grow!",
-    spotlight: { cx: 0.20, cy: 0.331, r: 65 },
+    body: (
+      <>
+        {"That little soul up there is yours. "}
+        <Text style={{ fontStyle: "italic" }}>Bwak!</Text>
+        {" Every good thing you do out in the real world shows up right here.\n\nGo on — grow!"}
+      </>
+    ),
+    spotlight: { cx: 0.23, cy: 0.331, r: 65 },
     cardSide: "bottom",
     tabRoute: "/(tabs)",
   },
@@ -121,9 +145,13 @@ const STEPS: TutorialStep[] = [
       <>
         {"❤️ "}
         <Text style={{ fontStyle: "italic" }}>Health</Text>
-        {" keeps you standing. Let it reach zero and you'll face a hard reset: your level progress will reset to 1, and a random item will disappear. B-kawk!\n\n⚡ "}
+        {" keeps you standing. Let it reach zero and you'll face a hard reset: your level progress will reset to 1, and a random item will disappear. "}
+        <Text style={{ fontStyle: "italic" }}>B-kawk!</Text>
+        {"\n\n⚡ "}
         <Text style={{ fontStyle: "italic" }}>Energeia</Text>
-        {" is what you earn doing good works and avoiding the bad ones. Bwak bwak! Fill it up. As you grow in good deeds, so does your level!"}
+        {" is what you earn doing good works and avoiding the bad ones. "}
+        <Text style={{ fontStyle: "italic" }}>Bwak bwak!</Text>
+        {" Fill it up. As you grow in good deeds, so does your level!"}
       </>
     ),
     spotlight: { cx: 0.188, cy: 0.188, r: 58 },
@@ -132,8 +160,16 @@ const STEPS: TutorialStep[] = [
   },
   {
     title: "Your Daily Work",
-    body: "These are the habits you've sworn to — daily, weekly, or on your own schedule. Cluck.\n\nTap a habit's name to change it. Hold the grip on the left to move it around. Bwak!\n\nAll those who came before you tended themselves as farmers till soil. Tend to yourself diligently as they did.",
-    spotlight: { cx: 0.5, cy: 0.563, r: 88 },
+    body: (
+      <>
+        {"These are the habits you've sworn to — daily, weekly, or on your own schedule. "}
+        <Text style={{ fontStyle: "italic" }}>Cluck.</Text>
+        {"\n\nTap a habit's name to change it. Hold the grip on the left to move it around. "}
+        <Text style={{ fontStyle: "italic" }}>Bwak!</Text>
+        {"\n\nAll those who came before you tended themselves as farmers till soil. Tend to yourself diligently as they did."}
+      </>
+    ),
+    spotlight: { cx: 0.5, cy: 0.693, r: 88 },
     cardSide: "top",
     tabRoute: "/(tabs)",
   },
@@ -143,16 +179,28 @@ const STEPS: TutorialStep[] = [
       <>
         {"⊕ marks a good day — earn "}
         <Text style={{ fontStyle: "italic" }}>Energeia</Text>
-        {" and watch your streak grow. Bwak bwak!\n\n⊖ marks a stumble — lose some health and reset the streak. Cluck cluck…\n\nIt's alright. One father once told me 'Struggle until your last breath!' He was very wise."}
+        {" and watch your streak grow. "}
+        <Text style={{ fontStyle: "italic" }}>Bwak bwak!</Text>
+        {"\n\n⊖ marks a stumble — lose some health and reset the streak. "}
+        <Text style={{ fontStyle: "italic" }}>Cluck cluck…</Text>
+        {"\n\nIt's alright. One father once told me 'Struggle until your last breath!' He was very wise."}
       </>
     ),
-    spotlight: { cx: 0.5, cy: 0.563, r: 88 },
+    spotlight: { cx: 0.5, cy: 0.693, r: 88 },
     cardSide: "top",
     tabRoute: "/(tabs)",
   },
   {
     title: "Your Record",
-    body: "Every choice gets written down in color. Cluck. Green for the good days, red for the hard ones.\n\nTap any day on the calendar to see what happened. Bwak! Honest records make for honest growth.",
+    body: (
+      <>
+        {"Every choice gets written down in color. "}
+        <Text style={{ fontStyle: "italic" }}>Cluck.</Text>
+        {" Green for the good days, red for the hard ones.\n\nTap any day on the calendar to see what happened. "}
+        <Text style={{ fontStyle: "italic" }}>Bwak!</Text>
+        {" Honest records make for honest growth."}
+      </>
+    ),
     spotlight: { cx: 0.375, cy: 0.935, r: 36 },
     cardSide: "top",
     tabRoute: "/(tabs)/calendar-tab",
@@ -163,7 +211,10 @@ const STEPS: TutorialStep[] = [
       <>
         {"Spend your "}
         <Text style={{ fontStyle: "italic" }}>Energeia</Text>
-        {" on sacred items over in the market. B-kawk! Equip what you earn.\n\nSome items do more than just look nice, if you know what I mean. Cluck cluck…"}
+        {" on sacred items over in the market. "}
+        <Text style={{ fontStyle: "italic" }}>B-kawk!</Text>
+        {" Equip what you earn.\n\nSome items do more than just look nice, if you know what I mean. "}
+        <Text style={{ fontStyle: "italic" }}>Cluck cluck…</Text>
       </>
     ),
     spotlight: { cx: 0.625, cy: 0.935, r: 36 },
@@ -172,14 +223,28 @@ const STEPS: TutorialStep[] = [
   },
   {
     title: "Home Base",
-    body: "Settings holds your profile, achievements, and seasonal stories. Cluck!\n\nThere's a stable there too. Bwak… That one's my particular favorite — come on over when you're ready.",
+    body: (
+      <>
+        {"Settings holds your profile, achievements, and seasonal stories. "}
+        <Text style={{ fontStyle: "italic" }}>Cluck!</Text>
+        {"\n\nThere's a stable there too. "}
+        <Text style={{ fontStyle: "italic" }}>Bwak…</Text>
+        {" That one's my particular favorite — come on over when you're ready."}
+      </>
+    ),
     spotlight: { cx: 0.875, cy: 0.935, r: 36 },
     cardSide: "top",
     tabRoute: "/(tabs)/settings",
   },
   {
     title: "Right There",
-    body: "That's you at the top — your class, your guild, your stories. Cluck cluck! Everything you're building.\n\nCome back here when you want to see how far you've come.",
+    body: (
+      <>
+        {"That's you at the top — your class, your guild, your stories. "}
+        <Text style={{ fontStyle: "italic" }}>Cluck cluck!</Text>
+        {" Everything you're building.\n\nCome back here when you want to see how far you've come."}
+      </>
+    ),
     spotlight: { cx: 0.20, cy: 0.30, r: 70 },
     cardSide: "bottom",
     tabRoute: "/(tabs)/settings",
@@ -204,7 +269,11 @@ interface TutorialOverlayProps {
 
 const buildLastStepBody = (_playerClass?: string): React.ReactNode => (
   <>
-    {"This hermitage awaits your practice and prayers.\n\nBwak! Every good work matters. Tend to your habits — they're the heartbeat of this little retreat from the world. Cluck cluck…\n\n☩  Your journey has only just begun.  ☩"}
+    {"This hermitage awaits your practice and prayers.\n\n"}
+    <Text style={{ fontStyle: "italic" }}>Bwak!</Text>
+    {" Every good work matters. Tend to your habits — they're the heartbeat of this little retreat from the world. "}
+    <Text style={{ fontStyle: "italic" }}>Cluck cluck…</Text>
+    {"\n\n☩  Your journey has only just begun.  ☩"}
   </>
 );
 
@@ -446,7 +515,7 @@ export default function TutorialOverlay({
           <ScrollView
             style={styles.bodyScroll}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 2 }}
+            contentContainerStyle={{ paddingBottom: 12 }}
           >
             <Text style={styles.body}>{isLast ? buildLastStepBody(playerClass) : step.body}</Text>
           </ScrollView>
@@ -621,7 +690,7 @@ const styles = StyleSheet.create({
   },
 
   bodyScroll: {
-    maxHeight: H * 0.22,
+    maxHeight: H * 0.30,
   },
 
   body: {

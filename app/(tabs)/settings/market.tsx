@@ -2,6 +2,7 @@ import { supabase } from "@/utils/supabase";
 import { grantAchievement } from "@/utils/grantAchievement";
 import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
 import { getCurrentSeason } from "@/utils/seasons";
+import BgColorSwatch from "@/components/BgColorSwatch";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -56,6 +57,7 @@ interface MarketItem {
   isSubscriberOnly: boolean;
   type: "consumable" | "equippable";
   display_slot: string | null;
+  image_path: string | null;
   flavorText: string;
   description: string;
   season: string | null;
@@ -219,7 +221,29 @@ const MarketDetailsModal: React.FC<{
           grantAchievement(userId, "all_year_gear");
       }
 
-      // 4. Success
+      // 4. Auto-grant Default Room when buying a background for the first time
+      if (item.display_slot === "character_background") {
+        const { data: defaultRoom } = await supabase
+          .from("items_master")
+          .select("id")
+          .eq("image_path", "bg-grey")
+          .maybeSingle();
+        if (defaultRoom) {
+          const { data: alreadyOwns } = await supabase
+            .from("user_inventory")
+            .select("id")
+            .eq("user_id", userId)
+            .eq("item_master_id", defaultRoom.id)
+            .maybeSingle();
+          if (!alreadyOwns) {
+            await supabase
+              .from("user_inventory")
+              .insert({ user_id: userId, item_master_id: defaultRoom.id });
+          }
+        }
+      }
+
+      // 5. Success
       onPurchaseSuccess();
       onClose();
       alert("Purchase Successful!");
@@ -261,11 +285,11 @@ const MarketDetailsModal: React.FC<{
           </View>
 
           {/* Item Image */}
-          <Image
-            source={item.imageSource}
-            style={modalStyles.itemImage}
-            resizeMode="contain"
-          />
+          {item.display_slot === "character_background" && item.image_path ? (
+            <BgColorSwatch imagePath={item.image_path} style={modalStyles.itemImage} />
+          ) : (
+            <Image source={item.imageSource} style={modalStyles.itemImage} resizeMode="contain" />
+          )}
 
           {/* Item Name */}
           <ThemedText style={modalStyles.itemName}>{item.name}</ThemedText>
@@ -330,17 +354,17 @@ const MarketItemCard: React.FC<{
       style={[
         marketStyles.itemCard,
         { width: cardSize, height: cardSize * 1.4 }, // Adjusted height for market
-        item.isLocked && marketStyles.lockedCard,
+        (item.isLocked || (item.isSubscriberOnly && item.display_slot === "character_background")) && marketStyles.lockedCard,
       ]}
       onPress={() => onPress(item)} // Open modal on press
       activeOpacity={0.7}
       // Locked items can still be tapped so the modal shows the lock reason
     >
-      <Image
-        source={item.imageSource}
-        style={marketStyles.itemImage}
-        resizeMode="contain"
-      />
+      {item.display_slot === "character_background" && item.image_path ? (
+        <BgColorSwatch imagePath={item.image_path} style={marketStyles.bgSwatch} />
+      ) : (
+        <Image source={item.imageSource} style={marketStyles.itemImage} resizeMode="contain" />
+      )}
 
       {/* Item Name */}
       <Text style={marketStyles.itemName}>{item.name}</Text>
@@ -360,8 +384,8 @@ const MarketItemCard: React.FC<{
         </View>
       )}
 
-      {/* Lock Overlay (if locked) */}
-      {(item.isLocked || item.isSubscriberOnly) && (
+      {/* Lock Overlay (if locked) — backgrounds use card dimming only, no icon overlay */}
+      {(item.isLocked || item.isSubscriberOnly) && item.display_slot !== "character_background" && (
         <View style={marketStyles.lockOverlay}>
           <FontAwesome name={item.isSubscriberOnly ? "star" : "lock"} size={40} color="rgba(0,0,0,0.5)" />
         </View>
@@ -553,12 +577,13 @@ export default function MarketScreen() {
       // 1. Profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("energeia_currency, player_class, character_image_path")
+        .select("energeia_currency, player_class, character_image_path, level")
         .eq("id", currentUserId)
         .single();
       if (profileError) throw profileError;
 
       setPlayerEnergeia(profile.energeia_currency);
+      const playerLevel: number = profile.level ?? 1;
       const playerClass: string | null = profile.player_class;
       // Derive gender from character_image_path (e.g. "fighter_male" → "male")
       const pathParts = (profile.character_image_path ?? "").split("_");
@@ -570,7 +595,7 @@ export default function MarketScreen() {
         .from("items_master")
         .select("*")
         .eq("is_in_market", true)
-        .neq("display_slot", "character_set");
+        .or("display_slot.is.null,display_slot.neq.character_set");
       if (cls) {
         itemQuery = itemQuery.or(`required_class.is.null,required_class.eq.${cls}`);
       } else {
@@ -664,6 +689,9 @@ export default function MarketScreen() {
 
       const toMarketItem = (item: any, isCharSet: boolean): MarketItem => {
         const lockInfo = isCharSet ? getLockInfo(item) : { isLocked: false, lockedReason: null };
+        const scrollLock = item.image_path === "scroll-of-undoing" && playerLevel < 100
+          ? { isLocked: true, lockedReason: `Available at level 100 (you are level ${playerLevel}), or for subscribers.` }
+          : { isLocked: false, lockedReason: null as string | null };
         return {
           id: item.id,
           name: item.name,
@@ -671,11 +699,12 @@ export default function MarketScreen() {
             ? (resolveCharacterSetImage(item.image_path) ?? resolveItemImage(item.image_path))
             : resolveItemImage(item.image_path),
           price: item.base_energeia_cost,
-          isLocked: lockInfo.isLocked,
-          lockedReason: lockInfo.lockedReason,
+          isLocked: lockInfo.isLocked || scrollLock.isLocked,
+          lockedReason: lockInfo.lockedReason ?? scrollLock.lockedReason,
           isSubscriberOnly: item.is_subscriber_only ?? false,
           type: item.type,
           display_slot: item.display_slot ?? null,
+          image_path: item.image_path ?? null,
           flavorText: item.flavor_text ?? "",
           description: item.description ?? "",
           season: item.season ?? null,
@@ -689,6 +718,7 @@ export default function MarketScreen() {
       // 7. Regular items (non-character-set)
       const availableItems = (items ?? [])
         .filter((item: any) => !(item.is_unique && ownedIds.includes(item.id)))
+        .filter((item: any) => !(item.image_path === "scroll-of-undoing" && playerLevel < 100))
         .map((item: any) => toMarketItem(item, false));
       setSeasonalItems(availableItems.filter((i) => i.season === currentSeasonLabel && !i.isSubscriberOnly));
       setRegularItems(availableItems.filter((i) => !i.season && !i.isSubscriberOnly));
@@ -921,6 +951,11 @@ const marketStyles = StyleSheet.create({
   itemImage: {
     width: "70%",
     height: "55%",
+    marginBottom: 5,
+  },
+  bgSwatch: {
+    width: "60%",
+    height: "42%",
     marginBottom: 5,
   },
   itemName: {
