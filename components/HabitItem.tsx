@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import * as Haptics from "expo-haptics";
 
 // Define the Habit data structure based on the new SQL table
 // This interface describes the DATA object only.
@@ -55,7 +56,10 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isA
             styles.leftButton,
             { backgroundColor: buttonColor },
           ]}
-          onPress={() => onScore(habit.id, "down")}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            onScore(habit.id, "down");
+          }}
         >
           <FontAwesome name="minus" size={20} color="#fff" />
         </TouchableOpacity>
@@ -89,7 +93,10 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isA
             styles.rightButton,
             { backgroundColor: buttonColor },
           ]}
-          onPress={() => onScore(habit.id, "up")}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onScore(habit.id, "up");
+          }}
         >
           <FontAwesome name="plus" size={20} color="#fff" />
         </TouchableOpacity>

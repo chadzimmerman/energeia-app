@@ -22,6 +22,8 @@ const TUTORIAL_MOCK_HABITS = [
   { id: "mock-1", title: "No Smoking",                          is_positive: false, is_negative: true,  streak_level: -2, difficulty: 6, reset_frequency: "daily"  },
   { id: "mock-2", title: "Donate food to women's shelter",      is_positive: true,  is_negative: true,  streak_level: 0,  difficulty: 5, reset_frequency: "weekly" },
   { id: "mock-3", title: "Volunteer at the homeless shelter",   is_positive: true,  is_negative: false, streak_level: 4,  difficulty: 7, reset_frequency: "weekly" },
+  { id: "mock-4", title: "Attend Divine Liturgy",               is_positive: true,  is_negative: false, streak_level: 2,  difficulty: 5, reset_frequency: "weekly" },
+  { id: "mock-5", title: "Read for 20 minutes",                 is_positive: true,  is_negative: false, streak_level: 1,  difficulty: 3, reset_frequency: "daily"  },
 ];
 
 interface Habit {
@@ -315,7 +317,7 @@ const checkScrollDrop = async (userId: string): Promise<void> => {
     .from("user_inventory")
     .select("id, quantity")
     .eq("user_id", userId)
-    .eq("item_id", scrollItem.id)
+    .eq("item_master_id", scrollItem.id)
     .maybeSingle();
 
   if (existing) {
@@ -326,7 +328,7 @@ const checkScrollDrop = async (userId: string): Promise<void> => {
   } else {
     await supabase
       .from("user_inventory")
-      .insert({ user_id: userId, item_id: scrollItem.id, quantity: 1 });
+      .insert({ user_id: userId, item_master_id: scrollItem.id, quantity: 1 });
   }
 
   Alert.alert(
@@ -337,7 +339,7 @@ const checkScrollDrop = async (userId: string): Promise<void> => {
 
 export default function HabitScreen() {
   const router = useRouter();
-  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, refreshProfile } = useProfile();
+  const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, characterBgColors, refreshProfile } = useProfile();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [habits, setHabits] = useState<Habit[]>([]);
@@ -836,6 +838,7 @@ export default function HabitScreen() {
         wallItems={wallItems}
         floorItems={floorItems}
         handItems={handItems}
+        characterBgColors={characterBgColors}
       />
       <HabitList
         habits={isTutorialVisible && habits.length === 0 ? TUTORIAL_MOCK_HABITS : habits}

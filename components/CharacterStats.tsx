@@ -31,6 +31,7 @@ interface CharacterStatsProps {
   wallItems?: ImageSourcePropType[];
   floorItems?: ImageSourcePropType[];
   handItems?: ImageSourcePropType[];
+  characterBgColors?: { wall: string; floor: string };
 }
 
 const CharacterStats: React.FC<CharacterStatsProps> = ({
@@ -50,6 +51,7 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
   wallItems = [],
   floorItems = [],
   handItems = [],
+  characterBgColors = { wall: '#EBEBEB', floor: '#C0C0C0' },
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [showBonus, setShowBonus] = useState(false);
@@ -100,6 +102,15 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
           onPress={() => setModalVisible(true)}
           style={styles.characterTouchable}
         >
+          {/* Two-tone room background: lighter wall on top, darker floor on bottom */}
+          <View style={styles.characterBg}>
+            <View style={[styles.characterBgWall, { backgroundColor: characterBgColors.wall }]} />
+            <View style={[styles.characterBgFloor, { backgroundColor: characterBgColors.floor }]} />
+          </View>
+          {/* Pixelated ground shadow — stacked rectangles, wide to narrow */}
+          <View style={[styles.characterShadowPx, { width: 80, bottom: 2, left: 32 }]} />
+          <View style={[styles.characterShadowPx, { width: 64, bottom: 6, left: 40 }]} />
+          <View style={[styles.characterShadowPx, { width: 48, bottom: 10, left: 48 }]} />
           <Image source={characterSrc} style={styles.characterImage} />
           {equippedOverlays.map((src, i) => (
             <Image key={i} source={src} style={[styles.characterImage, styles.equipmentOverlay]} />
@@ -187,38 +198,19 @@ const CharacterStats: React.FC<CharacterStatsProps> = ({
         {/* 4. Stats Bars Container */}
         <View style={styles.statsContainer}>
           {/* Health Bar (Red) */}
-          <View style={styles.statRow}>
-            <Image
-              source={require("@/assets/sprites/ui-elements/pixel-heart-icon.png")}
-              style={styles.statIcon} // New style for icons outside the bar
-            />
-            <View style={styles.barWrapper}>
-              <View
-                style={[
-                  styles.barBackground,
-                  { height: 35, backgroundColor: "rgba(197, 197, 197, 0.5)" },
-                ]}
-              >
-                <View
-                  style={[styles.healthBar, { width: `${healthPercent}%` }]}
-                />
-              </View>
+          <View style={styles.barWrapper}>
+            <View style={[styles.barBackground, { height: 35, backgroundColor: "rgba(197, 197, 197, 0.5)" }]}>
+              <View style={[styles.healthBar, { width: `${healthPercent}%` }]} />
             </View>
+            <Text style={styles.statLabel}>Health: {currentHealth}/{maxHealth}</Text>
           </View>
 
           {/* Energy Bar (Gold/Yellow) */}
-          <View style={styles.statRow}>
-            <Image
-              source={require("@/assets/sprites/ui-elements/pixel-energy-icon.png")}
-              style={styles.statIcon}
-            />
-            <View style={styles.barWrapper}>
-              <View style={[styles.barBackground, { height: 25 }]}>
-                <View
-                  style={[styles.energyBar, { width: `${energyPercent}%` }]}
-                />
-              </View>
+          <View style={[styles.barWrapper, { marginTop: 10 }]}>
+            <View style={[styles.barBackground, { height: 25 }]}>
+              <View style={[styles.energyBar, { width: `${energyPercent}%` }]} />
             </View>
+            <Text style={styles.statLabel}>Energeia: {currentEnergy}/{maxEnergy}</Text>
           </View>
 
           {/* Level Display */}
@@ -260,17 +252,30 @@ const styles = StyleSheet.create({
     zIndex: 10,
     overflow: "visible",
   },
-  characterImage: {
-    width: 120,
-    height: 120,
-    backgroundColor: "white",
+  characterBg: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 144,
+    height: 144,
     borderRadius: 8,
-    borderWidth: 2,
-    borderColor: "#ccc",
+    overflow: "hidden",
+  },
+  characterBgWall: {
+    flex: 0.72,
+  },
+  characterBgFloor: {
+    flex: 0.28,
+  },
+  characterImage: {
+    width: 144,
+    height: 144,
+    backgroundColor: "transparent",
+    borderRadius: 8,
     marginRight: 10,
     position: "absolute",
     left: 0,
-    top: 60,
+    top: 0,
     zIndex: 20,
   },
   equipmentOverlay: {
@@ -283,8 +288,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    top: 10,
-    height: 120,
+    top: -3,
+    height: 130,
     justifyContent: "space-between",
     paddingVertical: 5,
     zIndex: 10,
@@ -349,6 +354,15 @@ const styles = StyleSheet.create({
     height: 20,
     marginLeft: 5,
     //tintColor: "#EEDD82", // Light gold for the bolt icon
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "#fff",
+    fontWeight: "600",
+    marginTop: 2,
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
   levelBadge: {
     alignSelf: "flex-start",
@@ -417,10 +431,16 @@ const styles = StyleSheet.create({
   characterTouchable: {
     position: "absolute",
     left: 0,
-    top: 70,
-    width: 120,
-    height: 120,
+    top: 115,
+    width: 144,
+    height: 144,
     zIndex: 20,
+  },
+  characterShadowPx: {
+    position: "absolute",
+    height: 4,
+    backgroundColor: "rgba(0,0,0,0.30)",
+    zIndex: 2,
   },
 
   // ── Character detail modal ─────────────────────────────────────────────
