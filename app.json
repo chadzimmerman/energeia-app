@@ -8,18 +8,18 @@
     "scheme": "energeiaapp",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/sprites/ui-elements/grand finale/fin_plate_spring.png",
+      "image": "./assets/sprites/ui-elements/grand finale/fin_plate_summer.png",
       "resizeMode": "cover",
-      "backgroundColor": "#7aa8e3"
+      "backgroundColor": "#e8a020"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.chadzimmerman.energeia",
       "buildNumber": "7",
       "splash": {
-        "image": "./assets/sprites/ui-elements/grand finale/fin_plate_spring.png",
+        "image": "./assets/sprites/ui-elements/grand finale/fin_plate_summer.png",
         "resizeMode": "cover",
-        "backgroundColor": "#7aa8e3"
+        "backgroundColor": "#e8a020"
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -27,9 +27,9 @@
     },
     "android": {
       "splash": {
-        "image": "./assets/sprites/ui-elements/grand finale/fin_plate_spring.png",
+        "image": "./assets/sprites/ui-elements/grand finale/fin_plate_summer.png",
         "resizeMode": "cover",
-        "backgroundColor": "#7aa8e3"
+        "backgroundColor": "#e8a020"
       },
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
