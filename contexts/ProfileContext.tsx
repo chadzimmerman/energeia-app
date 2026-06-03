@@ -3,6 +3,7 @@ import { ImageSourcePropType } from "react-native";
 import { supabase } from "@/utils/supabase";
 import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
 import { BACKGROUND_COLORS, DEFAULT_BG } from "@/utils/backgroundColors";
+import { CURRENT_DATA_VERSION, runPendingMigrations } from "@/utils/migrations";
 
 export interface Profile {
   id: string;
@@ -16,6 +17,7 @@ export interface Profile {
   character_image_path: string;
   player_class: string;
   group_id: string | null;
+  data_version: number;
 }
 
 interface ProfileContextValue {
@@ -76,8 +78,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .single();
 
     if (!profileData) {
-      // No profile row — user signed up before the fix. Create a default row
-      // so onboarding can run and set their class/username.
+      // No profile row — create a default so onboarding can set class/username.
+      // New users start at CURRENT_DATA_VERSION so they skip historical migrations.
       await supabase.from("profiles").upsert({
         id: userId,
         current_health: 100,
@@ -85,6 +87,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         current_energeia: 0,
         energeia_currency: 0,
         level: 1,
+        data_version: CURRENT_DATA_VERSION,
       });
       const { data: created } = await supabase
         .from("profiles")
@@ -92,6 +95,18 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         .eq("id", userId)
         .single();
       profileData = created;
+    }
+
+    // Run any pending data migrations before using profile data.
+    // Each migration runs once per user and updates data_version when done.
+    if (profileData && (profileData.data_version ?? 0) < CURRENT_DATA_VERSION) {
+      await runPendingMigrations(userId, profileData.data_version ?? 0);
+      const { data: migrated } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      profileData = migrated;
     }
 
     if (profileData) setProfile(profileData as Profile);
