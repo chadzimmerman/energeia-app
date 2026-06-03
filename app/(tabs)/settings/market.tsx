@@ -95,6 +95,7 @@ const MarketDetailsModal: React.FC<{
   playerEnergeia: number;
   userId: string | null;
   onPurchaseSuccess: () => void;
+  onOptimisticDeduct: (newBalance: number) => void;
 }> = ({
   isVisible,
   item,
@@ -102,155 +103,148 @@ const MarketDetailsModal: React.FC<{
   playerEnergeia,
   userId,
   onPurchaseSuccess,
+  onOptimisticDeduct,
 }) => {
   if (!item) return null;
 
   const canAfford = playerEnergeia >= item.price;
 
-  const handleBuy = async () => {
+  const handleBuy = () => {
     if (item.isLocked) {
       alert("Locked: " + (item.lockedReason ?? "Complete prerequisites first."));
       return;
     }
 
-    console.log("Starting purchase...");
+    const newBalance = playerEnergeia - item.price;
+    const originalBalance = playerEnergeia;
 
-    try {
-      // 1. Add to inventory — character_set upgrades replace the existing stage row
-      //    so the inventory stays at one entry per set_group instead of accumulating.
-      if (item.display_slot === "character_set" && item.set_group) {
-        const { data: groupItems } = await supabase
-          .from("items_master")
-          .select("id")
-          .eq("set_group", item.set_group);
-        const groupIds = (groupItems ?? []).map((i: any) => i.id);
+    // Optimistic UI — update balance and dismiss immediately
+    onOptimisticDeduct(newBalance);
+    onClose();
+    alert("Purchase Successful!");
 
-        const { data: existingRow } = await supabase
-          .from("user_inventory")
-          .select("id")
-          .eq("user_id", userId)
-          .in("item_master_id", groupIds)
-          .maybeSingle();
+    // All DB work runs in the background after the user already sees success
+    (async () => {
+      try {
+        // 1. Inventory write (sequential — currency deduct depends on this)
+        if (item.display_slot === "character_set" && item.set_group) {
+          const { data: groupItems } = await supabase
+            .from("items_master")
+            .select("id")
+            .eq("set_group", item.set_group);
+          const groupIds = (groupItems ?? []).map((i: any) => i.id);
 
-        if (existingRow) {
-          const { error: updateErr } = await supabase
-            .from("user_inventory")
-            .update({ item_master_id: item.id })
-            .eq("id", existingRow.id);
-          if (updateErr) {
-            console.error("INVENTORY ERROR:", updateErr.message);
-            alert("Inventory Error: " + updateErr.message);
-            return;
-          }
-        } else {
-          const { error: insertErr } = await supabase
-            .from("user_inventory")
-            .insert({ user_id: userId, item_master_id: item.id });
-          if (insertErr) {
-            console.error("INVENTORY ERROR:", insertErr.message);
-            alert("Inventory Error: " + insertErr.message);
-            return;
-          }
-        }
-      } else {
-        const { error: invError } = await supabase
-          .from("user_inventory")
-          .insert({ user_id: userId, item_master_id: item.id });
-        if (invError) {
-          console.error("INVENTORY ERROR:", invError.message);
-          alert("Inventory Error: " + invError.message);
-          return;
-        }
-      }
-
-      console.log("Item added to inventory table.");
-
-      // 2. Deduct from currency wallet (not the XP bar)
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ energeia_currency: playerEnergeia - item.price })
-        .eq("id", userId);
-
-      if (profileError) {
-        console.error("PROFILE ERROR:", profileError.message);
-        alert("Currency Error: " + profileError.message);
-        return;
-      }
-
-      console.log("Money deducted successfully.");
-
-      // 3. Achievement grants
-      if (userId) {
-        if (item.type === "equippable") grantAchievement(userId, "first_weapon");
-        if (item.display_slot === "wall") grantAchievement(userId, "first_icon");
-
-        // Collection achievements — check if user now owns everything in a category
-        const { data: allInv } = await supabase
-          .from("user_inventory")
-          .select("item_master_id")
-          .eq("user_id", userId);
-        const ownedIds = new Set((allInv ?? []).map((r: any) => r.item_master_id));
-        ownedIds.add(item.id); // include the just-purchased item
-
-        // all_icons: own every wall-slot item
-        const { data: allIcons } = await supabase.from("items_master").select("id").eq("display_slot", "wall");
-        if (allIcons && allIcons.length > 0 && allIcons.every((i: any) => ownedIds.has(i.id)))
-          grantAchievement(userId, "all_icons");
-
-        // all_items: own every market item
-        const { data: allItems } = await supabase.from("items_master").select("id").eq("is_in_market", true);
-        if (allItems && allItems.length > 0 && allItems.every((i: any) => ownedIds.has(i.id)))
-          grantAchievement(userId, "all_items");
-
-        // Seasonal gear achievements
-        const seasonMap: Record<string, string> = {
-          "Winter (Dec–Feb)": "all_winter_gear",
-          "Spring (Mar–May)": "all_spring_gear",
-          "Summer (Jun–Aug)": "all_summer_gear",
-          "Autumn (Sep–Nov)": "all_autumn_gear",
-        };
-        for (const [season, achievementId] of Object.entries(seasonMap)) {
-          const { data: seasonItems } = await supabase.from("items_master").select("id").eq("season", season);
-          if (seasonItems && seasonItems.length > 0 && seasonItems.every((i: any) => ownedIds.has(i.id)))
-            grantAchievement(userId, achievementId);
-        }
-
-        // all_year_gear: own every seasonal item across all seasons
-        const { data: allSeasonalItems } = await supabase.from("items_master").select("id").not("season", "is", null);
-        if (allSeasonalItems && allSeasonalItems.length > 0 && allSeasonalItems.every((i: any) => ownedIds.has(i.id)))
-          grantAchievement(userId, "all_year_gear");
-      }
-
-      // 4. Auto-grant Default Room when buying a background for the first time
-      if (item.display_slot === "character_background") {
-        const { data: defaultRoom } = await supabase
-          .from("items_master")
-          .select("id")
-          .eq("image_path", "bg-grey")
-          .maybeSingle();
-        if (defaultRoom) {
-          const { data: alreadyOwns } = await supabase
+          const { data: existingRow } = await supabase
             .from("user_inventory")
             .select("id")
             .eq("user_id", userId)
-            .eq("item_master_id", defaultRoom.id)
+            .in("item_master_id", groupIds)
             .maybeSingle();
-          if (!alreadyOwns) {
-            await supabase
+
+          if (existingRow) {
+            const { error } = await supabase
               .from("user_inventory")
-              .insert({ user_id: userId, item_master_id: defaultRoom.id });
+              .update({ item_master_id: item.id })
+              .eq("id", existingRow.id);
+            if (error) throw error;
+          } else {
+            const { error } = await supabase
+              .from("user_inventory")
+              .insert({ user_id: userId, item_master_id: item.id });
+            if (error) throw error;
+          }
+        } else {
+          const { error } = await supabase
+            .from("user_inventory")
+            .insert({ user_id: userId, item_master_id: item.id });
+          if (error) throw error;
+        }
+
+        // 2. Currency deduct (sequential — must follow successful inventory write)
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ energeia_currency: newBalance })
+          .eq("id", userId);
+        if (profileError) throw profileError;
+
+        // 3. Achievement checks — all 8 queries fire simultaneously
+        if (userId) {
+          if (item.type === "equippable") grantAchievement(userId, "first_weapon");
+          if (item.display_slot === "wall") grantAchievement(userId, "first_icon");
+
+          const [
+            invResult,
+            allIconsResult,
+            allItemsResult,
+            winterResult,
+            springResult,
+            summerResult,
+            autumnResult,
+            allSeasonalResult,
+          ] = await Promise.all([
+            supabase.from("user_inventory").select("item_master_id").eq("user_id", userId),
+            supabase.from("items_master").select("id").eq("display_slot", "wall"),
+            supabase.from("items_master").select("id").eq("is_in_market", true),
+            supabase.from("items_master").select("id").eq("season", "Winter (Dec–Feb)"),
+            supabase.from("items_master").select("id").eq("season", "Spring (Mar–May)"),
+            supabase.from("items_master").select("id").eq("season", "Summer (Jun–Aug)"),
+            supabase.from("items_master").select("id").eq("season", "Autumn (Sep–Nov)"),
+            supabase.from("items_master").select("id").not("season", "is", null),
+          ]);
+
+          const ownedIds = new Set([
+            ...(invResult.data ?? []).map((r: any) => r.item_master_id),
+            item.id,
+          ]);
+
+          if (allIconsResult.data?.length && allIconsResult.data.every((i: any) => ownedIds.has(i.id)))
+            grantAchievement(userId, "all_icons");
+          if (allItemsResult.data?.length && allItemsResult.data.every((i: any) => ownedIds.has(i.id)))
+            grantAchievement(userId, "all_items");
+
+          const seasonChecks = [
+            { data: winterResult.data,  id: "all_winter_gear" },
+            { data: springResult.data,  id: "all_spring_gear" },
+            { data: summerResult.data,  id: "all_summer_gear" },
+            { data: autumnResult.data,  id: "all_autumn_gear" },
+          ];
+          for (const { data, id } of seasonChecks) {
+            if (data?.length && data.every((i: any) => ownedIds.has(i.id)))
+              grantAchievement(userId, id);
+          }
+
+          if (allSeasonalResult.data?.length && allSeasonalResult.data.every((i: any) => ownedIds.has(i.id)))
+            grantAchievement(userId, "all_year_gear");
+        }
+
+        // 4. Auto-grant Default Room when buying a background for the first time
+        if (item.display_slot === "character_background") {
+          const { data: defaultRoom } = await supabase
+            .from("items_master")
+            .select("id")
+            .eq("image_path", "bg-grey")
+            .maybeSingle();
+          if (defaultRoom) {
+            const { data: alreadyOwns } = await supabase
+              .from("user_inventory")
+              .select("id")
+              .eq("user_id", userId)
+              .eq("item_master_id", defaultRoom.id)
+              .maybeSingle();
+            if (!alreadyOwns) {
+              await supabase.from("user_inventory").insert({ user_id: userId, item_master_id: defaultRoom.id });
+            }
           }
         }
-      }
 
-      // 5. Success
-      onPurchaseSuccess();
-      onClose();
-      alert("Purchase Successful!");
-    } catch (err: any) {
-      console.error("CATCH ERROR:", err);
-      alert("System Error: " + err.message);
-    }
+        // 5. Refresh market to sync real DB state
+        onPurchaseSuccess();
+      } catch (err: any) {
+        // Revert the optimistic balance update and inform the user
+        onOptimisticDeduct(originalBalance);
+        alert("Purchase Failed: " + err.message);
+      }
+    })();
   };
 
   return (
@@ -836,6 +830,7 @@ export default function MarketScreen() {
         onPurchaseSuccess={() => {
           if (userId) fetchMarketData(userId);
         }}
+        onOptimisticDeduct={(nb) => setPlayerEnergeia(nb)}
       />
     </ThemedView>
   );
