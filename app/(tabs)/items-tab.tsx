@@ -378,7 +378,8 @@ export default function ItemsTabScreen() {
       data.forEach((record) => {
         const itemMaster = record.item as any;
         if (!itemMaster) return;
-        if (itemMaster.type === "animal") return; // animals live in the Stable, not inventory
+        if (itemMaster.type === "animal") return;
+        if (itemMaster.display_slot === "character_background") return;
 
         const itemId = itemMaster.id;
 
