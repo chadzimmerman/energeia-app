@@ -719,6 +719,7 @@ export default function MarketScreen() {
       const availableItems = (items ?? [])
         .filter((item: any) => !(item.is_unique && ownedIds.includes(item.id)))
         .filter((item: any) => !(item.image_path === "scroll-of-undoing" && playerLevel < 100))
+        .filter((item: any) => item.display_slot !== "character_background")
         .map((item: any) => toMarketItem(item, false));
       setSeasonalItems(availableItems.filter((i) => i.season === currentSeasonLabel && !i.isSubscriberOnly));
       setRegularItems(availableItems.filter((i) => !i.season && !i.isSubscriberOnly));

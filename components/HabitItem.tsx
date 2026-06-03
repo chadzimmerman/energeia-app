@@ -1,10 +1,8 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useRef, useState } from "react";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import * as Haptics from "expo-haptics";
 
-// Define the Habit data structure based on the new SQL table
-// This interface describes the DATA object only.
 interface Habit {
   id: string;
   title: string;
@@ -15,8 +13,6 @@ interface Habit {
   reset_frequency: string;
 }
 
-// Define the Props for the HabitItem component.
-// This interface correctly combines the habit data object with the onScore function prop.
 interface HabitItemProps {
   habit: Habit;
   onScore: (habitId: string, direction: "up" | "down") => void;
@@ -25,59 +21,88 @@ interface HabitItemProps {
   isActive: boolean;
 }
 
-/**
- * Maps the habit's streak_level to a color based on the Habitica style:
- * Red (negative streak) -> Yellow (neutral/starting) -> Green (positive streak)
- * @param streakLevel The streak_level integer from the database.
- * @returns A hex color string.
- */
 const getStreakColor = (streakLevel: number): string => {
-  if (streakLevel >= 7) return "#4A90D9"; // Blue  — strong streak (7+ days)
-  if (streakLevel >= 1) return "#4CAF50"; // Green — active streak
-  if (streakLevel === 0) return "#F4D35E"; // Yellow — neutral
-  return "#E85A4F";                        // Red   — negative streak
+  if (streakLevel >= 7) return "#4A90D9";
+  if (streakLevel >= 1) return "#4CAF50";
+  if (streakLevel === 0) return "#F4D35E";
+  return "#E85A4F";
 };
 
-// Use the new HabitItemProps interface here
 const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isActive }) => {
   const buttonColor = getStreakColor(habit.streak_level);
 
+  // Plus floater
+  const plusFloatY = useRef(new Animated.Value(0)).current;
+  const plusFloatX = useRef(new Animated.Value(0)).current;
+  const plusOpacity = useRef(new Animated.Value(0)).current;
+  const [showPlus, setShowPlus] = useState(false);
+
+  // Minus floater
+  const minusFloatY = useRef(new Animated.Value(0)).current;
+  const minusFloatX = useRef(new Animated.Value(0)).current;
+  const minusOpacity = useRef(new Animated.Value(0)).current;
+  const [showMinus, setShowMinus] = useState(false);
+
+  const triggerFloat = (
+    floatY: Animated.Value,
+    floatX: Animated.Value,
+    opacity: Animated.Value,
+    setShow: (v: boolean) => void,
+  ) => {
+    const xDrift = (Math.random() - 0.5) * 18; // ±9px horizontal wander
+    const yEnd  = -44 - Math.random() * 20;    // -44 to -64px vertical rise
+
+    floatY.setValue(0);
+    floatX.setValue(0);
+    opacity.setValue(1);
+    setShow(true);
+    Animated.parallel([
+      Animated.timing(floatY,   { toValue: yEnd,   duration: 900, useNativeDriver: true }),
+      Animated.timing(floatX,   { toValue: xDrift, duration: 900, useNativeDriver: true }),
+      Animated.sequence([
+        Animated.delay(400),
+        Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]),
+    ]).start(() => setShow(false));
+  };
+
   return (
     <View style={[styles.cardWrapper, isActive && styles.cardActive]}>
-      {/* Drag handle — press and hold to reorder */}
+      {/* Drag handle */}
       <TouchableOpacity onPressIn={drag} style={styles.dragHandle}>
         <FontAwesome name="bars" size={14} color="#CCCCCC" />
       </TouchableOpacity>
-      {/* 1. Negative Button (Far Left) */}
+
+      {/* Minus button + floater */}
       {habit.is_negative && (
-        <TouchableOpacity
-          style={[
-            styles.scoreButton,
-            styles.leftButton,
-            { backgroundColor: buttonColor },
-          ]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onScore(habit.id, "down");
-          }}
-        >
-          <FontAwesome name="minus" size={20} color="#fff" />
-        </TouchableOpacity>
+        <>
+          {showMinus && (
+            <Animated.View
+              style={[
+                styles.floater,
+                styles.floaterLeft,
+                { transform: [{ translateY: minusFloatY }, { translateX: minusFloatX }], opacity: minusOpacity },
+              ]}
+            >
+              <FontAwesome name="flash" size={16} color="#E85A4F" />
+            </Animated.View>
+          )}
+          <TouchableOpacity
+            style={[styles.scoreButton, styles.leftButton, { backgroundColor: buttonColor }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              triggerFloat(minusFloatY, minusFloatX, minusOpacity, setShowMinus);
+              onScore(habit.id, "down");
+            }}
+          >
+            <FontAwesome name="minus" size={20} color="#fff" />
+          </TouchableOpacity>
+        </>
       )}
 
-      {/* 2. Flexible Text Container (Middle) 
-        CRITICAL CHANGE: Use a TouchableOpacity here and apply the onEdit prop.
-        It will fill the available space between the score buttons.
-      */}
-      <TouchableOpacity
-        style={styles.textContainer}
-        onPress={() => onEdit(habit)} // Apply the onEdit handler
-        activeOpacity={0.7} // Optional: Gives feedback when touching
-      >
-        <Text style={styles.title} numberOfLines={1}>
-          {habit.title}
-        </Text>
-        {/* Streak counter — only shown when streak is active */}
+      {/* Title */}
+      <TouchableOpacity style={styles.textContainer} onPress={() => onEdit(habit)} activeOpacity={0.7}>
+        <Text style={styles.title} numberOfLines={1}>{habit.title}</Text>
         {habit.streak_level > 0 && (
           <Text style={styles.streakText}>
             {habit.streak_level} {habit.reset_frequency === "Weekly" ? "week" : habit.reset_frequency === "Monthly" ? "month" : "day"} streak
@@ -85,36 +110,37 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isA
         )}
       </TouchableOpacity>
 
-      {/* 3. Positive Button (Far Right) */}
+      {/* Plus button + floater */}
       {habit.is_positive && (
-        <TouchableOpacity
-          style={[
-            styles.scoreButton,
-            styles.rightButton,
-            { backgroundColor: buttonColor },
-          ]}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onScore(habit.id, "up");
-          }}
-        >
-          <FontAwesome name="plus" size={20} color="#fff" />
-        </TouchableOpacity>
+        <>
+          {showPlus && (
+            <Animated.View
+              style={[
+                styles.floater,
+                styles.floaterRight,
+                { transform: [{ translateY: plusFloatY }, { translateX: plusFloatX }], opacity: plusOpacity },
+              ]}
+            >
+              <FontAwesome name="flash" size={16} color="#FFD700" />
+            </Animated.View>
+          )}
+          <TouchableOpacity
+            style={[styles.scoreButton, styles.rightButton, { backgroundColor: buttonColor }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              triggerFloat(plusFloatY, plusFloatX, plusOpacity, setShowPlus);
+              onScore(habit.id, "up");
+            }}
+          >
+            <FontAwesome name="plus" size={20} color="#fff" />
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );
 };
 
-// Fallback for Colors object if not present in the project structure
-const fallbackColors = {
-  red: "#E85A4F",
-  yellow: "#F4D35E",
-  green: "#4CAF50",
-  light: { tint: "#A737FD" },
-};
-
 const styles = StyleSheet.create({
-  // New wrapper style to contain the whole card. Renamed from 'card' to 'cardWrapper'.
   cardWrapper: {
     flexDirection: "row",
     alignItems: "center",
@@ -130,12 +156,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 3,
+    overflow: "visible",
   },
-  // textContainer is now a TouchableOpacity, but its styles remain the same for layout
   textContainer: {
     flex: 1,
     width: 0,
-    // CRITICAL: This padding creates the necessary space between the text and the buttons.
     paddingHorizontal: 15,
   },
   title: {
@@ -177,6 +202,18 @@ const styles = StyleSheet.create({
   rightButton: {
     marginRight: 15,
     marginLeft: 0,
+  },
+  floater: {
+    position: "absolute",
+    top: 8,
+    zIndex: 100,
+    pointerEvents: "none",
+  },
+  floaterLeft: {
+    left: 16,
+  },
+  floaterRight: {
+    right: 23,
   },
 });
 
