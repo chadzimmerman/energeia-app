@@ -2,7 +2,6 @@ import { supabase } from "@/utils/supabase";
 import { grantAchievement } from "@/utils/grantAchievement";
 import { useProfile } from "@/contexts/ProfileContext";
 import { getSeasonalColor } from "@/utils/seasons";
-const seasonColor = getSeasonalColor();
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -20,11 +19,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+const seasonColor = getSeasonalColor();
 
 // ── Local animal image map ────────────────────────────────────────────────────
 // Metro requires static require() paths — add new animals here as art is added.
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const ANIMAL_IMAGE_MAP: Record<string, ImageSourcePropType> = {
   hen:      require("../../../assets/sprites/animals/new_animals/hen.png"),
   bear_cub: require("../../../assets/sprites/animals/new_animals/bear_cub.png"),
@@ -169,6 +169,7 @@ const AnimalModal: React.FC<{
       setNameInput(animal.customPetName ?? animal.defaultPetName);
       setIsEditingName(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [animal?.inventoryId]);
 
   if (!animal) return null;

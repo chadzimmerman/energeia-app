@@ -2,8 +2,6 @@ import { Text, View } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
 import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
-const seasonColor = getSeasonalColor();
-const seasonDarkColor = getSeasonalDarkColor();
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
@@ -15,6 +13,8 @@ import {
   TextInput,
   TouchableOpacity,
 } from "react-native";
+const seasonColor = getSeasonalColor();
+const seasonDarkColor = getSeasonalDarkColor();
 
 interface Habit {
   id: string;

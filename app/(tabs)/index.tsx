@@ -510,7 +510,7 @@ export default function HabitScreen() {
       if (habitFetchError || !habitData)
         throw habitFetchError || new Error("Habit not found.");
 
-      const { is_positive, is_negative, streak_level, difficulty, reset_frequency } = habitData;
+      const { streak_level, difficulty, reset_frequency } = habitData;
 
       // 2. Compute today's date key (reused for both the streak check and the log upsert)
       const now = new Date();

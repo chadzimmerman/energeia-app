@@ -3,7 +3,7 @@ import { ImageSourcePropType } from "react-native";
 // ── Local item image map ──────────────────────────────────────────────────────
 // Store the image_path DB key as the record key (no extension).
 // Metro requires static require() paths — add new items here as art arrives.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const PLACEHOLDER = require("../assets/sprites/items/item-placeholder.png");
 
 const ITEM_IMAGE_MAP: Record<string, ImageSourcePropType> = {
@@ -56,7 +56,7 @@ const ITEM_IMAGE_MAP: Record<string, ImageSourcePropType> = {
   // ── Spring 2026 seasonal items ────────────────────────────────────────────
   "spring-kokoshnik-2026":    require("../assets/sprites/items/spring-kokoshnik-2026.png"),
   "temp-princess-spring-dress": require("../assets/sprites/items/temp-princess-spring-dress.png"),
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   "temp-spring-monk-stole":   require("../assets/sprites/items/temp-spring-20266-monk-Stole-of-the Life-Giver.png"),
   "temp-spring-shield-2026":  require("../assets/sprites/items/temp-spring-shield-2026.png"),
 };

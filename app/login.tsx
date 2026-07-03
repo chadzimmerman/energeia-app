@@ -1,9 +1,6 @@
 import { supabase } from "@/utils/supabase";
 import { getSeasonalColor, getSeasonalDarkColor, getLoginBackground } from "@/utils/seasons";
 import React, { useState } from "react";
-
-const seasonColor = getSeasonalColor();
-const seasonDarkColor = getSeasonalDarkColor();
 import {
   ActivityIndicator,
   ImageBackground,
@@ -15,6 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+const seasonColor = getSeasonalColor();
+const seasonDarkColor = getSeasonalDarkColor();
 
 export default function LoginScreen() {
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");

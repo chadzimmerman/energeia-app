@@ -4,10 +4,6 @@ import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { useProfile } from "@/contexts/ProfileContext";
 import { getSeasonalColor, getCurrentSeason } from "@/utils/seasons";
 import TutorialOverlay, { resetTutorial } from "@/components/TutorialOverlay";
-
-const seasonColor = getSeasonalColor();
-const currentSeason = getCurrentSeason();
-const seasonBadgeLabel = currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1);
 import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -21,6 +17,10 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from "react-native";
+
+const seasonColor = getSeasonalColor();
+const currentSeason = getCurrentSeason();
+const seasonBadgeLabel = currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1);
 // --- EXPORT THE STACK OPTIONS HERE ---
 export const options = {
   title: "Settings",

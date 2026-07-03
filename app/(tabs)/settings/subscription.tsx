@@ -1,7 +1,6 @@
 import { supabase } from "@/utils/supabase";
 import { getSeasonalColor } from "@/utils/seasons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-const seasonColor = getSeasonalColor();
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+const seasonColor = getSeasonalColor();
 
 interface SubscriptionProfile {
   is_subscriber: boolean;

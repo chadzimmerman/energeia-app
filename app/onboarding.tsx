@@ -13,6 +13,8 @@ import {
   View,
 } from "react-native";
 
+import { getSeasonalColor } from "@/utils/seasons";
+
 type Gender = "male" | "female";
 type PlayerClass = "Monk" | "Fighter" | "Noble";
 
@@ -201,8 +203,6 @@ export default function OnboardingScreen() {
     </ScrollView>
   );
 }
-
-import { getSeasonalColor } from "@/utils/seasons";
 const PURPLE = getSeasonalColor();
 
 const styles = StyleSheet.create({

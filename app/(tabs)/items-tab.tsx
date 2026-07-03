@@ -62,34 +62,7 @@ const cardSize = (screenWidth - 20 * 3) / 2; // 20px padding on left, right, and
 
 // --- UTILITIES (CLEANED UP) ---
 
-// Map for local image paths (REQUIRED for require() calls)
-// This MUST match the paths used when inserting data into items_master
-const RawItemImagePathMap: { [key: string]: string } = {
-  "2ea753aa-484b-428a-abe2-e630007aee20":
-    "../../assets/sprites/animals/baby-bear.webp",
-  "8c86d9f2-1db2-4e11-bd21-156076c23a9f":
-    "../../assets/sprites/icons/theotokos-icon.png",
-  "9cca09c7-ba18-49b9-93cb-b4dce413159f":
-    "../../assets/sprites/items/sword.png",
-  "2301f7f7-c2fc-4a20-be2a-6b6c843de4b9":
-    "../../assets/sprites/items/warrior-helmet.png",
-  "b4fd6529-39cd-48f9-9baa-111f4487d9a4":
-    "../../assets/sprites/items/great-schema-robes.png",
-  "c3a1450e-46f3-4a88-8b1e-8d31f2086f80":
-    "../../assets/sprites/items/shield.png",
-  "0f2bdb9b-d838-4108-bf43-d93b2a07d0ed":
-    "../../assets/sprites/items/relic-skull.png",
-  "9b04e0c5-14fc-44d7-b72c-5ed9abb4c276":
-    "../../assets/sprites/items/chotki.png",
-  "63537178-f4ff-4bcd-8572-fd71244c6a24":
-    "../../assets/sprites/items/candle.png",
-  "fd803603-2861-47a9-91d7-260a108945fa":
-    "../../assets/sprites/items/philokalia.png",
-  "4390acf4-8880-4647-a540-4920f5114644":
-    "../../assets/sprites/quests/quest-scroll-temp.jpg",
-};
-
-// 🌟 FIX: Pre-resolve the image assets at compile time 🌟
+// Pre-resolve the image assets at compile time (require() calls must be static)
 const ResolvedImageSourceMap: { [key: string]: ImageSourcePropType } = {
   "2ea753aa-484b-428a-abe2-e630007aee20": require("../../assets/sprites/animals/baby-bear.webp"),
   "8c86d9f2-1db2-4e11-bd21-156076c23a9f": require("../../assets/sprites/icons/theotokos-icon.png"),
@@ -441,7 +414,7 @@ export default function ItemsTabScreen() {
     } catch (e: any) {
       console.error("Inventory Fetch Error:", e.message);
     }
-  }, []);
+  }, [profile?.character_image_path, profile?.player_class]);
 
   // --- AUTH & REFRESH (KEPT) ---
   useEffect(() => {

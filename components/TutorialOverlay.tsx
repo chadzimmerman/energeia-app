@@ -323,7 +323,7 @@ export default function TutorialOverlay({
     } else {
       overlayOpacity.setValue(0);
     }
-  }, [visible]);
+  }, [visible, overlayOpacity]);
 
   // Navigate to the step's background tab when the tab changes
   useEffect(() => {
@@ -333,7 +333,7 @@ export default function TutorialOverlay({
       router.navigate(targetRoute as any);
       prevRouteRef.current = targetRoute;
     }
-  }, [stepIndex, visible]);
+  }, [stepIndex, visible, router]);
 
   // Slide+fade the card in on each step change
   useEffect(() => {
@@ -353,7 +353,7 @@ export default function TutorialOverlay({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [stepIndex, visible]);
+  }, [stepIndex, visible, cardOpacity, cardTranslate]);
 
   // Pulse the spotlight ring — restart whenever the step changes
   useEffect(() => {
@@ -401,7 +401,7 @@ export default function TutorialOverlay({
     return () => {
       pulseLoop.current?.stop();
     };
-  }, [stepIndex, visible]);
+  }, [stepIndex, visible, pulseOpacity, pulseScale, step.spotlight]);
 
   const goNext = () => {
     triggerJump();

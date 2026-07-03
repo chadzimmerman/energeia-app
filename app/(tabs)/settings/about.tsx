@@ -1,7 +1,6 @@
 import { Text, View } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
 import { getSeasonalColor } from "@/utils/seasons";
-const seasonColor = getSeasonalColor();
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +15,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import React, { useState } from "react";
+const seasonColor = getSeasonalColor();
 
 const ABOUT_DATA = [
   {
