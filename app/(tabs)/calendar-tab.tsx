@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { getSeasonalColor } from "@/utils/seasons";
-const seasonColor = getSeasonalColor();
+import { getSeasonalColor , getSeasonalBackground } from "@/utils/seasons";
 import {
   Dimensions,
   Modal,
@@ -19,13 +18,13 @@ import CharacterStats from "@/components/CharacterStats";
 import { View as ThemedView } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
-import { getSeasonalBackground } from "@/utils/seasons";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { recomputeStreak } from "@/utils/recomputeStreak";
 import { useProfile } from "@/contexts/ProfileContext";
 import { hasTutorialBeenSeen } from "@/components/TutorialOverlay";
 import { useFocusEffect } from "expo-router";
 import DailyLogModal from "../calendar-modal";
+const seasonColor = getSeasonalColor();
 
 const buildTutorialMockLogs = (): { [key: string]: { status: HabitStatus; notes: string } } => {
   const now = new Date();
@@ -77,9 +76,6 @@ const STATUS_COLORS = {
 };
 
 
-
-const DEFAULT_IMAGE_PATH =
-  "../../assets/sprites/characters/monk/novice-monk-male.png";
 
 // --- UTILITY FUNCTIONS ---
 
@@ -142,8 +138,6 @@ const DayCell: React.FC<DayCellProps> = ({
     return <View style={calendarStyles.dayCellBlank} />;
   }
 
-  // Format key to match mock data (e.g., '2026-3-15')
-  const dateKey = `${year}-${month + 1}-${day}`;
   const color = STATUS_COLORS[status];
 
   // Convert day/month/year to a full Date object
@@ -296,23 +290,7 @@ const HabitTrackerSection: React.FC<{ title: string; onPress: () => void }> = ({
 // DAILY LOG MODAL COMPONENT (Embedded for single-file fix)
 // ----------------------------------------------------------------------
 
-// Habit Status/Color Constants for Modal
-const STATUS_OPTIONS: { label: string; status: HabitStatus; color: string }[] =
-  [
-    { label: "Successful", status: "green", color: "#2ECC71" },
-    { label: "Partial/Difficult", status: "orange", color: "#E67E22" },
-    { label: "Missed/Failed", status: "red", color: "#E74C3C" },
-    { label: "Untracked (Reset)", status: "grey", color: "#B0BEC5" },
-  ];
 
-interface DailyLogModalProps {
-  isVisible: boolean;
-  onClose: () => void;
-  date: Date | null;
-  initialStatus: HabitStatus;
-  habitTitle: string;
-  onSave: (status: HabitStatus, notes: string, logDate: Date) => void;
-}
 
 // --- MAIN TAB SCREEN ---
 
@@ -369,6 +347,7 @@ export default function CalendarTabScreen() {
     if (selectedHabit) {
       fetchLogs();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedHabit]); // This runs every time you "Tap to change" a habit
 
   //handles save logs

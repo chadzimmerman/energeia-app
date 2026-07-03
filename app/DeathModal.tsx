@@ -1,6 +1,5 @@
 import React from "react";
 import { getSeasonalColor } from "@/utils/seasons";
-const seasonColor = getSeasonalColor();
 import {
   Dimensions,
   Image,
@@ -11,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+const seasonColor = getSeasonalColor();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ANGEL IMAGES — drop your 9:16 portrait art here:

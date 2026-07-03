@@ -136,7 +136,7 @@ function RootLayoutNav({ initialSession }: { initialSession: Session | null }) {
     } else if (session && inLoginScreen) {
       router.replace('/(tabs)');
     }
-  }, [session, segments, navigationState?.key]);
+  }, [session, segments, navigationState?.key, router]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

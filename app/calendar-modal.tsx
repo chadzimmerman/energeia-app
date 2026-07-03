@@ -1,8 +1,5 @@
 import { Text } from "@/components/Themed";
 import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
-
-const seasonColor = getSeasonalColor();
-const seasonDarkColor = getSeasonalDarkColor();
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import React, { useEffect, useState } from "react";
 import {
@@ -14,6 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+const seasonColor = getSeasonalColor();
+const seasonDarkColor = getSeasonalDarkColor();
 
 type HabitStatus = "green" | "orange" | "red" | "grey";
 

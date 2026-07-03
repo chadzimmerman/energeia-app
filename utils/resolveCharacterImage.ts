@@ -15,58 +15,58 @@ import { ImageSourcePropType } from 'react-native';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Placeholders (swap these out as art is ready) ──────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const MALE_PLACEHOLDER   = require('../assets/sprites/characters/genders/base-male.png');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+ 
 const FEMALE_PLACEHOLDER = require('../assets/sprites/characters/genders/princess-base.png');
 
 const CHARACTER_IMAGE_MAP: Record<string, ImageSourcePropType> = {
 
   // ── Monk ──────────────────────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   monk_male_young:   require('../assets/sprites/characters/characters_final/monk guy/vanilla monk boy no cross.png'),
   monk_male_adult:   MALE_PLACEHOLDER,
   monk_male_elder:   MALE_PLACEHOLDER,
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   monk_female_young: require('../assets/sprites/characters/characters_final/nun girl/nun girl_vanilla 3.png'),
   monk_female_adult: FEMALE_PLACEHOLDER,
   monk_female_elder: FEMALE_PLACEHOLDER,
 
   // ── Fighter ───────────────────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   fighter_male_young:   require('../assets/sprites/characters/characters_final/fighter boy/vanilla fighter boy.png'),
   fighter_male_adult:   MALE_PLACEHOLDER,
   fighter_male_elder:   MALE_PLACEHOLDER,
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   fighter_female_young: require('../assets/sprites/characters/characters_final/warrior girl/fighter girl_vanilla.png'),
   fighter_female_adult: FEMALE_PLACEHOLDER,
   fighter_female_elder: FEMALE_PLACEHOLDER,
 
   // ── Noble ─────────────────────────────────────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   noble_male_young:   require('../assets/sprites/characters/characters_final/fighter boy/vanilla fighter boy.png'),
   noble_male_adult:   MALE_PLACEHOLDER,
   noble_male_elder:   MALE_PLACEHOLDER,
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   noble_female_young: require('../assets/sprites/characters/characters_final/noble girl/noble girl_vanilla.png'),
   noble_female_adult: FEMALE_PLACEHOLDER,
   noble_female_elder: FEMALE_PLACEHOLDER,
 
   // ── Base keys (fallback, no level suffix) ─────────────────────────────────
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   monk_male:    require('../assets/sprites/characters/characters_final/monk guy/vanilla monk boy no cross.png'),
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   monk_female:  require('../assets/sprites/characters/characters_final/nun girl/nun girl_vanilla 3.png'),
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   fighter_male:    require('../assets/sprites/characters/characters_final/fighter boy/vanilla fighter boy.png'),
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   fighter_female:  require('../assets/sprites/characters/characters_final/warrior girl/fighter girl_vanilla.png'),
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   noble_male:    require('../assets/sprites/characters/characters_final/fighter boy/vanilla fighter boy.png'),
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   noble_female:  require('../assets/sprites/characters/characters_final/noble girl/noble girl_vanilla.png'),
 };
 
