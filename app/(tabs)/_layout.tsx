@@ -23,7 +23,7 @@ export default function TabLayout() {
     <ProfileProvider>
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
+        tabBarActiveTintColor: Colors[colorScheme === "dark" ? "dark" : "light"].tint,
         tabBarShowLabel: false,
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
@@ -42,7 +42,7 @@ export default function TabLayout() {
                   <FontAwesome
                     name="plus"
                     size={25}
-                    color={Colors[colorScheme ?? "light"].tabIconDefault}
+                    color={Colors[colorScheme === "dark" ? "dark" : "light"].tabIconDefault}
                     style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
                   />
                 )}
