@@ -161,12 +161,15 @@ const AnimalModal: React.FC<{
   onEquipSuccess: () => void;
 }> = ({ visible, animal, playerEnergeia, userId, allAnimalItemIds, onClose, onPurchaseSuccess, onEquipSuccess }) => {
   const [nameInput, setNameInput] = useState("");
+  const [savedName, setSavedName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
 
   useEffect(() => {
     if (animal) {
-      setNameInput(animal.customPetName ?? animal.defaultPetName);
+      const initial = animal.customPetName ?? animal.defaultPetName;
+      setNameInput(initial);
+      setSavedName(initial);
       setIsEditingName(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -259,10 +262,12 @@ const AnimalModal: React.FC<{
     if (!animal.inventoryId) return;
     setIsSavingName(true);
     try {
+      const trimmed = nameInput.trim();
       await supabase
         .from("user_inventory")
-        .update({ pet_name: nameInput.trim() || null })
+        .update({ pet_name: trimmed || null })
         .eq("id", animal.inventoryId);
+      setSavedName(trimmed || animal.defaultPetName);
       setIsEditingName(false);
       onEquipSuccess();
     } catch (e: any) {
@@ -305,7 +310,7 @@ const AnimalModal: React.FC<{
                   <TouchableOpacity onPress={handleSaveName} disabled={isSavingName} style={{ padding: 4 }}>
                     <FontAwesome name="check" size={20} color="#2ECC71" />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => { setIsEditingName(false); setNameInput(animal.customPetName ?? animal.defaultPetName); }} style={{ padding: 4 }}>
+                  <TouchableOpacity onPress={() => { setIsEditingName(false); setNameInput(savedName); }} style={{ padding: 4 }}>
                     <FontAwesome name="times" size={20} color="#E74C3C" />
                   </TouchableOpacity>
                 </View>

@@ -7,7 +7,7 @@ import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemI
 import BgColorSwatch from "@/components/BgColorSwatch";
 import { useProfile } from "@/contexts/ProfileContext";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -392,29 +392,34 @@ export default function ItemsTabScreen() {
         }
       });
 
-      // Compute usability and sort: equipped → usable → unusable
-      const playerClass = profile?.player_class?.toLowerCase() ?? null;
-      const pathParts = (profile?.character_image_path ?? "").split("_");
-      const playerGender = pathParts[pathParts.length - 1] === "female" ? "female" : "male";
-
-      const sorted = Object.values(groupedItems)
-        .map((item) => ({
-          ...item,
-          isUsable:
-            (!item.requiredClass || !playerClass || item.requiredClass.toLowerCase() === playerClass) &&
-            (!item.requiredGender || item.requiredGender === playerGender),
-        }))
-        .sort((a, b) => {
-          const rank = (i: Item) => (i.is_equipped ? 2 : i.isUsable ? 1 : 0);
-          return rank(b) - rank(a);
-        });
-
-      setInventory(sorted);
+      // Store raw items; usability + sort is derived from the live profile
+      // in a useMemo so it stays correct even if the profile loads after this fetch.
+      setInventory(Object.values(groupedItems));
       // --- GROUPING LOGIC END ---
     } catch (e: any) {
       console.error("Inventory Fetch Error:", e.message);
     }
-  }, [profile?.character_image_path, profile?.player_class]);
+  }, []);
+
+  // Derive usability + sort from the live profile so the list stays correct
+  // regardless of whether the profile loaded before or after the fetch.
+  const sortedInventory = useMemo(() => {
+    const playerClass = profile?.player_class?.toLowerCase() ?? null;
+    const pathParts = (profile?.character_image_path ?? "").split("_");
+    const playerGender = pathParts[pathParts.length - 1] === "female" ? "female" : "male";
+
+    return inventory
+      .map((item) => ({
+        ...item,
+        isUsable:
+          (!item.requiredClass || !playerClass || item.requiredClass.toLowerCase() === playerClass) &&
+          (!item.requiredGender || item.requiredGender === playerGender),
+      }))
+      .sort((a, b) => {
+        const rank = (i: Item) => (i.is_equipped ? 2 : i.isUsable ? 1 : 0);
+        return rank(b) - rank(a);
+      });
+  }, [inventory, profile?.player_class, profile?.character_image_path]);
 
   // --- AUTH & REFRESH (KEPT) ---
   useEffect(() => {
@@ -710,7 +715,7 @@ export default function ItemsTabScreen() {
       {/* 2. Item Grid (Passing live inventory and currency) */}
       <ItemGrid
         onSelectItem={handleSelectItem}
-        inventory={inventory}
+        inventory={sortedInventory}
         playerEnergeia={profile.energeia_currency}
       />
 
