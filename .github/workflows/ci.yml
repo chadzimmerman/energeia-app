@@ -1,29 +1,31 @@
 name: CI
 
 on:
-  push:
-    branches: [development]
   pull_request:
-    branches: [development]
+    branches: [development, main]
+  push:
+    branches: [development, main]
 
 jobs:
-  checks:
-    name: Type Check & Lint
+  check:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
-          cache: "npm"
+          node-version: 20
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      # `npm ci` runs the postinstall patch-package step, so patched modules are
+      # applied here exactly as they are locally.
+      - run: npm ci
 
-      - name: TypeScript
+      - name: Typecheck
         run: npm run typecheck
 
-      - name: ESLint
+      - name: Lint
         run: npm run lint
+
+      - name: Test
+        run: npm test -- --ci --coverage

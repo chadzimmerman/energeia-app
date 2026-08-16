@@ -13,7 +13,7 @@ module.exports = defineConfig([
   },
   {
     // Jest globals for test files
-    files: ["**/__tests__/**/*", "**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+    files: ["**/__tests__/**/*", "**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx", "jest.setup.js"],
     languageOptions: {
       globals: {
         it: "readonly",

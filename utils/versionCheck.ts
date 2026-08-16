@@ -1,7 +1,14 @@
 import * as Application from "expo-application";
 import { supabase } from "./supabase";
 
-const isVersionAtLeast = (current: string, minimum: string): boolean => {
+/**
+ * Compares dotted versions numerically, so 1.10.0 beats 1.9.0. A string compare
+ * gets that backwards, which is the classic way a version gate locks out the
+ * newest build instead of the oldest.
+ *
+ * Exported for tests only.
+ */
+export const isVersionAtLeast = (current: string, minimum: string): boolean => {
   const parse = (v: string) => v.split(".").map(Number);
   const [cMaj, cMin, cPat] = parse(current);
   const [mMaj, mMin, mPat] = parse(minimum);
