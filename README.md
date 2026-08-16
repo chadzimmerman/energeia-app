@@ -42,7 +42,9 @@ choices earned.
 | **Backend** | 13 Postgres tables on Supabase, row level security on every one |
 | **Art pipeline** | 171 pixel-art sprites, statically resolved for the bundler |
 | **Platform** | Expo SDK 55, React 19.2, React Native 0.83 |
-| **Built by** | One engineer, 69 commits, ESLint clean |
+| **Tests** | 118 across 8 suites. 98% statement coverage on the logic layer |
+| **CI** | Typecheck, lint, and tests on every pull request |
+| **Built by** | One engineer, 70 commits, ESLint clean |
 
 ---
 
@@ -163,6 +165,40 @@ policies, and a user reaches only their own rows.
 
 Server-authoritative grants follow from that. `grantAchievement` writes to
 `user_achievements` under policy rather than trusting a client-side check.
+
+### Testing the part that can be wrong quietly
+
+The logic layer carries 118 tests. The streak engine alone has 36, because it is
+the function most able to be wrong without anyone noticing: a miscounted streak
+looks to a user like the app forgot their progress, and there is no error to
+report.
+
+Making it testable took one refactor. `recomputeStreak` queried the database
+itself and read `new Date()` internally, so it could only be exercised against
+live data on whatever day the test ran. The walk is now pure, takes an injected
+clock, and the I/O stays in the wrapper:
+
+```ts
+computeStreak(logMap: LogMap, resetFrequency: ResetFrequency, today: Date): number
+```
+
+The injected clock is not a style preference. The weekly branch rewinds to
+Monday, so a suite that read the system clock would pass on Tuesday and fail on
+Sunday.
+
+Coverage is deliberately uneven. Pure logic is at 98%, and screens are not
+covered yet. Tests earn their place by catching bugs, and the bugs in this app
+live in date arithmetic, fallback paths, and the boundary between an app update
+and a user's existing rows. A test roadmap for the remaining tiers is in
+[docs/TESTING.md](docs/TESTING.md).
+
+Two tests exist for failures that would be silent and severe:
+
+- **A failed log read writes nothing.** Deriving a streak from an empty result
+  would reset every streak the user has whenever the backend hiccups.
+- **The version gate fails open.** Failing closed would show a blocking update
+  modal to every install the moment a config query failed, for a release that
+  does not exist.
 
 ---
 
