@@ -1,120 +1,205 @@
 # Energe.ia
 
-[![Platform](https://img.shields.io/badge/Platform-iOS-blue.svg)](https://developer.apple.com/ios/)
-[![Status](https://img.shields.io/badge/Status-Closed_Alpha-orange.svg)](https://energe.ia)
-[![Tech Stack](https://img.shields.io/badge/Stack-React_Native_|_Expo_|_Supabase-86cf35.svg)](https://reactnative.dev/)
+**A habit tracker built as a medieval RPG. React Native, Expo, and Postgres. Entering open beta on TestFlight.**
 
-**Energe.ia** is a gamified habit-tracking application that transforms personal growth into a medieval, retro-styled RPG adventure. Heavily influenced by Eastern Orthodox theology and medieval aesthetics, the app serves as a "cozy" digital sanctuary for those seeking to cultivate virtue and excise vice.
+Most habit trackers are a checklist with a number attached. Energe.ia makes the
+number a character. Complete a habit and you earn currency, experience, and
+equipment. Fall into a bad habit and you take damage. Reach zero health and you
+lose your level, your currency, and a random item.
 
----
+The theme comes from Eastern Orthodox theology. *Energeia* means the divine
+energies, the outward expression of grace. Your character renders what your real
+choices earned.
 
-## ⚔️ The Concept: Growth Through "Energeia"
-
-In Orthodox theology, *Energeia* refers to the divine energies — the outward expression of God's grace, accessible to those who strive toward *theosis* (union with God). In this app, your character is a direct reflection of your real-world choices.
-
-- **Virtue & Vice**: Earn Energeia by completing positive habits. Falling into bad habits costs HP and degrades your streak.
-- **RPG Progression**: Choose from 3 starter classes, each with unique stat bonuses. Grow in power and unlock armor, weapons, and items from the **Market**.
-- **Death & Resurrection**: If your HP reaches zero, you fall — losing your level, energeia, and a random item. But the righteous fall seven times and rise again. *(Proverbs 24:16)*
-- **Aesthetic**: Pixel art, retro "low-fi" vibe inspired by Stardew Valley and Byzantine icon tradition.
-
----
-
-## 🎮 Alpha Features (Current Build)
-
-### Character System
-- Email + password authentication with persistent accounts across devices
-- Character creation with class selection (Fighter, Monk, Noble, Princess) and username
-- Animated character display with health and energeia bars
-- Class-specific stat bonuses:
-  - **Monk** — +10% to XP earned per habit completion
-  - **Noble** — +10% to energeia coin wallet per habit completion
-  - **Fighter** — +10% damage to bosses *(boss system in development)*
-
-### Habit Tracking
-- Create habits as positive, negative, or both
-- 4-tier streak color system:
-  - 🔴 Red (streak < 0) — 25% heavier penalty, no bonus
-  - 🟡 Yellow (streak = 0) — base stats, no bonus
-  - 🟢 Green (streak 1–6) — +1 energeia bonus, 25% lighter penalty
-  - 🔵 Blue (streak ≥ 7) — +2 energeia bonus, 50% lighter penalty
-- Difficulty scaling (1–10) affects reward and damage magnitude
-- Equipped item bonuses apply to XP earned
-
-### Death System
-- HP hitting zero triggers a full-screen death modal with gendered angel artwork
-- Penalties: reset to Level 1, wipe all energeia (XP and coins), lose one random inventory item
-- Orthodox-themed resurrection text with "Rise Again" button
-
-### Calendar
-- Color-coded daily habit log (green = completed, red = failed)
-- Notes per day, editable log entries
-- Bottom habit tracking header
-
-### Seasonal Stories
-- 4 seasonal quest arcs (Winter, Spring, Summer, Autumn), 3 parts each
-- Items drop randomly on habit completion while a quest is active (~1 in 6 chance)
-- Completing a final part rewards energeia and a unique seasonal item
-- Unlocks the next part automatically on completion
-
-### Market & Inventory
-- Buy items with energeia currency
-- Exclusive items (one-purchase) and stackable items
-- Item stacking display in inventory
-- Equipped items grant hidden stat bonuses
-
-### Achievements
-- Tracked milestones awarded automatically on qualifying events
-
-### Settings
-- Change username and password in-app
-- Account deletion with confirmation
-- Profile display with character image, level, and class badge
+<!-- SCREENSHOTS: replace when final art lands
+<p align="center">
+  <img src="docs/screens/01-character.png" width="240">
+  <img src="docs/screens/02-habits.png" width="240">
+  <img src="docs/screens/03-stable.png" width="240">
+</p>
+-->
 
 ---
 
-## 🛠️ Technical Stack
+## What it does
 
-- **Frontend:** React Native with Expo SDK 54, Expo Router (file-based navigation)
-- **Backend & Database:** Supabase (PostgreSQL) — auth, row-level security, real-time data
-- **Authentication:** Supabase email + password auth with persistent sessions via AsyncStorage
-- **Navigation:** 4-tab layout (Habits, Calendar, Items, Settings) with nested stacks
-- **Monetization (Upcoming):** Apple In-App Purchases via StoreKit / RevenueCat for subscription tiers
+- **Four character classes** with distinct stat bonuses. A Monk earns more experience, a Noble earns more currency.
+- **Four-state habit logging.** Complete, tempted, failed, or skipped. The middle state matters, and most trackers do not have it.
+- **Streaks on daily, weekly, or monthly cycles.** Each frequency defines "kept the streak" differently.
+- **Layered equipment.** Five slots composite onto the character sprite in a fixed render order.
+- **A stable of animal companions**, renamable, drawn from 14 pixel-art species.
+- **Seasonal quest arcs.** Four story lines, three parts each, with items that drop on habit completion.
+- **Death and resurrection.** Zero health resets your progress. The theme carries the mechanic.
+- **26 achievements**, granted server-side.
+- **Seasonal theming.** The entire palette, header art, and splash screen change with the meteorological season.
 
----
+## Scope
 
-## 📊 Habit Tracking & Behavioral Design
-
-Energe.ia isn't just a game — it's a tool for self-mastery:
-
-- **Streak Tracking:** A 4-tier color system shows momentum and rewards consistency
-- **Calendar Logs:** Visual color-coded grid tracks daily habit patterns over time
-- **Seasonal Quests:** Time-gated narrative arcs tied to the Orthodox liturgical calendar provide long-term engagement goals
-- **Theological Grounding:** Mechanics are designed around Orthodox ascetic practice — fasting, prayer, almsgiving — not arbitrary gamification
-
----
-
-## 🗺️ Roadmap
-
-- [x] Character creation and class selection
-- [x] Email/password authentication
-- [x] Habit scoring with streak tiers and class bonuses
-- [x] Death and resurrection mechanic
-- [x] Seasonal story quest system (4 seasons × 3 parts)
-- [x] Market with energeia currency
-- [x] Inventory with item stacking
-- [x] Calendar with color-coded habit logs
-- [x] Achievements system
-- [x] Settings (username, password, account deletion)
-- [ ] **Class Quest Map** — pixel art scrollable node map per class (in design)
-- [ ] **Party System** — social groups, shared quests, and accountability partners
-- [ ] **Boss Encounters** — fighter class damage bonuses applied here
-- [ ] **Apple In-App Purchases** — subscription tiers for premium classes and seasonal gear
-- [ ] **Push Notifications** — daily habit reminders and streak warnings
+| | |
+|---|---|
+| **Application code** | ~13,900 lines across TypeScript, TSX, and SQL |
+| **Routes** | 25 screens on Expo Router, file-based routing |
+| **Backend** | 13 Postgres tables on Supabase, row level security on every one |
+| **Art pipeline** | 171 pixel-art sprites, statically resolved for the bundler |
+| **Platform** | Expo SDK 55, React 19.2, React Native 0.83 |
+| **Built by** | One engineer, 69 commits, ESLint clean |
 
 ---
 
-## 🔒 Private Alpha
+## Engineering
 
-*This repository is currently private during closed alpha to protect intellectual property and user privacy. Documentation and code samples are available for review upon request.*
+### Streaks are derived, never incremented
 
-*Bug reports and feedback from alpha testers are tracked via [GitHub Discussions](../../discussions).*
+The obvious way to track a streak is a counter. Increment on success, reset on
+failure. That counter drifts. A user edits a past day in the calendar, and the
+counter no longer matches the history it claims to summarize.
+
+`recomputeStreak` throws the counter away and rebuilds the streak from the log
+every time the calendar changes. The function is idempotent. It cannot drift,
+because it holds no state of its own.
+
+The four log states are the reason this is not trivial:
+
+```ts
+/**
+ * green  → counts toward streak (increment)
+ * orange → tempted but held on; neutral, does not increment OR break streak
+ * red    → failure; breaks streak
+ * grey / no row → gap; today is allowed to be unlogged without breaking streak
+ */
+```
+
+`orange` is the product decision that drove the design. A user who wanted to
+skip a workout and went anyway has not broken a streak, and has not extended one
+either. Binary trackers cannot express that, so they punish honesty. Adding a
+neutral state means the streak walk has to distinguish "no data" from "data that
+does not count," across three reset frequencies.
+
+Daily walks backward one day at a time. Weekly rewinds to Monday and asks whether
+any day in that week was green. Monthly does the same across a calendar month
+with a variable day count. Each frequency ends the walk on the first red and
+clamps the floor at -1.
+
+### The version gate fails open
+
+A remote configuration row sets the minimum supported app version. Clients below
+it get a blocking update modal.
+
+The interesting line is the error path:
+
+```ts
+// Returns true if the running version meets the minimum, false if an update is
+// required. On any error (no config row, network failure) returns true so the
+// gate never false-blocks.
+```
+
+A version gate that fails closed will brick every install the moment the config
+query fails. Airport wifi becomes an outage. The gate exists to stop a known-bad
+build, so an unknown state must resolve to "let them in." Fail open is the only
+safe default when the check itself is the risk.
+
+### Per-user data migrations run on the client
+
+There is no migration runner between an app update and a user's rows. Schema
+changes are easy; the user's *data* is the hard part.
+
+A `data_version` column on each profile tracks which migrations have run. On
+launch, any migration above that version executes, then the version is written
+back. Each migration states exactly what it destroys and what it preserves:
+
+```ts
+// Alpha → open beta reset. Items and quests changed significantly between
+// builds, so existing inventory and quest progress are wiped. Habits, logs,
+// level, XP, class, and character appearance are all preserved.
+```
+
+Writing the preservation policy in the migration itself is deliberate. The list
+of what survives is a product promise, and it belongs next to the code that
+enforces it rather than in a changelog nobody reads.
+
+### Equipment compositing is a z-order problem
+
+A dressed character is five sprites drawn in sequence. Order is not cosmetic. A
+crown behind a head is a bug.
+
+The order is encoded in the database rather than the client, so the app renders
+whatever it is given without a hardcoded list:
+
+```
+character_body    robes, stoles, kaftans        renders first, behind
+character_neck    crosses, necklaces
+character_hand    swords, staves, scepters
+character_shield  shields, orbs, offhand
+character_head    hats, crowns, tiaras          renders last, on top
+```
+
+Slots also enforce a one-item-per-slot rule, so equipping a second crown swaps
+rather than stacks.
+
+### The bundler shapes the art pipeline
+
+Metro resolves `require()` at build time, so image paths must be static strings.
+A dynamic path silently returns undefined and the sprite disappears.
+
+Every sprite therefore passes through an explicit map with a fallback, and remote
+URLs are handled separately from bundled assets:
+
+```ts
+const resolveAnimalImage = (key: string): ImageSourcePropType => {
+  if (key.startsWith("http")) return { uri: key };
+  return ANIMAL_IMAGE_MAP[key] ?? ANIMAL_IMAGE_MAP["puppy"];
+};
+```
+
+The fallback matters more than it looks. Server-driven content can name a sprite
+that a given client build does not have. A missing key renders a default instead
+of an empty box, so an older install degrades rather than breaks.
+
+### Authorization lives in Postgres
+
+Supabase exposes the database to the client directly. Row level security is the
+authorization boundary, not application code. Every one of the 13 tables carries
+policies, and a user reaches only their own rows.
+
+Server-authoritative grants follow from that. `grantAchievement` writes to
+`user_achievements` under policy rather than trusting a client-side check.
+
+---
+
+## Stack
+
+**Expo SDK 55** with **Expo Router** for file-based routing. **React 19.2** and
+**React Native 0.83**. **TypeScript**, strict. **Supabase** for auth, Postgres,
+and row level security. **Reanimated 4** for character and UI animation.
+**EAS Build** for iOS.
+
+## Beta
+
+Open beta starts on TestFlight once three commissioned pixel-art assets land.
+The build is feature complete and the backend is deployed. Beta exists to find
+out which mechanics people actually use, which is a question no amount of solo
+testing answers.
+
+Two things I want feedback on specifically:
+
+- **Does the neutral log state get used?** `orange` means tempted but held on. It
+  is the one mechanic with no equivalent in other habit trackers, and it is
+  either the best idea here or a state nobody understands.
+- **Is the death penalty calibrated?** Losing a level, all currency, and a random
+  item is severe on purpose. Severe and unfair are one bad number apart.
+
+The alpha to beta transition ships as a versioned data migration. Habits, logs,
+level, class, and character appearance carry over. Inventory and quest progress
+reset, because the item and quest tables changed shape between builds.
+
+## Status
+
+| | |
+|---|---|
+| Build | Feature complete |
+| Beta | Open, on TestFlight, pending final art |
+| Platform | iOS first, Android to follow |
+| Backend | Deployed |
+
+Source is private while the app is in beta. Available to hiring managers on
+request.
