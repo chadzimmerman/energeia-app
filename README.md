@@ -1,6 +1,6 @@
 # Energe.ia
 
-**A habit tracker built as a medieval RPG. React Native, Expo, and Postgres. Shipping to the App Store when the last art assets land.**
+**A habit tracker built as a medieval RPG. React Native, Expo, and Postgres. Entering open beta on TestFlight.**
 
 Most habit trackers are a checklist with a number attached. Energe.ia makes the
 number a character. Complete a habit and you earn currency, experience, and
@@ -173,14 +173,33 @@ Server-authoritative grants follow from that. `grantAchievement` writes to
 and row level security. **Reanimated 4** for character and UI animation.
 **EAS Build** for iOS.
 
+## Beta
+
+Open beta starts on TestFlight once three commissioned pixel-art assets land.
+The build is feature complete and the backend is deployed. Beta exists to find
+out which mechanics people actually use, which is a question no amount of solo
+testing answers.
+
+Two things I want feedback on specifically:
+
+- **Does the neutral log state get used?** `orange` means tempted but held on. It
+  is the one mechanic with no equivalent in other habit trackers, and it is
+  either the best idea here or a state nobody understands.
+- **Is the death penalty calibrated?** Losing a level, all currency, and a random
+  item is severe on purpose. Severe and unfair are one bad number apart.
+
+The alpha to beta transition ships as a versioned data migration. Habits, logs,
+level, class, and character appearance carry over. Inventory and quest progress
+reset, because the item and quest tables changed shape between builds.
+
 ## Status
 
 | | |
 |---|---|
-| Build | Closed alpha, feature complete |
-| Blocking launch | Three commissioned art assets |
+| Build | Feature complete |
+| Beta | Open, on TestFlight, pending final art |
 | Platform | iOS first, Android to follow |
 | Backend | Deployed |
 
-Source is private while the app is pre-launch. Available to hiring managers on
+Source is private while the app is in beta. Available to hiring managers on
 request.
