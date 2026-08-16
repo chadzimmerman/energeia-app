@@ -25,7 +25,7 @@ Each tier is a week or two of evenings. None of them depend on the tier after.
 
 ---
 
-## Tier 1 — Pure logic ✅ done
+## Tier 1. Pure logic ✅ done
 
 Streak walk, version gate, migrations, asset resolvers, achievements.
 
@@ -36,7 +36,7 @@ easier when new logic is written this way from the start.
 
 ---
 
-## Tier 2 — Row level security
+## Tier 2. Row level security
 
 **Do this next. It is the only tier where a bug is a breach.**
 
@@ -83,20 +83,20 @@ Then the specific ones that matter more than the generic sweep:
 
 ---
 
-## Tier 3 — Components
+## Tier 3. Components
 
 Pure rendering, props in and output out. No Supabase, no navigation.
 
 Build these with `@testing-library/react-native`. Assert on what a user sees,
 using `getByText` and accessibility roles, never on internal state.
 
-- [ ] `HabitItem` — the four streak tiers and their thresholds: red below 0, yellow at 0, green 1 to 6, blue at 7 and above. Difficulty 1 to 10 rendering. Press handlers fire once.
-- [ ] `CharacterStats` — health and energeia bars at 0%, 50%, 100%, and over 100%. Level display. A zero-health state must render, because that is the frame right before the death modal.
-- [ ] `AchievementItem` — earned shows art, unearned shows the shared blank.
-- [ ] `HabitList` — ordering, empty state, and that reorder emits the new order rather than mutating in place.
-- [ ] `ForceUpdateModal` — renders its message and offers no dismissal path.
-- [ ] `BgColorSwatch`, `StyledText`, `Themed` — trivial, and cheap coverage.
-- [ ] `TutorialOverlay` — 575 lines and the largest untested component. Step advancement, the final step dismissing, and that a skip does not leave the overlay mounted.
+- [ ] `HabitItem`: the four streak tiers and their thresholds: red below 0, yellow at 0, green 1 to 6, blue at 7 and above. Difficulty 1 to 10 rendering. Press handlers fire once.
+- [ ] `CharacterStats`: health and energeia bars at 0%, 50%, 100%, and over 100%. Level display. A zero-health state must render, because that is the frame right before the death modal.
+- [ ] `AchievementItem`: earned shows art, unearned shows the shared blank.
+- [ ] `HabitList`: ordering, empty state, and that reorder emits the new order rather than mutating in place.
+- [ ] `ForceUpdateModal`: renders its message and offers no dismissal path.
+- [ ] `BgColorSwatch`, `StyledText`, `Themed`: trivial, and cheap coverage.
+- [ ] `TutorialOverlay`: 575 lines and the largest untested component. Step advancement, the final step dismissing, and that a skip does not leave the overlay mounted.
 
 **Do not write snapshot tests.** A snapshot passes until someone changes a
 margin, then it fails without telling you what broke. Assert on behavior.
@@ -105,17 +105,17 @@ Expected after this tier: roughly 65% overall.
 
 ---
 
-## Tier 4 — Context
+## Tier 4. Context
 
-- [ ] `ProfileContext` — initial load, refresh, error state, and that sign-out clears the profile rather than leaving the previous user's data in memory.
+- [ ] `ProfileContext`: initial load, refresh, error state, and that sign-out clears the profile rather than leaving the previous user's data in memory.
 - [ ] Loading state is cleared in a `finally`, so a thrown query cannot leave a permanent spinner.
-- [ ] `useColorScheme`, `useClientOnlyValue` — trivial.
+- [ ] `useColorScheme`, `useClientOnlyValue`: trivial.
 
 Expected after this tier: roughly 70%.
 
 ---
 
-## Tier 5 — Screens
+## Tier 5. Screens
 
 **Build the mock factory first.** Without it every screen test rewrites the
 Supabase chain by hand, which is where screen suites usually rot.
@@ -129,12 +129,12 @@ mockTableError('user_habits', new Error('offline'));
 Then, per screen, three tests: it renders with data, it renders empty, it
 renders an error without crashing.
 
-- [ ] `login`, `onboarding` — class and gender selection writes the right profile
-- [ ] `(tabs)/index` — the habits list, completing a habit
-- [ ] `(tabs)/calendar-tab` — log editing, and that a past edit triggers a streak recompute
-- [ ] `(tabs)/items-tab` — equipping, the one-item-per-slot swap, background selection
-- [ ] `settings/market` — buying with enough currency, and being refused without
-- [ ] `settings/stable` — pet rename, the 14 species
+- [ ] `login`, `onboarding`: class and gender selection writes the right profile
+- [ ] `(tabs)/index`: the habits list, completing a habit
+- [ ] `(tabs)/calendar-tab`: log editing, and that a past edit triggers a streak recompute
+- [ ] `(tabs)/items-tab`: equipping, the one-item-per-slot swap, background selection
+- [ ] `settings/market`: buying with enough currency, and being refused without
+- [ ] `settings/stable`: pet rename, the 14 species
 - [ ] `settings/achievements`, `journey`, `monastery`, `seasonal-stories`
 - [ ] `settings/subscription`, `about`, `password`, `username`
 - [ ] `DeathModal`, `HabitEditModal`, `calendar-modal`
@@ -143,7 +143,7 @@ Expected after this tier: roughly 85%.
 
 ---
 
-## Tier 6 — Flows
+## Tier 6. Flows
 
 Multi-step paths where each step already passes alone. These catch integration
 bugs, not unit bugs.
@@ -161,7 +161,7 @@ Aim for a **ratchet, not a number**. The floor only ever goes up, and it goes up
 when a tier lands rather than on a schedule.
 
 ```js
-// jest.config.js — raise these as tiers complete
+// jest.config.js: raise these as tiers complete
 coverageThreshold: {
   global: { statements: 40, branches: 35, functions: 25, lines: 40 },
   './utils/**': { statements: 95, branches: 90, functions: 95, lines: 95 },
