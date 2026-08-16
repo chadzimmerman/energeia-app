@@ -21,7 +21,12 @@ interface HabitItemProps {
   isActive: boolean;
 }
 
-const getStreakColor = (streakLevel: number): string => {
+/**
+ * Streak tier colors. Exported for tests: the thresholds are a product decision
+ * (7 days is "blue", 1 to 6 is "green"), and an off-by-one here silently demotes
+ * a user who just earned the top tier.
+ */
+export const getStreakColor = (streakLevel: number): string => {
   if (streakLevel >= 7) return "#4A90D9";
   if (streakLevel >= 1) return "#4CAF50";
   if (streakLevel === 0) return "#F4D35E";
@@ -69,7 +74,7 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isA
   return (
     <View style={[styles.cardWrapper, isActive && styles.cardActive]}>
       {/* Drag handle */}
-      <TouchableOpacity onPressIn={drag} style={styles.dragHandle}>
+      <TouchableOpacity testID="habit-drag" onPressIn={drag} style={styles.dragHandle}>
         <FontAwesome name="bars" size={14} color="#CCCCCC" />
       </TouchableOpacity>
 
@@ -88,6 +93,7 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isA
             </Animated.View>
           )}
           <TouchableOpacity
+            testID="habit-score-down"
             style={[styles.scoreButton, styles.leftButton, { backgroundColor: buttonColor }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -101,7 +107,7 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isA
       )}
 
       {/* Title */}
-      <TouchableOpacity style={styles.textContainer} onPress={() => onEdit(habit)} activeOpacity={0.7}>
+      <TouchableOpacity testID="habit-title" style={styles.textContainer} onPress={() => onEdit(habit)} activeOpacity={0.7}>
         <Text style={styles.title} numberOfLines={1}>{habit.title}</Text>
         {habit.streak_level > 0 && (
           <Text style={styles.streakText}>
@@ -125,6 +131,7 @@ const HabitItem: React.FC<HabitItemProps> = ({ habit, onScore, onEdit, drag, isA
             </Animated.View>
           )}
           <TouchableOpacity
+            testID="habit-score-up"
             style={[styles.scoreButton, styles.rightButton, { backgroundColor: buttonColor }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
