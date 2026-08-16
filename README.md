@@ -42,7 +42,7 @@ choices earned.
 | **Backend** | 13 Postgres tables on Supabase, row level security on every one |
 | **Art pipeline** | 171 pixel-art sprites, statically resolved for the bundler |
 | **Platform** | Expo SDK 55, React 19.2, React Native 0.83 |
-| **Tests** | 118 across 8 suites. 98% statement coverage on the logic layer |
+| **Tests** | 187 across 11 suites. 98% on the logic layer, 78% on context |
 | **CI** | Typecheck, lint, and tests on every pull request |
 | **Built by** | One engineer, 70 commits, ESLint clean |
 
@@ -168,7 +168,7 @@ Server-authoritative grants follow from that. `grantAchievement` writes to
 
 ### Testing the part that can be wrong quietly
 
-The logic layer carries 118 tests. The streak engine alone has 36, because it is
+The logic layer carries 187 tests. The streak engine alone has 36, because it is
 the function most able to be wrong without anyone noticing: a miscounted streak
 looks to a user like the app forgot their progress, and there is no error to
 report.
