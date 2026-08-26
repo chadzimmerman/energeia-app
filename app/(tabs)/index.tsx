@@ -10,7 +10,7 @@ import {
   Text,
 } from "react-native";
 import { supabase } from "../../utils/supabase";
-import { getSeasonalBackground } from "../../utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import { grantAchievement } from "../../utils/grantAchievement";
 import { resolveCharacterImage } from "../../utils/resolveCharacterImage";
 import HabitEditModal from "../HabitEditModal";
@@ -338,6 +338,7 @@ const checkScrollDrop = async (userId: string): Promise<void> => {
 };
 
 export default function HabitScreen() {
+  const { seasonBackground } = useSeason();
   const router = useRouter();
   const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, characterBgColors, refreshProfile } = useProfile();
   const [loading, setLoading] = useState(true);
@@ -822,7 +823,7 @@ export default function HabitScreen() {
   return (
     <View style={styles.container}>
       <CharacterStats
-        backgroundImageSource={getSeasonalBackground()}
+        backgroundImageSource={seasonBackground}
         characterImageSource={resolveCharacterImage(profile.character_image_path, profile.level)}
         equippedCharacterSet={equippedCharacterSet}
         currentHealth={profile.current_health}

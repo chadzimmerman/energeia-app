@@ -1,11 +1,11 @@
 import { Text, View } from "@/components/Themed";
 import Colors from "@/constants/Colors"; // Assuming you have a Colors file
 import { supabase } from "@/utils/supabase";
-import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Platform,
   StyleSheet,
@@ -13,8 +13,6 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-const seasonColor = getSeasonalColor();
-const seasonDarkColor = getSeasonalDarkColor();
 
 // --- Constants for Difficulty and Reset Counter ---
 const DIFFICULTIES = [
@@ -26,6 +24,12 @@ const DIFFICULTIES = [
 const RESET_OPTIONS = ["Daily", "Weekly", "Monthly"];
 
 export default function ModalScreen() {
+  const { seasonColor, seasonDarkColor } = useSeason();
+  const styles = useMemo(
+    () => makeStyles(seasonColor, seasonDarkColor),
+    [seasonColor, seasonDarkColor],
+  );
+
   const [title, setTitle] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [isPositive, setIsPositive] = React.useState(true); // Start with positive selected
@@ -250,7 +254,7 @@ export default function ModalScreen() {
 }
 
 // app/modal.tsx - Place these styles at the bottom
-const styles = StyleSheet.create({
+const makeStyles = (seasonColor: string, seasonDarkColor: string) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F0F0F0", // Light gray background

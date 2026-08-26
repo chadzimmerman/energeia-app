@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { getSeasonalColor , getSeasonalBackground } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import {
   Dimensions,
   Modal,
@@ -24,7 +24,6 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { hasTutorialBeenSeen } from "@/components/TutorialOverlay";
 import { useFocusEffect } from "expo-router";
 import DailyLogModal from "../calendar-modal";
-const seasonColor = getSeasonalColor();
 
 const buildTutorialMockLogs = (): { [key: string]: { status: HabitStatus; notes: string } } => {
   const now = new Date();
@@ -295,6 +294,7 @@ const HabitTrackerSection: React.FC<{ title: string; onPress: () => void }> = ({
 // --- MAIN TAB SCREEN ---
 
 export default function CalendarTabScreen() {
+  const { seasonColor, seasonBackground } = useSeason();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDayData, setSelectedDayData] = useState<HabitDay | null>(null);
   const [myHabits, setMyHabits] = useState<any[]>([]);
@@ -433,7 +433,7 @@ export default function CalendarTabScreen() {
     <ThemedView style={styles.container}>
       {/* 1. Character Stats Header */}
       <CharacterStats
-        backgroundImageSource={getSeasonalBackground()}
+        backgroundImageSource={seasonBackground}
         characterImageSource={resolveCharacterImage(profile?.character_image_path)}
         equippedCharacterSet={equippedCharacterSet}
         currentHealth={profile?.current_health ?? 0}
@@ -482,7 +482,7 @@ export default function CalendarTabScreen() {
       >
         <View style={pickerStyles.container}>
           {/* Header */}
-          <View style={pickerStyles.header}>
+          <View style={[pickerStyles.header, { backgroundColor: seasonColor }]}>
             <TouchableOpacity onPress={() => setIsPickerVisible(false)}>
               <Text style={pickerStyles.headerCancel}>Cancel</Text>
             </TouchableOpacity>
@@ -642,7 +642,6 @@ const pickerStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: seasonColor,
     paddingHorizontal: 15,
     paddingBottom: 15,
     paddingTop: Platform.OS === "ios" ? 55 : 15,

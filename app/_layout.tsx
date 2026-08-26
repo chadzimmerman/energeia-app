@@ -11,6 +11,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { supabase } from '@/utils/supabase';
 import { checkMinVersion } from '@/utils/versionCheck';
 import ForceUpdateModal from '@/components/ForceUpdateModal';
+import { SeasonProvider } from '@/contexts/SeasonContext';
 
 export {
   ErrorBoundary,
@@ -57,10 +58,10 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <SeasonProvider>
       <RootLayoutNav initialSession={session} />
       <ForceUpdateModal visible={versionOk === false} />
-    </>
+    </SeasonProvider>
   );
 }
 
