@@ -114,6 +114,14 @@ const MarketDetailsModal: React.FC<{
       alert("Locked: " + (item.lockedReason ?? "Complete prerequisites first."));
       return;
     }
+    // The button is already disabled when the player cannot afford the item, but
+    // isLocked is re-checked here and this should be too: the balance can go
+    // stale between render and tap, and the deduct below writes an absolute
+    // value, so an unaffordable purchase would push the balance negative.
+    if (!canAfford) {
+      alert("Not enough Energeia for this item.");
+      return;
+    }
 
     const newBalance = playerEnergeia - item.price;
     const originalBalance = playerEnergeia;
@@ -582,7 +590,12 @@ export default function MarketScreen() {
       // Derive gender from character_image_path (e.g. "fighter_male" → "male")
       const pathParts = (profile.character_image_path ?? "").split("_");
       const playerGender = pathParts[pathParts.length - 1] === "female" ? "female" : "male";
-      const cls = playerClass?.toLowerCase() ?? null;
+      // player_class is interpolated into the PostgREST .or() strings below, and
+      // it comes from a profile row the user can write. A comma or a dot in the
+      // value would be read as filter syntax and change which rows come back,
+      // so anything outside a-z is dropped rather than escaped.
+      const rawClass = playerClass?.toLowerCase() ?? null;
+      const cls = rawClass?.replace(/[^a-z]/g, "") || null;
 
       // 2. Regular market items (everything except character sets)
       let itemQuery = supabase

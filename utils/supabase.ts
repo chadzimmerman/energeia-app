@@ -17,6 +17,11 @@ export const supabase = createClient(
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      // PKCE is the recommended flow for native apps and supabase-js does not
+      // default to it. It also makes email links arrive as ?code=, which can
+      // only be redeemed with the verifier held on this device — unlike the
+      // implicit flow, where the link carries usable tokens in its fragment.
+      flowType: 'pkce',
       // NOTE: We don't need 'lock: processLock' here for a standard Expo project
     },
   }

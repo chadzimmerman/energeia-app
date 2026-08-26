@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { escapeLikePattern } from "@/utils/escapeLikePattern";
 import { getSeasonalColor } from "@/utils/seasons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -59,10 +60,20 @@ export default function UsernameScreen() {
     setSaving(true);
     try {
       // Check uniqueness — does any OTHER user already have this name?
+      //
+      // ilike treats % and _ as wildcards, so the raw input is escaped before it
+      // goes in: without this, claiming a name containing either character
+      // matches unrelated rows and reports a false "Name Taken".
+      //
+      // This check is advisory only. It is a read followed by a write, so two
+      // users claiming the same name at once both pass, and it depends on being
+      // able to read other users' rows. The authoritative guard is a unique
+      // index on profiles.username — see docs/SECURITY-AUDIT.md.
+      const escapedName = escapeLikePattern(trimmed);
       const { data: existing } = await supabase
         .from("profiles")
         .select("id")
-        .ilike("username", trimmed)
+        .ilike("username", escapedName)
         .neq("id", userId!)
         .maybeSingle();
 

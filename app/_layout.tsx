@@ -9,12 +9,16 @@ import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from '@/components/useColorScheme';
 import { supabase } from '@/utils/supabase';
+import type { EmailOtpType } from '@supabase/supabase-js';
 import { checkMinVersion } from '@/utils/versionCheck';
 import ForceUpdateModal from '@/components/ForceUpdateModal';
 
 export {
   ErrorBoundary,
 } from 'expo-router';
+
+// Types Supabase can send on an email link. Anything else is ignored.
+const OTP_TYPES = ['signup', 'invite', 'magiclink', 'recovery', 'email_change', 'email'] as const;
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -97,24 +101,23 @@ function RootLayoutNav({ initialSession }: { initialSession: Session | null }) {
         return;
       }
 
-      // OTP / magic-link flow: token_hash + type
+      // OTP / magic-link flow: token_hash + type. The type is checked against
+      // the known set rather than cast, so a crafted link cannot push an
+      // arbitrary string into verifyOtp.
       const token_hash = params.token_hash as string | undefined;
       const type = params.type as string | undefined;
-      if (token_hash && type) {
-        await supabase.auth.verifyOtp({ token_hash, type: type as any });
+      if (token_hash && type && (OTP_TYPES as readonly string[]).includes(type)) {
+        await supabase.auth.verifyOtp({ token_hash, type: type as EmailOtpType });
         return;
       }
 
-      // Legacy hash fragment flow: #access_token=...&refresh_token=...
-      const hash = url.split('#')[1];
-      if (hash) {
-        const hp = new URLSearchParams(hash);
-        const access_token = hp.get('access_token');
-        const refresh_token = hp.get('refresh_token');
-        if (access_token && refresh_token) {
-          await supabase.auth.setSession({ access_token, refresh_token });
-        }
-      }
+      // Deliberately no implicit-flow branch here. Reading access_token and
+      // refresh_token out of the URL fragment and calling setSession() would
+      // accept tokens from whoever wrote the link: any page can open
+      // energeiaapp://auth/callback#access_token=... and silently sign the user
+      // into an account the attacker controls, after which everything they log
+      // is written into that account. The client pins flowType: 'pkce', so real
+      // links arrive as ?code= and are handled above.
     };
 
     // Cold-start: app was opened directly from the link
