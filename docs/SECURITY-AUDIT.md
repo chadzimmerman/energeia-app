@@ -71,7 +71,27 @@ The reset link dropped the user on a Supabase page, the app's callback handler
 never ran, and the reset could not complete.
 
 Not an attack, but it means forgot-password has never worked. **Fixed** by using
-the app scheme in both places. This is the concrete answer to issue #4.
+the app scheme in both places.
+
+The redirect turned out to be only half of it. Following a recovery link signs
+the user in — that is how Supabase recovery works — but a session is not what
+they came for. There was nowhere to set a new password: the only password UI,
+`settings/password.tsx`, re-authenticates with the current password first, which
+is precisely the thing a person following a reset link does not have. So the
+fixed link would have delivered them to the habits tab, signed in, still locked
+out of their own password.
+
+Added `app/reset-password.tsx` and routing for it. The `PASSWORD_RECOVERY` auth
+event and `type=recovery` links both land there, and the router holds them there
+until the password is actually changed, so a reset cannot quietly degrade into a
+plain sign-in.
+
+Deep-link failures are also reported now. `exchangeCodeForSession` and
+`verifyOtp` errors were discarded, and with the implicit fallback removed an
+expired link or one opened on a different device from the one that requested it
+failed in total silence.
+
+Together these are the concrete answer to issue #4.
 
 ### 3. Currency is written as an absolute value — **open, needs a decision**
 
@@ -128,11 +148,23 @@ policies are not in it (see finding 7).
 
 The input was also passed straight to `.ilike()`, where `%` and `_` are
 wildcards, so claiming a name containing either matched unrelated rows and gave
-a false "Name Taken".
+a false "Name Taken". Escaping those turned out not to be enough either:
+PostgREST rewrites `*` to `%` in `like`/`ilike` values before Postgres sees
+them, so a literal `*` cannot be matched through that operator at all.
 
-**Fixed** the wildcard escaping. The real fix is a unique index — provided in
-`supabase/migrations/security_hardening.sql` §3, along with the query to find
-existing duplicates first.
+**Fixed by deleting the pre-check.** Escaping a query that cannot be correct in
+principle is not worth doing well. The unique indexes on `lower(username)` and
+`lower(handle)` are now the authority and the write is the check —
+`utils/profileErrors.ts` turns a `23505` violation into a message worth showing.
+
+Two call sites needed it, not one. `onboarding.tsx` had no uniqueness check at
+all and only `console.error`d failures, so once the indexes exist a duplicate
+name would have made "Begin Journey" do nothing at all, silently, on the first
+screen of the app. It reports properly now.
+
+Also worth noting: `handle` is derived from `username`, so "Chad Z" and "Chad_Z"
+are distinct usernames that collide on `handle`. Both indexes map to the same
+player-facing message.
 
 ### 5. Group membership cap is client-side only — **SQL provided**
 
@@ -251,7 +283,10 @@ value item in this document.
    guesswork until this exists.
 2. **Run `security_hardening.sql`.** Closes issue #6 and findings 4 and 5.
    Section 3 will fail if duplicate usernames already exist — that is intended;
-   the query to find them is in the file.
+   the query to find them is in the file. Run it *after* deploying the app
+   change, not before: the constraint-violation handling in `username.tsx` and
+   `onboarding.tsx` is what turns a rejected name into a message rather than a
+   dead button.
 3. **Turn on leaked password protection** in the dashboard. Manual, ~30 seconds.
 4. **Test email auth on a device** (issue #4). Findings 1 and 2 both change how
    email links behave and neither has been exercised on a real build.

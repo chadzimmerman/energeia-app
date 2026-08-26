@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font';
 import { Stack, useRouter, useRootNavigationState, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Linking from 'expo-linking';
+import { Alert } from 'react-native';
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -76,10 +77,19 @@ function RootLayoutNav({ initialSession }: { initialSession: Session | null }) {
 
   // Start from the known initial session; onAuthStateChange handles updates.
   const [session, setSession] = useState<Session | null>(initialSession);
+  // True between following a recovery link and saving the new password.
+  const [isRecovering, setIsRecovering] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      // A recovery link signs the user in, but a session is not what they came
+      // for. Send them somewhere they can actually set a new password — the
+      // only other password UI asks for the current one, which is the thing
+      // they have forgotten.
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecovering(true);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -94,10 +104,26 @@ function RootLayoutNav({ initialSession }: { initialSession: Session | null }) {
       const parsed = Linking.parse(url);
       const params = parsed.queryParams ?? {};
 
+      // Anything that reaches here failed if we say nothing, and the user is
+      // left staring at the login screen with no idea why. An expired link and
+      // a link opened on a different device from the one that requested it both
+      // land here and both need saying out loud.
+      const reportFailure = (message: string) => {
+        Alert.alert('Link Did Not Work', message);
+      };
+
       // PKCE flow: code exchange
       const code = params.code as string | undefined;
       if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          reportFailure(
+            'This link could not be opened. It may have expired, or it may have been ' +
+            'requested on a different device. Please request a new one.',
+          );
+        } else if (params.type === 'recovery') {
+          setIsRecovering(true);
+        }
         return;
       }
 
@@ -107,7 +133,15 @@ function RootLayoutNav({ initialSession }: { initialSession: Session | null }) {
       const token_hash = params.token_hash as string | undefined;
       const type = params.type as string | undefined;
       if (token_hash && type && (OTP_TYPES as readonly string[]).includes(type)) {
-        await supabase.auth.verifyOtp({ token_hash, type: type as EmailOtpType });
+        const { error } = await supabase.auth.verifyOtp({ token_hash, type: type as EmailOtpType });
+        if (error) {
+          reportFailure(
+            'This link could not be opened. It may have expired or already been used. ' +
+            'Please request a new one.',
+          );
+        } else if (type === 'recovery') {
+          setIsRecovering(true);
+        }
         return;
       }
 
@@ -133,13 +167,18 @@ function RootLayoutNav({ initialSession }: { initialSession: Session | null }) {
     if (!navigationState?.key) return;
 
     const inLoginScreen = segments[0] === 'login';
+    const inResetScreen = segments[0] === 'reset-password';
 
     if (!session && !inLoginScreen) {
       router.replace('/login');
-    } else if (session && inLoginScreen) {
+    } else if (session && isRecovering && !inResetScreen) {
+      // Hold them here until the password is actually changed, otherwise the
+      // reset silently turns into a plain sign-in and nothing gets fixed.
+      router.replace('/reset-password');
+    } else if (session && inLoginScreen && !isRecovering) {
       router.replace('/(tabs)');
     }
-  }, [session, segments, navigationState?.key, router]);
+  }, [session, isRecovering, segments, navigationState?.key, router]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -147,6 +186,7 @@ function RootLayoutNav({ initialSession }: { initialSession: Session | null }) {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="reset-password" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>

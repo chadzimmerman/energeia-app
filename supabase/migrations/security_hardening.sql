@@ -52,12 +52,26 @@ BEGIN
         FROM unnest(coalesce(p.proconfig, '{}'::text[])) AS cfg
         WHERE cfg LIKE 'search_path=%'
       )
+      -- Skip functions owned by an extension (pgcrypto, uuid-ossp, postgis...).
+      -- They belong to the extension, we do not own them, and ALTERing them
+      -- raises. Since a DO block is one transaction, a single failure would
+      -- roll back every pin this loop had already made.
+      AND NOT EXISTS (
+        SELECT 1 FROM pg_depend d
+        WHERE d.objid = p.oid AND d.deptype = 'e'
+      )
   LOOP
-    RAISE NOTICE 'Pinning search_path on %', fn.signature;
-    EXECUTE format(
-      'ALTER FUNCTION %s SET search_path = public, pg_temp',
-      fn.signature
-    );
+    BEGIN
+      EXECUTE format(
+        'ALTER FUNCTION %s SET search_path = public, pg_temp',
+        fn.signature
+      );
+      RAISE NOTICE 'Pinned search_path on %', fn.signature;
+    EXCEPTION WHEN OTHERS THEN
+      -- Belt and braces alongside the extension filter: report and carry on,
+      -- so one function we cannot touch does not undo the rest.
+      RAISE WARNING 'Skipped % — %', fn.signature, SQLERRM;
+    END;
   END LOOP;
 END $$;
 
@@ -150,6 +164,13 @@ BEGIN
      OR (TG_OP = 'UPDATE' AND OLD.group_id IS NOT DISTINCT FROM NEW.group_id) THEN
     RETURN NEW;
   END IF;
+
+  -- Serialise joins to the same group for the rest of this transaction.
+  -- Without it this trigger has the exact race it exists to prevent: two
+  -- people joining a 3-member group at once both count 3, both pass, and the
+  -- group ends up with 5. A plain count() takes no lock that would stop that.
+  -- Keyed on the group, so joins to different groups do not block each other.
+  PERFORM pg_advisory_xact_lock(hashtext('group_cap:' || NEW.group_id::text));
 
   SELECT count(*) INTO member_count
   FROM profiles

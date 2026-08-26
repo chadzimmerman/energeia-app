@@ -114,14 +114,10 @@ const MarketDetailsModal: React.FC<{
       alert("Locked: " + (item.lockedReason ?? "Complete prerequisites first."));
       return;
     }
-    // The button is already disabled when the player cannot afford the item, but
-    // isLocked is re-checked here and this should be too: the balance can go
-    // stale between render and tap, and the deduct below writes an absolute
-    // value, so an unaffordable purchase would push the balance negative.
-    if (!canAfford) {
-      alert("Not enough Energeia for this item.");
-      return;
-    }
+    // No affordability re-check here: canAfford, playerEnergeia and newBalance
+    // all come from this render, so a check against canAfford could only ever
+    // agree with the disabled state that already gated the tap. The balance is
+    // re-read against the database below, where it can actually be wrong.
 
     const newBalance = playerEnergeia - item.price;
     const originalBalance = playerEnergeia;
@@ -134,7 +130,32 @@ const MarketDetailsModal: React.FC<{
     // All DB work runs in the background after the user already sees success
     (async () => {
       try {
-        // 1. Inventory write (sequential — currency deduct depends on this)
+        // 1. Re-read the balance before anything is written.
+        //
+        // playerEnergeia comes from the render that opened this modal and can
+        // have moved since. Because the deduct sets an absolute value rather
+        // than decrementing, a stale figure would overwrite whatever really
+        // happened in between. Checked here rather than after the inventory
+        // insert, so a rejected purchase does not leave the player holding an
+        // item they never paid for.
+        //
+        // This narrows the window; it does not close it. Two purchases racing
+        // still both read, both check, and both write. Only a server-side
+        // purchase RPC that reads the price, checks the balance and decrements
+        // in one statement fixes that — see docs/SECURITY-AUDIT.md finding 3.
+        const { data: liveProfile, error: balanceError } = await supabase
+          .from("profiles")
+          .select("energeia_currency")
+          .eq("id", userId)
+          .single();
+        if (balanceError) throw balanceError;
+
+        const liveBalance = liveProfile?.energeia_currency ?? 0;
+        if (liveBalance < item.price) {
+          throw new Error("Not enough Energeia for this item.");
+        }
+
+        // 2. Inventory write (sequential — currency deduct depends on this)
         if (item.display_slot === "character_set" && item.set_group) {
           const { data: groupItems } = await supabase
             .from("items_master")
@@ -168,14 +189,14 @@ const MarketDetailsModal: React.FC<{
           if (error) throw error;
         }
 
-        // 2. Currency deduct (sequential — must follow successful inventory write)
+        // 3. Currency deduct
         const { error: profileError } = await supabase
           .from("profiles")
-          .update({ energeia_currency: newBalance })
+          .update({ energeia_currency: liveBalance - item.price })
           .eq("id", userId);
         if (profileError) throw profileError;
 
-        // 3. Achievement checks — all 8 queries fire simultaneously
+        // 4. Achievement checks — all 8 queries fire simultaneously
         if (userId) {
           if (item.type === "equippable") grantAchievement(userId, "first_weapon");
           if (item.display_slot === "wall") grantAchievement(userId, "first_icon");
@@ -225,7 +246,7 @@ const MarketDetailsModal: React.FC<{
             grantAchievement(userId, "all_year_gear");
         }
 
-        // 4. Auto-grant Default Room when buying a background for the first time
+        // 5. Auto-grant Default Room when buying a background for the first time
         if (item.display_slot === "character_background") {
           const { data: defaultRoom } = await supabase
             .from("items_master")
@@ -245,7 +266,7 @@ const MarketDetailsModal: React.FC<{
           }
         }
 
-        // 5. Refresh market to sync real DB state
+        // 6. Refresh market to sync real DB state
         onPurchaseSuccess();
       } catch (err: any) {
         // Revert the optimistic balance update and inform the user

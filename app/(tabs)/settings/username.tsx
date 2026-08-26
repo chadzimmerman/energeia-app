@@ -1,5 +1,5 @@
 import { supabase } from "@/utils/supabase";
-import { escapeLikePattern } from "@/utils/escapeLikePattern";
+import { DUPLICATE_NAME_MESSAGE, isDuplicateNameError } from "@/utils/profileErrors";
 import { getSeasonalColor } from "@/utils/seasons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -59,35 +59,21 @@ export default function UsernameScreen() {
 
     setSaving(true);
     try {
-      // Check uniqueness — does any OTHER user already have this name?
-      //
-      // ilike treats % and _ as wildcards, so the raw input is escaped before it
-      // goes in: without this, claiming a name containing either character
-      // matches unrelated rows and reports a false "Name Taken".
-      //
-      // This check is advisory only. It is a read followed by a write, so two
-      // users claiming the same name at once both pass, and it depends on being
-      // able to read other users' rows. The authoritative guard is a unique
-      // index on profiles.username — see docs/SECURITY-AUDIT.md.
-      const escapedName = escapeLikePattern(trimmed);
-      const { data: existing } = await supabase
-        .from("profiles")
-        .select("id")
-        .ilike("username", escapedName)
-        .neq("id", userId!)
-        .maybeSingle();
-
-      if (existing) {
-        Alert.alert("Name Taken", "That username is already in use. Please choose another.");
-        return;
-      }
-
+      // No pre-check. A SELECT followed by an UPDATE cannot enforce uniqueness:
+      // two players saving the same name at once both see it free, and the
+      // query only finds anything if it can read other users' rows at all. The
+      // unique indexes on lower(username) and lower(handle) are the authority,
+      // so the write is the check.
       const handle = trimmed.toLowerCase().replace(/\s+/g, "_");
       const { error } = await supabase
         .from("profiles")
         .update({ username: trimmed, handle })
         .eq("id", userId!);
 
+      if (isDuplicateNameError(error)) {
+        Alert.alert("Name Taken", DUPLICATE_NAME_MESSAGE);
+        return;
+      }
       if (error) throw error;
 
       Alert.alert("Updated", "Your username has been changed.", [
