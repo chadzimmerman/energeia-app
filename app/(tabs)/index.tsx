@@ -506,12 +506,28 @@ export default function HabitScreen() {
         .from("user_habits")
         .select("is_positive, is_negative, streak_level, difficulty, reset_frequency")
         .eq("id", habitId)
+        .eq("user_id", userId)
         .single();
 
       if (habitFetchError || !habitData)
         throw habitFetchError || new Error("Habit not found.");
 
-      const { streak_level, difficulty, reset_frequency } = habitData;
+      const { is_positive, is_negative, streak_level, difficulty, reset_frequency } = habitData;
+
+      // A habit only supports the directions it was created with, and scoring it
+      // the other way still moves health and energeia. The UI hides the unusable
+      // arrow, but a list rendered before an edit landed can still be holding the
+      // old buttons, so validate against the row we just read rather than trusting
+      // what was on screen.
+      //
+      // This is a client-side check. It keeps the app honest about its own state,
+      // but it is not enforcement: anyone holding the anon key can write to the
+      // table directly, so the authoritative guard belongs in an RLS policy or a
+      // scoring RPC.
+      if (direction === "up" && !is_positive)
+        throw new Error(`Habit ${habitId} cannot be scored up.`);
+      if (direction === "down" && !is_negative)
+        throw new Error(`Habit ${habitId} cannot be scored down.`);
 
       // 2. Compute today's date key (reused for both the streak check and the log upsert)
       const now = new Date();
