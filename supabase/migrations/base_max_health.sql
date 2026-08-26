@@ -34,6 +34,24 @@ ALTER TABLE profiles
 --
 -- GREATEST(100, ...) guards the case where drift has already pushed
 -- max_health below the starting value.
+--
+-- ┌─ Read this before assuming the drift is gone ──────────────────┐
+-- │ This stops future drift. It does NOT undo drift that already   │
+-- │ happened. Whatever phantom bonus a player is already carrying  │
+-- │ from gear that was auto-unequipped gets folded into their base │
+-- │ and kept.                                                      │
+-- │                                                                │
+-- │ That is deliberate. Levelling grows max health by 5 + equipped │
+-- │ gear, so gear-accelerated growth is real, permanent, and       │
+-- │ intended — which makes existing drift arithmetically           │
+-- │ indistinguishable from health a player legitimately earned.    │
+-- │ Level history is not stored, so there is nothing to recompute  │
+-- │ from. "Correcting" it would take real health from real people. │
+-- │                                                                │
+-- │ Note the verification query below reports drift = 0 for these  │
+-- │ accounts, because after this runs they are self-consistent.    │
+-- │ It checks the split, not the history.                          │
+-- └────────────────────────────────────────────────────────────────┘
 UPDATE profiles p
 SET base_max_health = GREATEST(
   100,
@@ -64,3 +82,18 @@ SET base_max_health = GREATEST(
 --          ), 0) AS drift
 --   FROM profiles p
 --   ORDER BY drift <> 0 DESC, drift DESC;
+
+
+-- Optional diagnostic — the floor, not the truth.
+--
+-- 100 + 5*(level-1) is the least a player could legitimately have: it
+-- assumes they never wore health gear through a single level-up. Anyone
+-- BELOW that line is definitely wrong. Anyone above may have earned it
+-- or may be carrying drift, and this cannot tell you which.
+--
+--   SELECT id, level, base_max_health,
+--          100 + 5 * (level - 1) AS legitimate_floor,
+--          base_max_health - (100 + 5 * (level - 1)) AS headroom
+--   FROM profiles
+--   WHERE base_max_health < 100 + 5 * (level - 1)
+--   ORDER BY headroom;

@@ -374,16 +374,45 @@ describe("max health derived from equipped gear", () => {
     expect(healthWrite()).toBeUndefined();
   });
 
-  it("falls back to the starting base for a profile predating the column", async () => {
-    // base_max_health was added after these rows existed. Until the backfill
-    // runs they read as null, and the provider must not write NaN.
+  it("leaves a profile predating the column exactly as it is", async () => {
+    // Until base_max_health.sql runs the column reads as null. Falling back to
+    // a fresh 100 would reset a levelled player's ceiling the first time they
+    // opened the app, so the base is derived backwards from what they have and
+    // this becomes a no-op.
     setSession("user-1");
-    setTable("profiles", [profileRow({ base_max_health: null, max_health: 100 })]);
+    setTable("profiles", [profileRow({ base_max_health: null, max_health: 300, current_health: 300 })]);
     setTable("user_inventory", [gear("health", 10)]);
 
     renderProvider();
 
-    await waitFor(() => expect(healthWrite()).toBeDefined());
-    expect(healthWrite()!.payload).toMatchObject({ max_health: 110 });
+    await waitFor(() => expect(screen.getByTestId("username")).toHaveTextContent("Brother Chad"));
+    expect(healthWrite()).toBeUndefined();
+  });
+
+  it("writes nothing when the equipped query failed", async () => {
+    // A failed query returns null, which looks exactly like an empty loadout.
+    // Deriving from it would strip every bonus out of max_health and clamp
+    // current_health down to match, and the clamp does not come back.
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 120, max_health: 130, current_health: 130 })]);
+    setTableError("user_inventory", new Error("offline"));
+
+    renderProvider();
+
+    await waitFor(() => expect(screen.getByTestId("username")).toHaveTextContent("Brother Chad"));
+    expect(healthWrite()).toBeUndefined();
+  });
+
+  it("writes nothing when current health is not a number", async () => {
+    // Otherwise a player who nulled their own current_health would reload into
+    // a full heal.
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 120, max_health: 120, current_health: null })]);
+    setTable("user_inventory", [gear("health", 10)]);
+
+    renderProvider();
+
+    await waitFor(() => expect(screen.getByTestId("username")).toHaveTextContent("Brother Chad"));
+    expect(healthWrite()).toBeUndefined();
   });
 });

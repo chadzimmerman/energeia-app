@@ -68,6 +68,12 @@ export function computeMaxHealth(
  * Unequipping health gear lowers the ceiling, and current health has to come
  * down with it. Raising the ceiling does not heal — the player keeps the health
  * they had, with more room above it.
+ *
+ * Non-finite input returns the ceiling, because there is no sensible clamp of a
+ * value that is not a number and returning 0 would read as death. Callers must
+ * not persist that: a player who set their own current_health to null could
+ * otherwise reload into a full heal. ProfileContext checks the stored value is
+ * finite before it writes anything.
  */
 export function clampCurrentHealth(currentHealth: number, maxHealth: number): number {
   if (!Number.isFinite(currentHealth)) return maxHealth;
