@@ -23,6 +23,18 @@
 -- Rather than list the functions by name, this fixes every one
 -- that has not already pinned a path, so functions added later
 -- can be caught by re-running it.
+--
+-- Uses `public, pg_temp` rather than the stricter `''` Supabase
+-- suggests. Setting an empty search_path means every name inside
+-- the function body must be schema-qualified, so a function that
+-- says `FROM profiles` rather than `FROM public.profiles` starts
+-- failing at runtime the moment it is applied — and these run from
+-- triggers, where that failure surfaces as a broken signup rather
+-- than an obvious error. `public, pg_temp` closes the advisor
+-- warning without depending on how the bodies were written.
+--
+-- If you would rather have `''`, read each function body first and
+-- qualify its references, then change it here.
 -- ------------------------------------------------------------
 
 DO $$

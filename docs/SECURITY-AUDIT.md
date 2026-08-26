@@ -149,6 +149,18 @@ code is generated — which, again, is not in the repository.
 A `BEFORE INSERT OR UPDATE` trigger enforcing the cap is in
 `security_hardening.sql` §4.
 
+The May Security Advisor pass already recorded two always-true policies in this
+area and deferred them until the group feature was built. It now is:
+
+- `group_story_progress` — "Anyone can update group progress", `USING (true)`.
+  Any authenticated user can advance, or reset, any group's quest progress,
+  including groups they are not in.
+- `groups` — "Users can create groups", `WITH CHECK (true)`.
+
+These are worth scoping at the same time as the trigger above. They are the one
+place where the audit found a policy that is known to be permissive rather than
+merely unverifiable.
+
 ### 6. PostgREST filter interpolation — **fixed**
 
 `market.tsx` built filter strings by interpolation:
