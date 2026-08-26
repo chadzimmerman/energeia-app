@@ -343,12 +343,33 @@ export default function CalendarTabScreen() {
     }, [refreshProfile]),
   );
 
+  // Keyed on the id, not the habit object: refreshData() refetches the habit
+  // list on every focus and hands back a new object each time. Depending on the
+  // object would re-run the query on every focus even when the selection has
+  // not actually changed.
+  const selectedHabitId = selectedHabit?.id ?? null;
+
+  const fetchLogs = useCallback(async () => {
+    if (!selectedHabitId) return;
+    const { data } = await supabase
+      .from("habit_logs")
+      .select("log_date, status, notes")
+      .eq("habit_id", selectedHabitId);
+
+    const logMap = data?.reduce((acc: any, curr: any) => {
+      // Store the whole object so we have status AND notes
+      acc[curr.log_date] = { status: curr.status, notes: curr.notes };
+      return acc;
+    }, {});
+    setHabitLogs(logMap || {});
+  }, [selectedHabitId]);
+
+  // Runs every time you "Tap to change" a habit. fetchLogs has to be declared
+  // above this: a dependency array is evaluated during render, so naming a
+  // const defined further down would hit the temporal dead zone.
   useEffect(() => {
-    if (selectedHabit) {
-      fetchLogs();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedHabit]); // This runs every time you "Tap to change" a habit
+    fetchLogs();
+  }, [fetchLogs]);
 
   //handles save logs
   const handleSaveLog = async (status: HabitStatus, notes: string) => {
@@ -383,23 +404,6 @@ export default function CalendarTabScreen() {
       recomputeStreak(selectedHabit.id, userId, selectedHabit.reset_frequency);
     }
   };
-
-  //fetch logs
-  const fetchLogs = async () => {
-    if (!selectedHabit) return;
-    const { data } = await supabase
-      .from("habit_logs")
-      .select("log_date, status, notes") // 👈 Add notes here
-      .eq("habit_id", selectedHabit.id);
-
-    const logMap = data?.reduce((acc: any, curr: any) => {
-      // Store the whole object so we have status AND notes
-      acc[curr.log_date] = { status: curr.status, notes: curr.notes };
-      return acc;
-    }, {});
-    setHabitLogs(logMap || {});
-  };
-
 
   /**
    * Handler function called when a calendar day is pressed.
