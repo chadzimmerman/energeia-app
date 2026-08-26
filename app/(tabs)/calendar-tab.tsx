@@ -307,6 +307,28 @@ export default function CalendarTabScreen() {
   const [showTutorialMocks, setShowTutorialMocks] = useState(false);
   const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, characterBgColors, refreshProfile } = useProfile();
 
+  // Keyed on the id rather than the habit object. refreshData() refetches the
+  // habit list on every focus, and while setSelectedHabit((prev) => prev ?? ...)
+  // happens to preserve the existing object today, that is incidental — any
+  // change that reassigns the selection from the fresh list would start
+  // refetching logs on every focus. The id says what this actually depends on.
+  const selectedHabitId = selectedHabit?.id ?? null;
+
+  const fetchLogs = useCallback(async () => {
+    if (!selectedHabitId) return;
+    const { data } = await supabase
+      .from("habit_logs")
+      .select("log_date, status, notes")
+      .eq("habit_id", selectedHabitId);
+
+    const logMap = data?.reduce((acc: any, curr: any) => {
+      // Store the whole object so we have status AND notes
+      acc[curr.log_date] = { status: curr.status, notes: curr.notes };
+      return acc;
+    }, {});
+    setHabitLogs(logMap || {});
+  }, [selectedHabitId]);
+
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -337,36 +359,21 @@ export default function CalendarTabScreen() {
       };
 
       refreshData();
+      // Logs are refetched on focus too, not just when the selection changes.
+      // Habits are scored on the Habits tab, so without this the calendar shows
+      // yesterday's colours until the habit is re-picked or the app restarts.
+      // Safe to call from a second effect only because fetchLogs is memoised —
+      // as a bare function it was recreated every render and would have looped.
+      fetchLogs();
       return () => {
         isActive = false;
       };
-    }, [refreshProfile]),
+    }, [refreshProfile, fetchLogs]),
   );
 
-  // Keyed on the id, not the habit object: refreshData() refetches the habit
-  // list on every focus and hands back a new object each time. Depending on the
-  // object would re-run the query on every focus even when the selection has
-  // not actually changed.
-  const selectedHabitId = selectedHabit?.id ?? null;
-
-  const fetchLogs = useCallback(async () => {
-    if (!selectedHabitId) return;
-    const { data } = await supabase
-      .from("habit_logs")
-      .select("log_date, status, notes")
-      .eq("habit_id", selectedHabitId);
-
-    const logMap = data?.reduce((acc: any, curr: any) => {
-      // Store the whole object so we have status AND notes
-      acc[curr.log_date] = { status: curr.status, notes: curr.notes };
-      return acc;
-    }, {});
-    setHabitLogs(logMap || {});
-  }, [selectedHabitId]);
-
-  // Runs every time you "Tap to change" a habit. fetchLogs has to be declared
-  // above this: a dependency array is evaluated during render, so naming a
-  // const defined further down would hit the temporal dead zone.
+  // Runs when the selected habit changes. fetchLogs has to be declared above
+  // this: a dependency array is evaluated during render, so naming a const
+  // defined further down would hit the temporal dead zone.
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
