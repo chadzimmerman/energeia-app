@@ -1,9 +1,16 @@
 import { supabase } from "@/utils/supabase";
 import { grantAchievement } from "@/utils/grantAchievement";
+import {
+  MAX_PET_NAME_LENGTH,
+  canRenamePet,
+  isActualRename,
+  resolvePetDisplayName,
+  validatePetName,
+} from "@/utils/petNaming";
 import { useProfile } from "@/contexts/ProfileContext";
 import { getSeasonalColor } from "@/utils/seasons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -74,6 +81,8 @@ interface StableAnimal {
   inventoryId: string | null;   // null = not owned
   isEquipped: boolean;
   happiness: number;
+  /** How many times the player has renamed this animal. First one is free. */
+  renameCount: number;
 }
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -155,21 +164,28 @@ const AnimalModal: React.FC<{
   animal: StableAnimal | null;
   playerEnergeia: number;
   userId: string | null;
+  isSubscriber: boolean;
   allAnimalItemIds: string[];
   onClose: () => void;
   onPurchaseSuccess: () => void;
   onEquipSuccess: () => void;
-}> = ({ visible, animal, playerEnergeia, userId, allAnimalItemIds, onClose, onPurchaseSuccess, onEquipSuccess }) => {
+}> = ({ visible, animal, playerEnergeia, userId, isSubscriber, allAnimalItemIds, onClose, onPurchaseSuccess, onEquipSuccess }) => {
+  const router = useRouter();
   const [nameInput, setNameInput] = useState("");
   const [savedName, setSavedName] = useState("");
+  // Mirrors animal.renameCount locally. The prop only refreshes when the
+  // parent refetches, which is too late to stop a second rename in the same
+  // sitting — the same staleness that made cancel restore the old name (#19).
+  const [renameCount, setRenameCount] = useState(0);
   const [isEditingName, setIsEditingName] = useState(false);
   const [isSavingName, setIsSavingName] = useState(false);
 
   useEffect(() => {
     if (animal) {
-      const initial = animal.customPetName ?? animal.defaultPetName;
+      const initial = resolvePetDisplayName(animal.customPetName, animal.defaultPetName);
       setNameInput(initial);
       setSavedName(initial);
+      setRenameCount(animal.renameCount ?? 0);
       setIsEditingName(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -185,7 +201,14 @@ const AnimalModal: React.FC<{
     try {
       const { error: invError } = await supabase
         .from("user_inventory")
-        .insert({ user_id: userId, item_master_id: animal.id });
+        .insert({
+          user_id: userId,
+          item_master_id: animal.id,
+          // Adopted animals arrive already named, rather than leaning on the
+          // display falling back to the item default.
+          pet_name: animal.defaultPetName,
+          pet_rename_count: 0,
+        });
 
       if (invError) throw invError;
 
@@ -258,16 +281,73 @@ const AnimalModal: React.FC<{
     }
   };
 
+  // One free rename per animal; after that it is a subscriber feature.
+  const renameVerdict = canRenamePet(renameCount, isSubscriber);
+
+  const showRenameUpsell = () => {
+    Alert.alert(
+      "Renaming is for Subscribers",
+      `${savedName} has already been given a new name. Subscribers can rename their companions as often as they like.`,
+      [
+        { text: "Not Now", style: "cancel" },
+        {
+          text: "See Subscription",
+          onPress: () => {
+            onClose();
+            router.push("/(tabs)/settings/subscription");
+          },
+        },
+      ],
+    );
+  };
+
+  const handleStartEditingName = () => {
+    if (!renameVerdict.allowed) {
+      showRenameUpsell();
+      return;
+    }
+    setIsEditingName(true);
+  };
+
   const handleSaveName = async () => {
     if (!animal.inventoryId) return;
+
+    const validation = validatePetName(nameInput);
+    if (!validation.valid) {
+      Alert.alert("Invalid Name", validation.error);
+      return;
+    }
+    const nextName = validation.name;
+
+    // Saving the name it already has is not a rename. Without this, opening the
+    // editor and tapping the check would spend the one free change.
+    if (!isActualRename(savedName, nextName)) {
+      setNameInput(savedName);
+      setIsEditingName(false);
+      return;
+    }
+
+    // Re-checked here rather than trusting that the editor was only reachable
+    // through handleStartEditingName.
+    if (!renameVerdict.allowed) {
+      showRenameUpsell();
+      return;
+    }
+
     setIsSavingName(true);
     try {
-      const trimmed = nameInput.trim();
-      await supabase
+      const { error } = await supabase
         .from("user_inventory")
-        .update({ pet_name: trimmed || null })
+        .update({
+          pet_name: nextName,
+          pet_rename_count: renameCount + 1,
+        })
         .eq("id", animal.inventoryId);
-      setSavedName(trimmed || animal.defaultPetName);
+      if (error) throw error;
+
+      setSavedName(nextName);
+      setNameInput(nextName);
+      setRenameCount((prev) => prev + 1);
       setIsEditingName(false);
       onEquipSuccess();
     } catch (e: any) {
@@ -304,7 +384,7 @@ const AnimalModal: React.FC<{
                     style={modal.nameInput}
                     value={nameInput}
                     onChangeText={setNameInput}
-                    maxLength={24}
+                    maxLength={MAX_PET_NAME_LENGTH}
                     autoFocus
                   />
                   <TouchableOpacity onPress={handleSaveName} disabled={isSavingName} style={{ padding: 4 }}>
@@ -315,9 +395,18 @@ const AnimalModal: React.FC<{
                   </TouchableOpacity>
                 </View>
               ) : (
-                <TouchableOpacity style={modal.nameRow} onPress={() => setIsEditingName(true)}>
-                  <Text style={modal.name}>{nameInput || animal.defaultPetName}</Text>
-                  <FontAwesome name="pencil" size={13} color="#bbb" style={{ marginLeft: 6 }} />
+                <TouchableOpacity style={modal.nameRow} onPress={handleStartEditingName}>
+                  <Text style={modal.name}>
+                    {resolvePetDisplayName(nameInput, animal.defaultPetName)}
+                  </Text>
+                  {/* A lock rather than a hidden control: the rename is still
+                      tappable so it can explain what unlocks it. */}
+                  <FontAwesome
+                    name={renameVerdict.allowed ? "pencil" : "lock"}
+                    size={13}
+                    color={renameVerdict.allowed ? "#bbb" : "#B8860B"}
+                    style={{ marginLeft: 6 }}
+                  />
                 </TouchableOpacity>
               )}
 
@@ -397,6 +486,7 @@ export default function StableScreen() {
   const { refreshProfile } = useProfile();
   const [animals, setAnimals] = useState<StableAnimal[]>([]);
   const [playerEnergeia, setPlayerEnergeia] = useState(0);
+  const [isSubscriber, setIsSubscriber] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [selected, setSelected] = useState<StableAnimal | null>(null);
   const [loading, setLoading] = useState(true);
@@ -405,11 +495,14 @@ export default function StableScreen() {
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("energeia_currency")
+        .select("energeia_currency, is_subscriber")
         .eq("id", uid)
         .single();
 
-      if (profile) setPlayerEnergeia(profile.energeia_currency);
+      if (profile) {
+        setPlayerEnergeia(profile.energeia_currency);
+        setIsSubscriber(profile.is_subscriber ?? false);
+      }
 
       const { data: items, error } = await supabase
         .from("items_master")
@@ -421,7 +514,7 @@ export default function StableScreen() {
       // Fetch inventory with equipped state and pet data
       const { data: inventory } = await supabase
         .from("user_inventory")
-        .select("id, item_master_id, is_equipped, pet_name, happiness, happiness_decay_date, last_pet_tap_date")
+        .select("id, item_master_id, is_equipped, pet_name, pet_rename_count, happiness, happiness_decay_date, last_pet_tap_date")
         .eq("user_id", uid);
 
       // Apply happiness decay for any owned animals not yet checked today
@@ -440,13 +533,14 @@ export default function StableScreen() {
       }
 
       // Build a map: item_master_id → owned data
-      const ownedMap: Record<string, { inventoryId: string; isEquipped: boolean; happiness: number; customPetName: string | null }> = {};
+      const ownedMap: Record<string, { inventoryId: string; isEquipped: boolean; happiness: number; customPetName: string | null; renameCount: number }> = {};
       (inventory ?? []).forEach((inv: any) => {
         ownedMap[inv.item_master_id] = {
           inventoryId: inv.id,
           isEquipped: inv.is_equipped ?? false,
           happiness: inv.happiness ?? 5,
           customPetName: inv.pet_name ?? null,
+          renameCount: inv.pet_rename_count ?? 0,
         };
       });
 
@@ -469,6 +563,7 @@ export default function StableScreen() {
             inventoryId: ownedMap[item.id]?.inventoryId ?? null,
             isEquipped: ownedMap[item.id]?.isEquipped ?? false,
             happiness: ownedMap[item.id]?.happiness ?? 5,
+            renameCount: ownedMap[item.id]?.renameCount ?? 0,
           };
         });
 
@@ -583,6 +678,7 @@ export default function StableScreen() {
         animal={selected}
         playerEnergeia={playerEnergeia}
         userId={userId}
+        isSubscriber={isSubscriber}
         allAnimalItemIds={allAnimalItemIds}
         onClose={() => setSelected(null)}
         onPurchaseSuccess={() => {
