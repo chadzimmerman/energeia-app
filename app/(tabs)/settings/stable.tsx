@@ -3,6 +3,7 @@ import { grantAchievement } from "@/utils/grantAchievement";
 import {
   MAX_PET_NAME_LENGTH,
   canRenamePet,
+  consumesFreeRename,
   isActualRename,
   resolvePetDisplayName,
   validatePetName,
@@ -207,7 +208,6 @@ const AnimalModal: React.FC<{
           // Adopted animals arrive already named, rather than leaning on the
           // display falling back to the item default.
           pet_name: animal.defaultPetName,
-          pet_rename_count: 0,
         });
 
       if (invError) throw invError;
@@ -336,18 +336,37 @@ const AnimalModal: React.FC<{
 
     setIsSavingName(true);
     try {
+      // Re-read the count rather than trusting the mirrored state. Another
+      // device may have renamed this pet since this screen loaded, and a blind
+      // renameCount + 1 would write 1 again instead of 2 — handing out a second
+      // free rename, which is the loophole the count exists to close.
+      const { data: liveRow, error: readError } = await supabase
+        .from("user_inventory")
+        .select("pet_rename_count")
+        .eq("id", animal.inventoryId)
+        .single();
+      if (readError) throw readError;
+
+      const liveCount = liveRow?.pet_rename_count ?? 0;
+      const liveVerdict = canRenamePet(liveCount, isSubscriber);
+      if (!liveVerdict.allowed) {
+        setRenameCount(liveCount);
+        showRenameUpsell();
+        return;
+      }
+
+      // A subscriber's rename does not spend the free one.
+      const nextCount = consumesFreeRename(liveVerdict) ? liveCount + 1 : liveCount;
+
       const { error } = await supabase
         .from("user_inventory")
-        .update({
-          pet_name: nextName,
-          pet_rename_count: renameCount + 1,
-        })
+        .update({ pet_name: nextName, pet_rename_count: nextCount })
         .eq("id", animal.inventoryId);
       if (error) throw error;
 
       setSavedName(nextName);
       setNameInput(nextName);
-      setRenameCount((prev) => prev + 1);
+      setRenameCount(nextCount);
       setIsEditingName(false);
       onEquipSuccess();
     } catch (e: any) {
@@ -512,10 +531,17 @@ export default function StableScreen() {
       if (error) throw error;
 
       // Fetch inventory with equipped state and pet data
-      const { data: inventory } = await supabase
+      const { data: inventory, error: inventoryError } = await supabase
         .from("user_inventory")
         .select("id, item_master_id, is_equipped, pet_name, pet_rename_count, happiness, happiness_decay_date, last_pet_tap_date")
         .eq("user_id", uid);
+
+      // Surfaced rather than swallowed: this select names pet_rename_count, so
+      // if the build reaches a device before pet_rename_count.sql is applied the
+      // query fails, inventory comes back null, and every owned animal silently
+      // renders as unowned — My Companions empties and the shop re-offers
+      // animals the player already bought.
+      if (inventoryError) throw inventoryError;
 
       // Apply happiness decay for any owned animals not yet checked today
       const today = new Date().toISOString().split("T")[0];
@@ -570,6 +596,9 @@ export default function StableScreen() {
       setAnimals(mapped);
     } catch (e: any) {
       console.error("Stable load error:", e.message);
+      // Showing an empty stable with no explanation reads as "you own nothing",
+      // which is a far worse lie than an error message.
+      Alert.alert("Could Not Load the Stable", "Something went wrong. Please try again in a moment.");
     } finally {
       setLoading(false);
     }

@@ -35,6 +35,18 @@ export function canRenamePet(
   return { allowed: false, reason: "needs-subscription" };
 }
 
+/**
+ * Whether this rename should spend the player's one free change.
+ *
+ * Only a rename taken *as a free user* does. A subscriber renaming freely must
+ * not burn it, or someone who subscribes, renames, and later lapses lands on
+ * canRenamePet(1, false) and is blocked — having never had a free rename as a
+ * free user at all.
+ */
+export function consumesFreeRename(verdict: RenameVerdict): boolean {
+  return verdict.allowed && verdict.reason === "free";
+}
+
 export type NameValidation =
   | { valid: true; name: string }
   | { valid: false; error: string };

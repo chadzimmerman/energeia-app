@@ -1,6 +1,7 @@
 import {
   MAX_PET_NAME_LENGTH,
   canRenamePet,
+  consumesFreeRename,
   isActualRename,
   resolvePetDisplayName,
   validatePetName,
@@ -110,5 +111,31 @@ describe("resolvePetDisplayName", () => {
 
   it("trims a stored name with padding", () => {
     expect(resolvePetDisplayName("  Basil  ", "Henry")).toBe("Basil");
+  });
+});
+
+describe("consumesFreeRename", () => {
+  it("spends the free change for a free user", () => {
+    expect(consumesFreeRename(canRenamePet(0, false))).toBe(true);
+  });
+
+  it("does not spend it for a subscriber", () => {
+    // Otherwise a player who subscribes, renames, and later lapses is blocked
+    // at canRenamePet(1, false), having never had a free rename as a free user.
+    expect(consumesFreeRename(canRenamePet(0, true))).toBe(false);
+    expect(consumesFreeRename(canRenamePet(5, true))).toBe(false);
+  });
+
+  it("does not spend anything on a blocked rename", () => {
+    expect(consumesFreeRename(canRenamePet(1, false))).toBe(false);
+  });
+
+  it("leaves a lapsed subscriber their free rename intact", () => {
+    // The whole point: subscribe, rename twice, lapse — the count is still 0,
+    // so the free change is still there.
+    const asSubscriber = canRenamePet(0, true);
+    expect(consumesFreeRename(asSubscriber)).toBe(false);
+    const countAfterLapse = 0;
+    expect(canRenamePet(countAfterLapse, false)).toEqual({ allowed: true, reason: "free" });
   });
 });

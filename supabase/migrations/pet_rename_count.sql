@@ -17,33 +17,40 @@ ALTER TABLE user_inventory
   ADD COLUMN IF NOT EXISTS pet_rename_count integer NOT NULL DEFAULT 0;
 
 
--- Existing pets: anyone already carrying a name different from their
--- item's default has used their free rename, so record that. Everyone
--- else keeps 0 and still has theirs.
+-- Existing pets: before this feature, the ONLY thing that ever wrote
+-- pet_name was the rename handler in stable.tsx. Adoption did not set
+-- it. So for legacy rows, a non-null pet_name means the player renamed
+-- the animal at least once — no inference required.
 --
--- Rows where pet_name is null have never been named at all; the app
--- now writes the default name at adoption, and the display already
--- falls back to it, so they are left at 0.
+-- Deliberately NOT comparing pet_name against default_pet_name. That
+-- comparison is the same unsound shortcut the feature itself avoids: a
+-- player who renamed a pet and then renamed it back to its default
+-- would read as never having renamed, and would be handed a second
+-- free change. It also breaks on animals whose default_pet_name is
+-- null, where the app falls back to the item name.
 UPDATE user_inventory ui
 SET pet_rename_count = 1
 FROM items_master im
 WHERE im.id = ui.item_master_id
   AND im.type = 'animal'
   AND ui.pet_name IS NOT NULL
-  AND ui.pet_name IS DISTINCT FROM im.default_pet_name
   AND ui.pet_rename_count = 0;
 
 
 -- Backfill the name itself for animals adopted before this shipped, so
 -- every pet has a real stored name rather than relying on the display
 -- falling back to the item default.
+--
+-- COALESCE mirrors the app: defaultPetName is `default_pet_name ?? name`,
+-- and nothing currently populates default_pet_name, so without the
+-- fallback this would write nothing at all for most animals.
 UPDATE user_inventory ui
-SET pet_name = im.default_pet_name
+SET pet_name = COALESCE(im.default_pet_name, im.name)
 FROM items_master im
 WHERE im.id = ui.item_master_id
   AND im.type = 'animal'
   AND ui.pet_name IS NULL
-  AND im.default_pet_name IS NOT NULL;
+  AND COALESCE(im.default_pet_name, im.name) IS NOT NULL;
 
 
 -- Check what the backfill did:
