@@ -1,6 +1,6 @@
 import { Text, View } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
-import { getSeasonalColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,6 @@ import {
   TouchableOpacity,
 } from "react-native";
 import React, { useState } from "react";
-const seasonColor = getSeasonalColor();
 
 const ABOUT_DATA = [
   {
@@ -59,6 +58,7 @@ const FeedbackModal = ({
   type: "feedback" | "bug";
   onClose: () => void;
 }) => {
+  const { seasonColor } = useSeason();
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -112,7 +112,7 @@ const FeedbackModal = ({
           <TouchableOpacity onPress={handleSubmit} disabled={submitting}>
             {submitting
               ? <ActivityIndicator color={seasonColor} />
-              : <Text style={modalStyles.submitText}>Send</Text>
+              : <Text style={[modalStyles.submitText, { color: seasonColor }]}>Send</Text>
             }
           </TouchableOpacity>
         </View>
@@ -192,6 +192,7 @@ export const options = {
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 export default function AboutScreen() {
+  const { seasonColor } = useSeason();
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<"feedback" | "bug">("feedback");
 
@@ -203,7 +204,7 @@ export default function AboutScreen() {
   return (
     <View style={aboutStyles.container}>
       <ScrollView style={aboutStyles.scrollView}>
-        <View style={aboutStyles.banner}>
+        <View style={[aboutStyles.banner, { backgroundColor: seasonColor }]}>
           <Image
             source={require("../../../assets/sprites/animals/new_animals/hen.png")}
             style={{ width: 80, height: 80 }}
@@ -255,7 +256,6 @@ const modalStyles = StyleSheet.create({
   submitText: {
     fontSize: 16,
     fontWeight: "600",
-    color: seasonColor,
   },
   input: {
     flex: 1,
@@ -279,7 +279,6 @@ const aboutStyles = StyleSheet.create({
     flex: 1,
   },
   banner: {
-    backgroundColor: seasonColor,
     paddingVertical: 30,
     alignItems: "center",
     marginBottom: 10,

@@ -1,5 +1,6 @@
 import {
   getCurrentSeason,
+  nextSeasonBoundary,
   getSeasonalBackground,
   getLoginBackground,
   getSeasonalColor,
@@ -106,3 +107,94 @@ describe("seasonal colors", () => {
     }
   });
 });
+
+describe("nextSeasonBoundary", () => {
+  const cases: [number, number, string][] = [
+    // [month, day, expected boundary ISO date]
+    [1, 15, "2026-03-01"],   // winter  -> spring
+    [4, 2, "2026-06-01"],    // spring  -> summer
+    [7, 20, "2026-09-01"],   // summer  -> autumn
+    [10, 5, "2026-12-01"],   // autumn  -> winter
+    [12, 25, "2027-03-01"],  // Dec rolls over into next year
+  ];
+
+  it.each(cases)("from %i/%i the next boundary is %s", (month, day, expected) => {
+    at(month, day);
+    const boundary = nextSeasonBoundary();
+    expect(boundary.getFullYear()).toBe(Number(expected.slice(0, 4)));
+    expect(boundary.getMonth() + 1).toBe(Number(expected.slice(5, 7)));
+    expect(boundary.getDate()).toBe(1);
+  });
+
+  it("is always strictly in the future", () => {
+    // A boundary at or before now would make SeasonProvider's timer fire with a
+    // zero delay and immediately re-arm on the same instant — a spin loop.
+    for (let m = 1; m <= 12; m++) {
+      for (const day of [1, 15, 28]) {
+        at(m, day);
+        expect(nextSeasonBoundary().getTime()).toBeGreaterThan(Date.now());
+      }
+    }
+  });
+
+  it("lands exactly on the instant the season changes", () => {
+    // This is the bug in #23: at 11:59 PM on the last day of a season the app
+    // must repaint at midnight, not keep the old palette until a cold restart.
+    at(5, 31);
+    const before = getCurrentSeason();
+    const boundary = nextSeasonBoundary();
+
+    jest.setSystemTime(new Date(boundary.getTime() - 1));
+    expect(getCurrentSeason()).toBe(before);
+
+    jest.setSystemTime(boundary);
+    expect(getCurrentSeason()).not.toBe(before);
+  });
+
+  it("starts the very first midnight of each season", () => {
+    at(2, 10);
+    const boundary = nextSeasonBoundary();
+    expect(boundary.getHours()).toBe(0);
+    expect(boundary.getMinutes()).toBe(0);
+    expect(boundary.getSeconds()).toBe(0);
+    expect(boundary.getMilliseconds()).toBe(0);
+  });
+});
+
+describe("explicit season argument", () => {
+  // SeasonProvider holds the season in state and passes it down, so the getters
+  // must honour the argument rather than re-reading the clock.
+  it("ignores the current date when a season is passed", () => {
+    at(7, 4); // summer
+    expect(getSeasonalColor("winter")).toBe(getSeasonalColorAtMonth(1));
+    expect(getSeasonalDarkColor("winter")).not.toBe(getSeasonalDarkColor("summer"));
+    expect(getSeasonalBackground("autumn")).toBe(getSeasonalBackgroundAtMonth(10));
+    expect(getLoginBackground("spring")).toBe(getLoginBackgroundAtMonth(4));
+  });
+
+  it("still falls back to the clock when called with no argument", () => {
+    at(10, 10);
+    expect(getSeasonalColor()).toBe(getSeasonalColor("autumn"));
+  });
+});
+
+// Helpers that read a value the old way — by moving the clock — so the tests
+// above compare the argument path against the clock path.
+function getSeasonalColorAtMonth(month: number) {
+  at(month, 1);
+  const value = getSeasonalColor();
+  at(7, 4);
+  return value;
+}
+function getSeasonalBackgroundAtMonth(month: number) {
+  at(month, 1);
+  const value = getSeasonalBackground();
+  at(7, 4);
+  return value;
+}
+function getLoginBackgroundAtMonth(month: number) {
+  at(month, 1);
+  const value = getLoginBackground();
+  at(7, 4);
+  return value;
+}

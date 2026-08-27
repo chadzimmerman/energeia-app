@@ -1,8 +1,8 @@
 import { supabase } from "@/utils/supabase";
-import { getSeasonalColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-const seasonColor = getSeasonalColor();
 
 interface SubscriptionProfile {
   is_subscriber: boolean;
@@ -54,6 +53,9 @@ const formatDate = (iso: string | null): string => {
 
 // --- SUBSCRIBER VIEW ---
 function SubscriberView({ profile }: { profile: SubscriptionProfile }) {
+  const { seasonColor } = useSeason();
+  const subStyles = useMemo(() => makeSubStyles(seasonColor), [seasonColor]);
+
   return (
     <ScrollView
       style={subStyles.container}
@@ -138,6 +140,9 @@ function SubscriberView({ profile }: { profile: SubscriptionProfile }) {
 
 // --- UPSELL VIEW (non-subscriber) ---
 function UpsellView() {
+  const { seasonColor } = useSeason();
+  const upsellStyles = useMemo(() => makeUpsellStyles(seasonColor), [seasonColor]);
+
   return (
     <View style={upsellStyles.backdrop}>
       <View style={upsellStyles.card}>
@@ -242,7 +247,7 @@ export default function SubscriptionScreen() {
 }
 
 // --- SUBSCRIBER STYLES ---
-const subStyles = StyleSheet.create({
+const makeSubStyles = (seasonColor: string) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F0F0F0",
@@ -325,7 +330,7 @@ const subStyles = StyleSheet.create({
 });
 
 // --- UPSELL STYLES ---
-const upsellStyles = StyleSheet.create({
+const makeUpsellStyles = (seasonColor: string) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.55)",

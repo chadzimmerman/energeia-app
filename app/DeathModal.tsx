@@ -1,5 +1,5 @@
 import React from "react";
-import { getSeasonalColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import {
   Dimensions,
   Image,
@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-const seasonColor = getSeasonalColor();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ANGEL IMAGES — drop your 9:16 portrait art here:
@@ -35,6 +34,7 @@ interface Props {
 }
 
 export default function DeathModal({ visible, gender, lostItemName, onRise }: Props) {
+  const { seasonColor } = useSeason();
   const address = gender === "female" ? "sister" : "brother";
 
   return (
@@ -71,7 +71,7 @@ export default function DeathModal({ visible, gender, lostItemName, onRise }: Pr
           </View>
 
           <TouchableOpacity
-            style={styles.riseButton}
+            style={[styles.riseButton, { backgroundColor: seasonColor }]}
             onPress={onRise}
             activeOpacity={0.8}
           >
@@ -168,7 +168,6 @@ const styles = StyleSheet.create({
 
   // Rise button
   riseButton: {
-    backgroundColor: seasonColor,
     borderRadius: 14,
     paddingVertical: 18,
     paddingHorizontal: 60,
