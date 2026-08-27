@@ -4,6 +4,7 @@ import { supabase } from "@/utils/supabase";
 import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
 import { BACKGROUND_COLORS, DEFAULT_BG } from "@/utils/backgroundColors";
 import { CURRENT_DATA_VERSION, runPendingMigrations } from "@/utils/migrations";
+import { resolvePetDisplayName } from "@/utils/petNaming";
 import { clampCurrentHealth, computeMaxHealth, sumEquippedBuff, type EquippedBuffRow } from "@/utils/statBonuses";
 
 export interface Profile {
@@ -216,7 +217,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const animal = equipped.find((e: any) => e.item?.display_slot === "animal") as any ?? null;
       setAnimalCompanion(animal ? resolveItemImage(animal.item.image_path) : null);
       setAnimalInventoryId(animal ? animal.id : null);
-      setPetName(animal ? (animal.pet_name ?? animal.item?.default_pet_name ?? null) : null);
+      setPetName(
+        animal ? resolvePetDisplayName(animal.pet_name, animal.item?.default_pet_name ?? "") || null : null,
+      );
       const today = new Date().toISOString().split("T")[0];
       setPetTappedToday(animal ? animal.last_pet_tap_date === today : false);
 
