@@ -1,9 +1,11 @@
 import { supabase } from "@/utils/supabase";
+import { DUPLICATE_NAME_MESSAGE, isDuplicateNameError } from "@/utils/profileErrors";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -64,11 +66,20 @@ export default function OnboardingScreen() {
         })
         .eq("id", session.user.id);
 
+      // profiles.username and .handle carry unique indexes, so a name someone
+      // already holds is rejected here. Onboarding used to only console.error,
+      // which on the very first screen of the app meant "Begin Journey" did
+      // nothing at all, with nothing on screen to explain why.
+      if (isDuplicateNameError(error)) {
+        Alert.alert("Name Taken", DUPLICATE_NAME_MESSAGE);
+        return;
+      }
       if (error) throw error;
 
       router.replace("/(tabs)");
     } catch (e: any) {
       console.error("Onboarding save error:", e.message);
+      Alert.alert("Could Not Save", "Something went wrong setting up your character. Please try again.");
     } finally {
       setSaving(false);
     }

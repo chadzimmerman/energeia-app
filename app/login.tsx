@@ -35,8 +35,12 @@ export default function LoginScreen() {
       if (!email) { setError("Please enter your email address."); return; }
       setLoading(true);
       try {
+        // Must be the app's deep-link scheme, not the Supabase host. Pointing at
+        // the project URL drops the user on a Supabase page instead of returning
+        // them to the app, so _layout's auth/callback handler never runs and the
+        // reset cannot complete.
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: "https://pnhfekszpoaeelbbvtyw.supabase.co",
+          redirectTo: "energeiaapp://auth/callback",
         });
         if (error) throw error;
         setResetSent(true);
