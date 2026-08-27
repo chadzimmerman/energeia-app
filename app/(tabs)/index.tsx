@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { supabase } from "../../utils/supabase";
 import { useSeason } from "@/contexts/SeasonContext";
+import { sumEquippedBuff, type EquippedBuffRow } from "@/utils/statBonuses";
 import { grantAchievement } from "../../utils/grantAchievement";
 import { resolveCharacterImage } from "../../utils/resolveCharacterImage";
 import HabitEditModal from "../HabitEditModal";
@@ -61,10 +62,7 @@ const calculateBossDamage = async (
       .select("item:item_master_id(hidden_stat_type, hidden_buff_value)")
       .eq("user_id", userId)
       .eq("is_equipped", true);
-    const gearBuff =
-      equipped
-        ?.filter((e: any) => e.item?.hidden_stat_type === "defense")
-        .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
+    const gearBuff = sumEquippedBuff(equipped as EquippedBuffRow[], "defense");
     classMult = 1 + gearBuff / 5;
   }
   // Noble: classMult stays 1 — their bonuses are coins + XP
@@ -577,14 +575,14 @@ export default function HabitScreen() {
       // 4. Fetch Profile Details (for current stats)
       const { data: profileData, error: profileFetchError } = await supabase
         .from("profiles")
-        .select("current_health, max_health, current_energeia, level, energeia_currency, player_class")
+        .select("current_health, max_health, base_max_health, current_energeia, level, energeia_currency, player_class")
         .eq("id", userId)
         .single();
 
       if (profileFetchError || !profileData)
         throw profileFetchError || new Error("Profile not found.");
 
-      const { current_health, max_health, current_energeia, level, energeia_currency, player_class } =
+      const { current_health, max_health, base_max_health, current_energeia, level, energeia_currency, player_class } =
         profileData;
 
       // 5. Apply Stat Changes
@@ -599,28 +597,20 @@ export default function HabitScreen() {
           .eq("user_id", userId)
           .eq("is_equipped", true);
 
-        energeiaFlatBonus =
-          equippedBonuses
-            ?.filter((e: any) => e.item?.hidden_stat_type === "energeia")
-            .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
-
+        const rows = equippedBonuses as EquippedBuffRow[];
+        energeiaFlatBonus = sumEquippedBuff(rows, "energeia");
         // Health gear bonus applied once per level-up (fighters benefit most)
-        healthEquipBonus =
-          equippedBonuses
-            ?.filter((e: any) => e.item?.hidden_stat_type === "health")
-            .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
-
+        healthEquipBonus = sumEquippedBuff(rows, "health");
         // Currency gear bonus added to wallet each time a habit is scored positive (nobles)
-        currencyFlatBonus =
-          equippedBonuses
-            ?.filter((e: any) => e.item?.hidden_stat_type === "currency")
-            .reduce((sum: number, e: any) => sum + (e.item?.hidden_buff_value ?? 0), 0) ?? 0;
+        currencyFlatBonus = sumEquippedBuff(rows, "currency");
       }
 
       let newHealth = Math.min(Math.max(current_health + healthChange, 0), max_health);
       let newEnergeia = current_energeia + energeiaChange + energeiaFlatBonus;
       let newLevel = level;
       let newMaxHealth = max_health;
+      // Levelling raises the base. max_health stays derived: base + equipped gear.
+      let newBaseMaxHealth = base_max_health ?? max_health - healthEquipBonus;
       let newCurrency = energeia_currency;
       let didLevelUp = false;
 
@@ -643,8 +633,11 @@ export default function HabitScreen() {
         while (newEnergeia >= levelThreshold) {
           newEnergeia -= levelThreshold;
           newLevel += 1;
-          // Max health grows 5 base + equipped health gear bonus each level
-          newMaxHealth += 5 + healthEquipBonus;
+          // Max health grows 5 base + equipped health gear bonus each level.
+          // The growth is banked in the base so it survives unequipping the gear,
+          // while the gear's own bonus stays derived and disappears with it.
+          newBaseMaxHealth += 5 + healthEquipBonus;
+          newMaxHealth = newBaseMaxHealth + healthEquipBonus;
           didLevelUp = true;
           levelThreshold = 100 + (newLevel - 1) * 20;
         }
@@ -730,7 +723,7 @@ export default function HabitScreen() {
           current_energeia: newEnergeia,
           level: newLevel,
           energeia_currency: newCurrency,
-          ...(didLevelUp ? { max_health: newMaxHealth } : {}),
+          ...(didLevelUp ? { base_max_health: newBaseMaxHealth, max_health: newMaxHealth } : {}),
         })
         .eq("id", userId);
 

@@ -4,11 +4,14 @@ import { supabase } from "@/utils/supabase";
 import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
 import { BACKGROUND_COLORS, DEFAULT_BG } from "@/utils/backgroundColors";
 import { CURRENT_DATA_VERSION, runPendingMigrations } from "@/utils/migrations";
+import { clampCurrentHealth, computeMaxHealth, sumEquippedBuff, type EquippedBuffRow } from "@/utils/statBonuses";
 
 export interface Profile {
   id: string;
   username: string;
   current_health: number;
+  /** Health earned by levelling. max_health is this plus equipped gear. */
+  base_max_health: number;
   max_health: number;
   current_energeia: number;
   max_energeia: number;
@@ -83,6 +86,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await supabase.from("profiles").upsert({
         id: userId,
         current_health: 100,
+        base_max_health: 100,
         max_health: 100,
         current_energeia: 0,
         energeia_currency: 0,
@@ -135,11 +139,48 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await supabase.from("user_inventory").update({ is_equipped: false }).in("id", mismatchIds);
     }
 
-    const { data: equipped } = await supabase
+    const { data: equipped, error: equippedError } = await supabase
       .from("user_inventory")
-      .select("id, pet_name, last_pet_tap_date, item:item_master_id(image_path, type, display_slot, default_pet_name)")
+      .select("id, pet_name, last_pet_tap_date, item:item_master_id(image_path, type, display_slot, default_pet_name, hidden_stat_type, hidden_buff_value)")
       .eq("user_id", userId)
       .eq("is_equipped", true);
+
+    // Derive max health from what is actually equipped, now that mismatched gear
+    // has been unequipped above. Doing this on every load rather than nudging the
+    // stored value on equip and unequip means no path can leave it wrong — the
+    // auto-unequip immediately above is one that used to.
+    //
+    // Only ever runs against a loadout we actually read. A failed query returns
+    // null, which is indistinguishable from "nothing equipped" — deriving from
+    // that would strip every gear bonus out of max_health, clamp current_health
+    // down to match, and persist both. The clamp is not recoverable on the next
+    // successful load, so a dropped connection would cost real health.
+    if (profileData && !equippedError && Number.isFinite(profileData.current_health)) {
+      const equippedRows = (equipped ?? []) as EquippedBuffRow[];
+
+      // Falls back to deriving the base from the effective value, NOT to 100.
+      // If base_max_health.sql has not been applied yet the column reads as
+      // undefined, and a fresh 100 would reset a levelled player's ceiling the
+      // first time they opened the app. Working backwards from what they have
+      // makes this a no-op until the migration lands. Matches index.tsx.
+      const storedBase = profileData.base_max_health;
+      const base = Number.isFinite(storedBase)
+        ? storedBase
+        : profileData.max_health - sumEquippedBuff(equippedRows, "health");
+
+      const effectiveMax = computeMaxHealth(base, equippedRows);
+      const clampedHealth = clampCurrentHealth(profileData.current_health, effectiveMax);
+
+      if (effectiveMax !== profileData.max_health || clampedHealth !== profileData.current_health) {
+        await supabase
+          .from("profiles")
+          .update({ max_health: effectiveMax, current_health: clampedHealth })
+          .eq("id", userId);
+
+        profileData = { ...profileData, max_health: effectiveMax, current_health: clampedHealth };
+        setProfile(profileData as Profile);
+      }
+    }
 
     if (equipped) {
       // Render order: body behind everything, head on top

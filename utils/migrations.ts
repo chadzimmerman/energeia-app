@@ -21,7 +21,10 @@ const MIGRATIONS: Migration[] = [
       await supabase.from("user_story_progress").delete().eq("user_id", userId);
       await supabase
         .from("profiles")
-        .update({ energeia_currency: 0, max_health: 100, current_health: 100 })
+        // base_max_health resets alongside max_health: the profile load that
+        // follows derives max_health from the base, so resetting only the
+        // derived value would be undone immediately.
+        .update({ energeia_currency: 0, base_max_health: 100, max_health: 100, current_health: 100 })
         .eq("id", userId);
     },
   },
