@@ -1,7 +1,7 @@
 import { Text } from "@/components/Themed";
-import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Platform,
@@ -12,8 +12,6 @@ import {
   View,
 } from "react-native";
 
-const seasonColor = getSeasonalColor();
-const seasonDarkColor = getSeasonalDarkColor();
 
 type HabitStatus = "green" | "orange" | "red" | "grey";
 
@@ -44,6 +42,12 @@ const DailyLogModal: React.FC<DailyLogModalProps> = ({
   onSave,
   initialNotes = "",
 }) => {
+  const { seasonColor, seasonDarkColor } = useSeason();
+  const styles = useMemo(
+    () => makeStyles(seasonColor, seasonDarkColor),
+    [seasonColor, seasonDarkColor],
+  );
+
   const [selectedStatus, setSelectedStatus] =
     useState<HabitStatus>(initialStatus);
   const [notes, setNotes] = useState(initialNotes);
@@ -158,7 +162,7 @@ const DailyLogModal: React.FC<DailyLogModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = (seasonColor: string, seasonDarkColor: string) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F0F0F0",

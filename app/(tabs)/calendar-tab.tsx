@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import { getSeasonalColor , getSeasonalBackground } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import {
   Dimensions,
   Modal,
@@ -24,7 +24,6 @@ import { useProfile } from "@/contexts/ProfileContext";
 import { hasTutorialBeenSeen } from "@/components/TutorialOverlay";
 import { useFocusEffect } from "expo-router";
 import DailyLogModal from "../calendar-modal";
-const seasonColor = getSeasonalColor();
 
 const buildTutorialMockLogs = (): { [key: string]: { status: HabitStatus; notes: string } } => {
   const now = new Date();
@@ -295,6 +294,7 @@ const HabitTrackerSection: React.FC<{ title: string; onPress: () => void }> = ({
 // --- MAIN TAB SCREEN ---
 
 export default function CalendarTabScreen() {
+  const { seasonColor, seasonBackground } = useSeason();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedDayData, setSelectedDayData] = useState<HabitDay | null>(null);
   const [myHabits, setMyHabits] = useState<any[]>([]);
@@ -306,6 +306,28 @@ export default function CalendarTabScreen() {
   const [isPickerVisible, setIsPickerVisible] = useState(false);
   const [showTutorialMocks, setShowTutorialMocks] = useState(false);
   const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, characterBgColors, refreshProfile } = useProfile();
+
+  // Keyed on the id rather than the habit object. refreshData() refetches the
+  // habit list on every focus, and while setSelectedHabit((prev) => prev ?? ...)
+  // happens to preserve the existing object today, that is incidental — any
+  // change that reassigns the selection from the fresh list would start
+  // refetching logs on every focus. The id says what this actually depends on.
+  const selectedHabitId = selectedHabit?.id ?? null;
+
+  const fetchLogs = useCallback(async () => {
+    if (!selectedHabitId) return;
+    const { data } = await supabase
+      .from("habit_logs")
+      .select("log_date, status, notes")
+      .eq("habit_id", selectedHabitId);
+
+    const logMap = data?.reduce((acc: any, curr: any) => {
+      // Store the whole object so we have status AND notes
+      acc[curr.log_date] = { status: curr.status, notes: curr.notes };
+      return acc;
+    }, {});
+    setHabitLogs(logMap || {});
+  }, [selectedHabitId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -337,18 +359,24 @@ export default function CalendarTabScreen() {
       };
 
       refreshData();
+      // Logs are refetched on focus too, not just when the selection changes.
+      // Habits are scored on the Habits tab, so without this the calendar shows
+      // yesterday's colours until the habit is re-picked or the app restarts.
+      // Safe to call from a second effect only because fetchLogs is memoised —
+      // as a bare function it was recreated every render and would have looped.
+      fetchLogs();
       return () => {
         isActive = false;
       };
-    }, [refreshProfile]),
+    }, [refreshProfile, fetchLogs]),
   );
 
+  // Runs when the selected habit changes. fetchLogs has to be declared above
+  // this: a dependency array is evaluated during render, so naming a const
+  // defined further down would hit the temporal dead zone.
   useEffect(() => {
-    if (selectedHabit) {
-      fetchLogs();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedHabit]); // This runs every time you "Tap to change" a habit
+    fetchLogs();
+  }, [fetchLogs]);
 
   //handles save logs
   const handleSaveLog = async (status: HabitStatus, notes: string) => {
@@ -384,23 +412,6 @@ export default function CalendarTabScreen() {
     }
   };
 
-  //fetch logs
-  const fetchLogs = async () => {
-    if (!selectedHabit) return;
-    const { data } = await supabase
-      .from("habit_logs")
-      .select("log_date, status, notes") // 👈 Add notes here
-      .eq("habit_id", selectedHabit.id);
-
-    const logMap = data?.reduce((acc: any, curr: any) => {
-      // Store the whole object so we have status AND notes
-      acc[curr.log_date] = { status: curr.status, notes: curr.notes };
-      return acc;
-    }, {});
-    setHabitLogs(logMap || {});
-  };
-
-
   /**
    * Handler function called when a calendar day is pressed.
    */
@@ -433,7 +444,7 @@ export default function CalendarTabScreen() {
     <ThemedView style={styles.container}>
       {/* 1. Character Stats Header */}
       <CharacterStats
-        backgroundImageSource={getSeasonalBackground()}
+        backgroundImageSource={seasonBackground}
         characterImageSource={resolveCharacterImage(profile?.character_image_path)}
         equippedCharacterSet={equippedCharacterSet}
         currentHealth={profile?.current_health ?? 0}
@@ -482,7 +493,7 @@ export default function CalendarTabScreen() {
       >
         <View style={pickerStyles.container}>
           {/* Header */}
-          <View style={pickerStyles.header}>
+          <View style={[pickerStyles.header, { backgroundColor: seasonColor }]}>
             <TouchableOpacity onPress={() => setIsPickerVisible(false)}>
               <Text style={pickerStyles.headerCancel}>Cancel</Text>
             </TouchableOpacity>
@@ -642,7 +653,6 @@ const pickerStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: seasonColor,
     paddingHorizontal: 15,
     paddingBottom: 15,
     paddingTop: Platform.OS === "ios" ? 55 : 15,

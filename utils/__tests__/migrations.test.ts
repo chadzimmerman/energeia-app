@@ -99,6 +99,11 @@ describe("runPendingMigrations", () => {
     expect(profileReset).toBeDefined();
     const payload = profileReset!.payload as Record<string, unknown>;
     expect(payload).toHaveProperty("energeia_currency", 0);
+    // Both halves of max health, not just the derived one. Resetting max_health
+    // alone would be undone by the next profile load, which recomputes it from
+    // base_max_health plus equipped gear.
+    expect(payload).toHaveProperty("max_health", 100);
+    expect(payload).toHaveProperty("base_max_health", 100);
     expect(payload).not.toHaveProperty("level");
     expect(payload).not.toHaveProperty("character_class");
   });

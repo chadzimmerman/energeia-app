@@ -1,6 +1,6 @@
 import { supabase } from "@/utils/supabase";
-import { getSeasonalColor, getSeasonalDarkColor, getLoginBackground } from "@/utils/seasons";
-import React, { useState } from "react";
+import { useSeason } from "@/contexts/SeasonContext";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ImageBackground,
@@ -13,10 +13,13 @@ import {
   View,
 } from "react-native";
 
-const seasonColor = getSeasonalColor();
-const seasonDarkColor = getSeasonalDarkColor();
-
 export default function LoginScreen() {
+  const { seasonColor, seasonDarkColor, loginBackground } = useSeason();
+  const styles = useMemo(
+    () => makeStyles(seasonColor, seasonDarkColor),
+    [seasonColor, seasonDarkColor],
+  );
+
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,8 +35,12 @@ export default function LoginScreen() {
       if (!email) { setError("Please enter your email address."); return; }
       setLoading(true);
       try {
+        // Must be the app's deep-link scheme, not the Supabase host. Pointing at
+        // the project URL drops the user on a Supabase page instead of returning
+        // them to the app, so _layout's auth/callback handler never runs and the
+        // reset cannot complete.
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: "https://pnhfekszpoaeelbbvtyw.supabase.co",
+          redirectTo: "energeiaapp://auth/callback",
         });
         if (error) throw error;
         setResetSent(true);
@@ -83,7 +90,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <ImageBackground source={getLoginBackground()} style={styles.background} resizeMode="cover">
+    <ImageBackground source={loginBackground} style={styles.background} resizeMode="cover">
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -181,7 +188,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (seasonColor: string, seasonDarkColor: string) => StyleSheet.create({
   background: {
     flex: 1,
   },

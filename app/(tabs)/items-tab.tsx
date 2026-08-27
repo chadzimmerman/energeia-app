@@ -1,7 +1,7 @@
 import CharacterStats from "@/components/CharacterStats";
 import { Text as ThemedText, View as ThemedView } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
-import { getSeasonalBackground } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
 import BgColorSwatch from "@/components/BgColorSwatch";
@@ -305,6 +305,7 @@ const ItemGrid: React.FC<{
 // --- MAIN TAB SCREEN (UPDATED) ---
 
 export default function ItemsTabScreen() {
+  const { seasonBackground } = useSeason();
   const router = useRouter();
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -513,9 +514,7 @@ export default function ItemsTabScreen() {
           }
         }
 
-        // Unequip any other item in the same slot before equipping this one,
-        // and roll back their stat bonuses so max_health doesn't drift.
-        let displacedHealthBuff = 0;
+        // Unequip any other item in the same slot before equipping this one.
         if (newState && item.display_slot?.startsWith("character_")) {
           const sameSlotItems = inventory.filter(
             (i) => i.display_slot === item.display_slot && i.id !== item.id && i.is_equipped
@@ -525,9 +524,6 @@ export default function ItemsTabScreen() {
               .from("user_inventory")
               .update({ is_equipped: false })
               .in("id", sameSlotItems.map((i) => i.id));
-            displacedHealthBuff = sameSlotItems
-              .filter((i) => i.hiddenBonus.stat === "health")
-              .reduce((sum, i) => sum + i.hiddenBonus.buff, 0);
           }
         }
 
@@ -536,18 +532,11 @@ export default function ItemsTabScreen() {
           .update({ is_equipped: newState })
           .eq("id", item.id);
 
-        if (item.hiddenBonus.stat === "health" && (item.hiddenBonus.buff > 0 || displacedHealthBuff > 0)) {
-          const buff = item.hiddenBonus.buff;
-          const newMaxHealth = newState
-            ? profile.max_health - displacedHealthBuff + buff
-            : profile.max_health - buff;
-          const newCurrentHealth = Math.min(profile.current_health, newMaxHealth);
-
-          await supabase
-            .from("profiles")
-            .update({ max_health: newMaxHealth, current_health: newCurrentHealth })
-            .eq("id", userId);
-        }
+        // No max_health arithmetic here. It used to be adjusted by hand on both
+        // sides of the swap, which meant every new path that changed what was
+        // equipped had to remember to do the same and one of them did not.
+        // refreshProfile() at the end of this handler now derives it from the
+        // equipped set instead.
       } else if (item.type === "consumable") {
         if (item.image_path === "scroll-of-undoing") {
           handleCloseModal();
@@ -593,6 +582,9 @@ export default function ItemsTabScreen() {
                                 level: 1,
                                 energeia_currency: 0,
                                 current_energeia: 0,
+                                // Both, or the next profile load derives
+                                // max_health back up from the untouched base.
+                                base_max_health: 100,
                                 max_health: 100,
                                 current_health: 100,
                                 player_class: null,
@@ -693,7 +685,7 @@ export default function ItemsTabScreen() {
     <ThemedView style={styles.container}>
       {/* 1. Character Stats Header (Using live profile data) */}
       <CharacterStats
-        backgroundImageSource={getSeasonalBackground()}
+        backgroundImageSource={seasonBackground}
         characterImageSource={resolveCharacterImage(profile.character_image_path)}
         equippedCharacterSet={equippedCharacterSet}
         currentHealth={profile.current_health}

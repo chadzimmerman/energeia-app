@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -14,10 +14,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { getSeasonalColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 
 const { width: W, height: H } = Dimensions.get("window");
-const seasonColor = getSeasonalColor();
 
 // ─── Persistence helpers ──────────────────────────────────────────────────────
 
@@ -283,6 +282,9 @@ export default function TutorialOverlay({
   userId,
   playerClass,
 }: TutorialOverlayProps) {
+  const { seasonColor } = useSeason();
+  const styles = useMemo(() => makeStyles(seasonColor), [seasonColor]);
+
   const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
 
@@ -572,7 +574,7 @@ export default function TutorialOverlay({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const makeStyles = (seasonColor: string) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(6, 2, 20, 0.80)",

@@ -15,6 +15,7 @@ const profileRow = (overrides: Record<string, unknown> = {}) => ({
   id: "user-1",
   username: "Brother Chad",
   current_health: 80,
+  base_max_health: 100,
   max_health: 100,
   current_energeia: 40,
   max_energeia: 100,
@@ -285,5 +286,133 @@ describe("ProfileProvider resilience", () => {
     // The early return on a null session must not leave a rejected promise
     // behind, which would surface as an unhandled rejection on launch.
     await waitFor(() => expect(screen.getByTestId("ok")).toBeTruthy());
+  });
+});
+
+describe("max health derived from equipped gear", () => {
+  /** An equipped inventory row carrying a hidden stat bonus. */
+  const gear = (stat: string, value: number) => ({
+    id: `inv-${stat}-${value}`,
+    is_equipped: true,
+    item: { hidden_stat_type: stat, hidden_buff_value: value },
+  });
+
+  /** The last write to profiles that touched max_health, if any. */
+  const healthWrite = () =>
+    writesTo("profiles")
+      .filter((w) => w.payload && "max_health" in w.payload)
+      .pop();
+
+  it("adds equipped health gear to the levelled base", async () => {
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 120, max_health: 120 })]);
+    setTable("user_inventory", [gear("health", 10)]);
+
+    renderProvider();
+
+    await waitFor(() => expect(healthWrite()).toBeDefined());
+    expect(healthWrite()!.payload).toMatchObject({ max_health: 130 });
+  });
+
+  it("drops the bonus for gear that is no longer equipped", async () => {
+    // The drift case. max_health still carries a bonus from gear that has since
+    // been removed — by the class-mismatch auto-unequip, for instance, which
+    // never adjusted it. Deriving the value on load corrects it.
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 120, max_health: 130 })]);
+    setTable("user_inventory", []);
+
+    renderProvider();
+
+    await waitFor(() => expect(healthWrite()).toBeDefined());
+    expect(healthWrite()!.payload).toMatchObject({ max_health: 120 });
+  });
+
+  it("writes nothing when the stored value is already correct", async () => {
+    // Every profile load runs this. It must not write on the common path, or
+    // opening the app would issue a pointless update every single time.
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 120, max_health: 130, current_health: 50 })]);
+    setTable("user_inventory", [gear("health", 10)]);
+
+    renderProvider();
+
+    await waitFor(() => expect(screen.getByTestId("username")).toHaveTextContent("Brother Chad"));
+    expect(healthWrite()).toBeUndefined();
+  });
+
+  it("pulls current health down when the ceiling drops below it", async () => {
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 100, max_health: 130, current_health: 130 })]);
+    setTable("user_inventory", []);
+
+    renderProvider();
+
+    await waitFor(() => expect(healthWrite()).toBeDefined());
+    expect(healthWrite()!.payload).toMatchObject({ max_health: 100, current_health: 100 });
+  });
+
+  it("does not heal the player when the ceiling rises", async () => {
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 100, max_health: 100, current_health: 40 })]);
+    setTable("user_inventory", [gear("health", 25)]);
+
+    renderProvider();
+
+    await waitFor(() => expect(healthWrite()).toBeDefined());
+    expect(healthWrite()!.payload).toMatchObject({ max_health: 125, current_health: 40 });
+  });
+
+  it("ignores gear whose bonus is not health", async () => {
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 120, max_health: 120 })]);
+    setTable("user_inventory", [gear("defense", 10), gear("currency", 5), gear("energeia", 3)]);
+
+    renderProvider();
+
+    await waitFor(() => expect(screen.getByTestId("username")).toHaveTextContent("Brother Chad"));
+    expect(healthWrite()).toBeUndefined();
+  });
+
+  it("leaves a profile predating the column exactly as it is", async () => {
+    // Until base_max_health.sql runs the column reads as null. Falling back to
+    // a fresh 100 would reset a levelled player's ceiling the first time they
+    // opened the app, so the base is derived backwards from what they have and
+    // this becomes a no-op.
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: null, max_health: 300, current_health: 300 })]);
+    setTable("user_inventory", [gear("health", 10)]);
+
+    renderProvider();
+
+    await waitFor(() => expect(screen.getByTestId("username")).toHaveTextContent("Brother Chad"));
+    expect(healthWrite()).toBeUndefined();
+  });
+
+  it("writes nothing when the equipped query failed", async () => {
+    // A failed query returns null, which looks exactly like an empty loadout.
+    // Deriving from it would strip every bonus out of max_health and clamp
+    // current_health down to match, and the clamp does not come back.
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 120, max_health: 130, current_health: 130 })]);
+    setTableError("user_inventory", new Error("offline"));
+
+    renderProvider();
+
+    await waitFor(() => expect(screen.getByTestId("username")).toHaveTextContent("Brother Chad"));
+    expect(healthWrite()).toBeUndefined();
+  });
+
+  it("writes nothing when current health is not a number", async () => {
+    // Otherwise a player who nulled their own current_health would reload into
+    // a full heal.
+    setSession("user-1");
+    setTable("profiles", [profileRow({ base_max_health: 120, max_health: 120, current_health: null })]);
+    setTable("user_inventory", [gear("health", 10)]);
+
+    renderProvider();
+
+    await waitFor(() => expect(screen.getByTestId("username")).toHaveTextContent("Brother Chad"));
+    expect(healthWrite()).toBeUndefined();
   });
 });

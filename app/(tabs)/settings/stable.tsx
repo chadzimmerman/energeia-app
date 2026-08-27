@@ -9,7 +9,7 @@ import {
   validatePetName,
 } from "@/utils/petNaming";
 import { useProfile } from "@/contexts/ProfileContext";
-import { getSeasonalColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
@@ -27,7 +27,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-const seasonColor = getSeasonalColor();
 
 // ── Local animal image map ────────────────────────────────────────────────────
 // Metro requires static require() paths — add new animals here as art is added.
@@ -133,9 +132,12 @@ const AnimalCard: React.FC<{
 const OwnedAnimalCard: React.FC<{
   animal: StableAnimal;
   onPress: (animal: StableAnimal) => void;
-}> = ({ animal, onPress }) => (
-  <TouchableOpacity
-    style={[styles.card, styles.ownedCard, { width: cardSize, height: cardSize * 1.4 }]}
+}> = ({ animal, onPress }) => {
+  const { seasonColor } = useSeason();
+
+  return (
+    <TouchableOpacity
+      style={[styles.card, styles.ownedCard, { borderColor: seasonColor, width: cardSize, height: cardSize * 1.4 }]}
     onPress={() => onPress(animal)}
     activeOpacity={0.75}
   >
@@ -155,8 +157,9 @@ const OwnedAnimalCard: React.FC<{
         {animal.isEquipped ? "Equipped" : "Equip"}
       </Text>
     </View>
-  </TouchableOpacity>
-);
+    </TouchableOpacity>
+  );
+};
 
 // ── Purchase / Equip Modal ────────────────────────────────────────────────────
 
@@ -171,6 +174,7 @@ const AnimalModal: React.FC<{
   onPurchaseSuccess: () => void;
   onEquipSuccess: () => void;
 }> = ({ visible, animal, playerEnergeia, userId, isSubscriber, allAnimalItemIds, onClose, onPurchaseSuccess, onEquipSuccess }) => {
+  const { seasonColor } = useSeason();
   const router = useRouter();
   const [nameInput, setNameInput] = useState("");
   const [savedName, setSavedName] = useState("");
@@ -452,7 +456,7 @@ const AnimalModal: React.FC<{
                   <Text style={modal.buyText}>UNEQUIP</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity style={[modal.buyBtn, modal.equipBtn]} onPress={handleEquip}>
+                <TouchableOpacity style={[modal.buyBtn, { backgroundColor: seasonColor }]} onPress={handleEquip}>
                   <FontAwesome name="check-circle" size={15} color="#fff" />
                   <Text style={modal.buyText}>EQUIP COMPANION</Text>
                 </TouchableOpacity>
@@ -808,7 +812,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   ownedCard: {
-    borderColor: seasonColor,
     backgroundColor: "#FAF4FF",
   },
   cardImage: { width: "65%", height: "50%", marginBottom: 4 },
@@ -907,7 +910,6 @@ const modal = StyleSheet.create({
     gap: 12,
     marginTop: 6,
   },
-  equipBtn: { backgroundColor: seasonColor },
   unequipBtn: { backgroundColor: "#888" },
   disabledBtn: { backgroundColor: "#E74C3C", opacity: 0.8 },
   subscriberBtn: { backgroundColor: "#B8860B" },
