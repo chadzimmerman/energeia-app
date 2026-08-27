@@ -1,10 +1,10 @@
 import { Text, View } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { supabase } from "@/utils/supabase";
-import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Modal,
@@ -13,8 +13,6 @@ import {
   TextInput,
   TouchableOpacity,
 } from "react-native";
-const seasonColor = getSeasonalColor();
-const seasonDarkColor = getSeasonalDarkColor();
 
 interface Habit {
   id: string;
@@ -52,6 +50,12 @@ export default function HabitEditModal({
   habitToEdit,
   onHabitChange,
 }: HabitEditModalProps) {
+  const { seasonColor, seasonDarkColor } = useSeason();
+  const styles = useMemo(
+    () => makeStyles(seasonColor, seasonDarkColor),
+    [seasonColor, seasonDarkColor],
+  );
+
   const [title, setTitle] = useState("");
   const [isPositive, setIsPositive] = useState(true);
   const [isNegative, setIsNegative] = useState(false);
@@ -301,7 +305,7 @@ export default function HabitEditModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (seasonColor: string, seasonDarkColor: string) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F0F0F0",

@@ -1,5 +1,5 @@
 import { supabase } from "@/utils/supabase";
-import { getSeasonalColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 
 export default function PasswordScreen() {
+  const { seasonColor } = useSeason();
   const router = useRouter();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -104,7 +105,7 @@ export default function PasswordScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+        style={[styles.saveButton, { backgroundColor: seasonColor }, saving && styles.saveButtonDisabled]}
         onPress={handleSave}
         disabled={saving}
       >
@@ -118,7 +119,6 @@ export default function PasswordScreen() {
   );
 }
 
-const PURPLE = getSeasonalColor();
 
 const styles = StyleSheet.create({
   container: {
@@ -155,7 +155,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "#ddd",
   },
   saveButton: {
-    backgroundColor: PURPLE,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",

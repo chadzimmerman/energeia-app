@@ -2,11 +2,11 @@ import { Text, View } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { useProfile } from "@/contexts/ProfileContext";
-import { getSeasonalColor, getCurrentSeason } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import TutorialOverlay, { resetTutorial } from "@/components/TutorialOverlay";
 import { useNavigation } from "@react-navigation/native";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,9 +18,6 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-const seasonColor = getSeasonalColor();
-const currentSeason = getCurrentSeason();
-const seasonBadgeLabel = currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1);
 // --- EXPORT THE STACK OPTIONS HERE ---
 export const options = {
   title: "Settings",
@@ -41,7 +38,10 @@ const CLASS_HUB_LABEL: Record<string, string> = {
   fighter: "Barracks",
 };
 
-const settingsSections = [
+// Takes the label rather than reading the clock, so the badge text tracks the
+// season the same way its background colour does. Computing it at module scope
+// froze the word "Summer" onto an autumn-coloured badge.
+const makeSettingsSections = (seasonBadgeLabel: string) => [
   {
     title: null, // Corresponds to Skills, Stats, Achievements in the image
     items: [
@@ -93,8 +93,10 @@ const cautionSection = [
 
 // --- Component 1: Dynamic User Header ---
 const UserHeader = ({ profile, equippedCharacterSet, equippedOverlays }: { profile: Profile; equippedCharacterSet: ImageSourcePropType | null; equippedOverlays: ImageSourcePropType[] }) => {
+  const { seasonColor } = useSeason();
+
   return (
-    <View style={headerStyles.headerContainer}>
+    <View style={[headerStyles.headerContainer, { backgroundColor: seasonColor }]}>
       <View style={headerStyles.userInfo}>
         <View style={headerStyles.avatarContainer}>
           <Image
@@ -135,6 +137,8 @@ const SettingsSection = ({
   navigation: any;
   onTutorial?: () => void;
 }) => {
+  const { seasonColor } = useSeason();
+
   const handlePress = (itemId: string) => {
     if (itemId === "tutorial") {
       onTutorial?.();
@@ -172,7 +176,7 @@ const SettingsSection = ({
           >
             <Text style={sectionStyles.label}>{item.label}</Text>
             {item.badge && (
-              <View style={sectionStyles.badge}>
+              <View style={[sectionStyles.badge, { backgroundColor: seasonColor }]}>
                 <Text style={sectionStyles.badgeText}>{item.badge}</Text>
               </View>
             )}
@@ -254,6 +258,12 @@ const CautionSection = ({ section, onTutorial }: { section: any; onTutorial?: ()
 
 // --- Main Screen Component ---
 export default function SettingsTabScreen() {
+  const { season } = useSeason();
+  const settingsSections = useMemo(
+    () => makeSettingsSections(season.charAt(0).toUpperCase() + season.slice(1)),
+    [season],
+  );
+
   const navigation = useNavigation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const { equippedCharacterSet, equippedOverlays } = useProfile();
@@ -339,7 +349,6 @@ const headerStyles = StyleSheet.create({
     alignItems: "center",
     padding: 15,
     paddingTop: 40, // Adjust for status bar/notch
-    backgroundColor: seasonColor,
   },
   userInfo: {
     flexDirection: "row",
@@ -442,7 +451,6 @@ const sectionStyles = StyleSheet.create({
     color: "#000000",
   },
   badge: {
-    backgroundColor: seasonColor,
     borderRadius: 5,
     paddingHorizontal: 6,
     paddingVertical: 2,

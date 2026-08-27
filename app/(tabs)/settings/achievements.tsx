@@ -6,7 +6,7 @@ import {
   getAchievementImageSource,
 } from "@/data/achievements";
 import { supabase } from "@/utils/supabase";
-import { getSeasonalColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,7 +20,6 @@ import {
   View,
 } from "react-native";
 
-const seasonColor = getSeasonalColor();
 
 interface SelectedAchievement {
   title: string;
@@ -36,6 +35,7 @@ interface UserAchievementStatus {
 }
 
 export default function AchievementsScreen() {
+  const { seasonColor } = useSeason();
   const [loading, setLoading] = useState(true);
   const [userStatuses, setUserStatuses] = useState<UserAchievementStatus[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -126,7 +126,7 @@ export default function AchievementsScreen() {
             <Text style={styles.lightboxTitle}>{selected?.title}</Text>
             <View style={styles.divider} />
             <Text style={styles.lightboxDescription}>{selected?.description}</Text>
-            <TouchableOpacity style={styles.closeButton} onPress={() => setSelected(null)}>
+            <TouchableOpacity style={[styles.closeButton, { backgroundColor: seasonColor }]} onPress={() => setSelected(null)}>
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
@@ -189,7 +189,6 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   closeButton: {
-    backgroundColor: seasonColor,
     paddingHorizontal: 32,
     paddingVertical: 11,
     borderRadius: 12,
