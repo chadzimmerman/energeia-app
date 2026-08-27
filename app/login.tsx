@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { checkNewPassword } from "@/utils/passwordPolicy";
 import { useSeason } from "@/contexts/SeasonContext";
 import React, { useMemo, useState } from "react";
 import {
@@ -55,6 +56,17 @@ export default function LoginScreen() {
     if (!email || !password) {
       setError("Please enter your email and password.");
       return;
+    }
+
+    // Signup only. Signing in must not apply the current floor to a password
+    // chosen under an older one, or an existing user is locked out of their own
+    // account by a rule that did not exist when they made it.
+    if (mode === "signup") {
+      const check = checkNewPassword(password);
+      if (!check.valid) {
+        setError(check.error);
+        return;
+      }
     }
 
     setLoading(true);

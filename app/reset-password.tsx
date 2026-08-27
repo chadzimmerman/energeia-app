@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { checkNewPassword } from "@/utils/passwordPolicy";
 import { getSeasonalColor, getSeasonalDarkColor } from "@/utils/seasons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -12,8 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
-const MIN_PASSWORD_LENGTH = 8;
 
 /**
  * Where a password reset link lands.
@@ -40,12 +39,9 @@ export default function ResetPasswordScreen() {
   const handleSave = async () => {
     setError(null);
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
-      return;
-    }
-    if (password !== confirm) {
-      setError("The two passwords don't match.");
+    const check = checkNewPassword(password, confirm);
+    if (!check.valid) {
+      setError(check.error);
       return;
     }
 
