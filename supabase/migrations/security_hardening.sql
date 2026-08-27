@@ -89,16 +89,23 @@ END $$;
 
 
 -- ------------------------------------------------------------
--- 2. Leaked password protection
+-- 2. Leaked password protection — NOT AVAILABLE ON THIS PLAN
 --
--- Not settable from SQL. Turn it on in the dashboard:
---   Authentication -> Providers -> Email -> "Prevent use of
---   leaked passwords"
+-- Checked 2026-08-27: this is a Pro plan feature. The project is on
+-- the free tier and is not earning yet, so it is deliberately not
+-- being done rather than pending.
 --
--- It checks new passwords against HaveIBeenPwned using a k-anonymity
--- prefix, so no password or full hash leaves the project.
+-- What it would do: check new passwords against HaveIBeenPwned using
+-- a k-anonymity prefix, so no password or full hash leaves the
+-- project. Worth turning on if the project ever moves to Pro.
 --
--- This is the other half of issue #6 and has to be done by hand.
+-- Until then the password floor is whatever Supabase enforces by
+-- default plus the app's own minimum in utils/passwordPolicy.ts,
+-- applied everywhere a password is chosen: signup, reset, and change.
+-- Signup had no length check at all before this was checked.
+--
+-- Nothing to run here. This note exists so the item stops reading as
+-- outstanding work.
 -- ------------------------------------------------------------
 
 

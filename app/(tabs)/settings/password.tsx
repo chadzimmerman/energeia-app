@@ -1,4 +1,5 @@
 import { supabase } from "@/utils/supabase";
+import { checkNewPassword } from "@/utils/passwordPolicy";
 import { useSeason } from "@/contexts/SeasonContext";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -25,12 +26,9 @@ export default function PasswordScreen() {
       Alert.alert("Missing Fields", "Please fill out all fields.");
       return;
     }
-    if (next.length < 8) {
-      Alert.alert("Too Short", "New password must be at least 8 characters.");
-      return;
-    }
-    if (next !== confirm) {
-      Alert.alert("Mismatch", "New password and confirmation don't match.");
+    const check = checkNewPassword(next, confirm);
+    if (!check.valid) {
+      Alert.alert("Invalid Password", check.error);
       return;
     }
 

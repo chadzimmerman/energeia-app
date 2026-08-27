@@ -287,7 +287,16 @@ value item in this document.
    change, not before: the constraint-violation handling in `username.tsx` and
    `onboarding.tsx` is what turns a rejected name into a message rather than a
    dead button.
-3. **Turn on leaked password protection** in the dashboard. Manual, ~30 seconds.
+3. ~~Turn on leaked password protection.~~ **Not available on the free plan** —
+   confirmed 2026-08-27. Revisit if the project moves to Pro.
+
+   Checking this turned up something worth more than the toggle: signup had no
+   password length check at all. The reset and change screens each enforced 8
+   characters, but the one place a password is first chosen enforced nothing,
+   so the weakest passwords in the system were the ones users started with.
+   `utils/passwordPolicy.ts` now holds the rule and all three screens use it.
+   Signing in deliberately does not apply it — an existing user must not be
+   locked out by a floor that did not exist when they chose their password.
 4. **Test email auth on a device** (issue #4). Findings 1 and 2 both change how
    email links behave and neither has been exercised on a real build.
 5. **Move purchases into an RPC** (finding 3). The largest piece of work here,
