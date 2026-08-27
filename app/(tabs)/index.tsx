@@ -10,7 +10,7 @@ import {
   Text,
 } from "react-native";
 import { supabase } from "../../utils/supabase";
-import { getSeasonalBackground } from "../../utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import { sumEquippedBuff, type EquippedBuffRow } from "@/utils/statBonuses";
 import { grantAchievement } from "../../utils/grantAchievement";
 import { resolveCharacterImage } from "../../utils/resolveCharacterImage";
@@ -336,6 +336,7 @@ const checkScrollDrop = async (userId: string): Promise<void> => {
 };
 
 export default function HabitScreen() {
+  const { seasonBackground } = useSeason();
   const router = useRouter();
   const { profile, equippedCharacterSet, equippedOverlays, animalCompanion, petName, petTappedToday, handlePetTap, wallItems, floorItems, handItems, characterBgColors, refreshProfile } = useProfile();
   const [loading, setLoading] = useState(true);
@@ -503,12 +504,28 @@ export default function HabitScreen() {
         .from("user_habits")
         .select("is_positive, is_negative, streak_level, difficulty, reset_frequency")
         .eq("id", habitId)
+        .eq("user_id", userId)
         .single();
 
       if (habitFetchError || !habitData)
         throw habitFetchError || new Error("Habit not found.");
 
-      const { streak_level, difficulty, reset_frequency } = habitData;
+      const { is_positive, is_negative, streak_level, difficulty, reset_frequency } = habitData;
+
+      // A habit only supports the directions it was created with, and scoring it
+      // the other way still moves health and energeia. The UI hides the unusable
+      // arrow, but a list rendered before an edit landed can still be holding the
+      // old buttons, so validate against the row we just read rather than trusting
+      // what was on screen.
+      //
+      // This is a client-side check. It keeps the app honest about its own state,
+      // but it is not enforcement: anyone holding the anon key can write to the
+      // table directly, so the authoritative guard belongs in an RLS policy or a
+      // scoring RPC.
+      if (direction === "up" && !is_positive)
+        throw new Error(`Habit ${habitId} cannot be scored up.`);
+      if (direction === "down" && !is_negative)
+        throw new Error(`Habit ${habitId} cannot be scored down.`);
 
       // 2. Compute today's date key (reused for both the streak check and the log upsert)
       const now = new Date();
@@ -815,7 +832,7 @@ export default function HabitScreen() {
   return (
     <View style={styles.container}>
       <CharacterStats
-        backgroundImageSource={getSeasonalBackground()}
+        backgroundImageSource={seasonBackground}
         characterImageSource={resolveCharacterImage(profile.character_image_path, profile.level)}
         equippedCharacterSet={equippedCharacterSet}
         currentHealth={profile.current_health}

@@ -264,7 +264,19 @@ export default function MonasteryScreen() {
       setSaving(false);
       return;
     }
-    await supabase.from("profiles").update({ group_id: newGroup.id }).eq("id", userId);
+    const { error: joinOwnError } = await supabase
+      .from("profiles")
+      .update({ group_id: newGroup.id })
+      .eq("id", userId);
+
+    if (joinOwnError) {
+      // The group row exists but the creator is not in it. Say so rather than
+      // closing the modal on a half-finished create.
+      Alert.alert("Error", "The group was created but you could not be added to it. Please try again.");
+      setSaving(false);
+      return;
+    }
+
     if (userId) grantAchievement(userId, "first_friend");
     setSaving(false);
     setCreateModalVisible(false);
@@ -295,7 +307,24 @@ export default function MonasteryScreen() {
       setSaving(false);
       return;
     }
-    await supabase.from("profiles").update({ group_id: foundGroup.id }).eq("id", userId);
+    // The count above is advisory — it is a read followed by a write, so two
+    // people joining at once both pass it. The database enforces the cap, and
+    // this is where that rejection surfaces. Without the check the modal closes
+    // and the achievement is granted for a join that never happened.
+    const { error: joinError } = await supabase
+      .from("profiles")
+      .update({ group_id: foundGroup.id })
+      .eq("id", userId);
+
+    if (joinError) {
+      Alert.alert(
+        "Could Not Join",
+        `This ${hubLabel.toLowerCase()} may have just filled up. Try again in a moment.`,
+      );
+      setSaving(false);
+      return;
+    }
+
     if (userId) grantAchievement(userId, "first_friend");
     setSaving(false);
     setJoinModalVisible(false);

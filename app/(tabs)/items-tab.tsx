@@ -1,7 +1,7 @@
 import CharacterStats from "@/components/CharacterStats";
 import { Text as ThemedText, View as ThemedView } from "@/components/Themed";
 import { supabase } from "@/utils/supabase";
-import { getSeasonalBackground } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { resolveItemImage, resolveCharacterSetImage } from "@/utils/resolveItemImage";
 import BgColorSwatch from "@/components/BgColorSwatch";
@@ -305,6 +305,7 @@ const ItemGrid: React.FC<{
 // --- MAIN TAB SCREEN (UPDATED) ---
 
 export default function ItemsTabScreen() {
+  const { seasonBackground } = useSeason();
   const router = useRouter();
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -684,7 +685,7 @@ export default function ItemsTabScreen() {
     <ThemedView style={styles.container}>
       {/* 1. Character Stats Header (Using live profile data) */}
       <CharacterStats
-        backgroundImageSource={getSeasonalBackground()}
+        backgroundImageSource={seasonBackground}
         characterImageSource={resolveCharacterImage(profile.character_image_path)}
         equippedCharacterSet={equippedCharacterSet}
         currentHealth={profile.current_health}

@@ -1,9 +1,11 @@
 import { supabase } from "@/utils/supabase";
+import { DUPLICATE_NAME_MESSAGE, isDuplicateNameError } from "@/utils/profileErrors";
 import { resolveCharacterImage } from "@/utils/resolveCharacterImage";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -13,7 +15,7 @@ import {
   View,
 } from "react-native";
 
-import { getSeasonalColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 
 type Gender = "male" | "female";
 type PlayerClass = "Monk" | "Fighter" | "Noble";
@@ -25,6 +27,9 @@ const CLASS_OPTIONS: { id: PlayerClass; label: string; tagline: string; bonus: s
 ];
 
 export default function OnboardingScreen() {
+  const { seasonColor } = useSeason();
+  const styles = useMemo(() => makeStyles(seasonColor), [seasonColor]);
+
   const router = useRouter();
   const [gender, setGender] = useState<Gender>("male");
   const [selectedClass, setSelectedClass] = useState<PlayerClass | null>(null);
@@ -61,11 +66,20 @@ export default function OnboardingScreen() {
         })
         .eq("id", session.user.id);
 
+      // profiles.username and .handle carry unique indexes, so a name someone
+      // already holds is rejected here. Onboarding used to only console.error,
+      // which on the very first screen of the app meant "Begin Journey" did
+      // nothing at all, with nothing on screen to explain why.
+      if (isDuplicateNameError(error)) {
+        Alert.alert("Name Taken", DUPLICATE_NAME_MESSAGE);
+        return;
+      }
       if (error) throw error;
 
       router.replace("/(tabs)");
     } catch (e: any) {
       console.error("Onboarding save error:", e.message);
+      Alert.alert("Could Not Save", "Something went wrong setting up your character. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -203,9 +217,7 @@ export default function OnboardingScreen() {
     </ScrollView>
   );
 }
-const PURPLE = getSeasonalColor();
-
-const styles = StyleSheet.create({
+const makeStyles = (PURPLE: string) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",

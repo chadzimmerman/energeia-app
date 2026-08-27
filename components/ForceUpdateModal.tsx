@@ -1,12 +1,14 @@
 import React from "react";
 import { Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { getSeasonalColor } from "@/utils/seasons";
+import { useSeason } from "@/contexts/SeasonContext";
 
 // TODO: Replace with your App Store numeric ID once the app is live
 // Format: https://apps.apple.com/app/id<YOUR_NUMERIC_APP_ID>
 const APP_STORE_URL = "https://apps.apple.com/app/id000000000";
 
 export default function ForceUpdateModal({ visible }: { visible: boolean }) {
+  const { seasonColor } = useSeason();
+
   return (
     <Modal visible={visible} animationType="fade" transparent statusBarTranslucent>
       <View style={styles.backdrop}>
@@ -16,7 +18,7 @@ export default function ForceUpdateModal({ visible }: { visible: boolean }) {
             A new version of Energe.ia is available. Please update to continue your journey.
           </Text>
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: getSeasonalColor() }]}
+            style={[styles.button, { backgroundColor: seasonColor }]}
             onPress={() => Linking.openURL(APP_STORE_URL)}
           >
             <Text style={styles.buttonText}>Update Now</Text>

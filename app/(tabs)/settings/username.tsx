@@ -1,5 +1,6 @@
 import { supabase } from "@/utils/supabase";
-import { getSeasonalColor } from "@/utils/seasons";
+import { DUPLICATE_NAME_MESSAGE, isDuplicateNameError } from "@/utils/profileErrors";
+import { useSeason } from "@/contexts/SeasonContext";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -13,6 +14,7 @@ import {
 } from "react-native";
 
 export default function UsernameScreen() {
+  const { seasonColor } = useSeason();
   const router = useRouter();
   const [currentUsername, setCurrentUsername] = useState("");
   const [newUsername, setNewUsername] = useState("");
@@ -58,25 +60,21 @@ export default function UsernameScreen() {
 
     setSaving(true);
     try {
-      // Check uniqueness — does any OTHER user already have this name?
-      const { data: existing } = await supabase
-        .from("profiles")
-        .select("id")
-        .ilike("username", trimmed)
-        .neq("id", userId!)
-        .maybeSingle();
-
-      if (existing) {
-        Alert.alert("Name Taken", "That username is already in use. Please choose another.");
-        return;
-      }
-
+      // No pre-check. A SELECT followed by an UPDATE cannot enforce uniqueness:
+      // two players saving the same name at once both see it free, and the
+      // query only finds anything if it can read other users' rows at all. The
+      // unique indexes on lower(username) and lower(handle) are the authority,
+      // so the write is the check.
       const handle = trimmed.toLowerCase().replace(/\s+/g, "_");
       const { error } = await supabase
         .from("profiles")
         .update({ username: trimmed, handle })
         .eq("id", userId!);
 
+      if (isDuplicateNameError(error)) {
+        Alert.alert("Name Taken", DUPLICATE_NAME_MESSAGE);
+        return;
+      }
       if (error) throw error;
 
       Alert.alert("Updated", "Your username has been changed.", [
@@ -114,7 +112,7 @@ export default function UsernameScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+        style={[styles.saveButton, { backgroundColor: seasonColor }, saving && styles.saveButtonDisabled]}
         onPress={handleSave}
         disabled={saving}
       >
@@ -128,7 +126,6 @@ export default function UsernameScreen() {
   );
 }
 
-const PURPLE = getSeasonalColor();
 
 const styles = StyleSheet.create({
   container: {
@@ -167,7 +164,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   saveButton: {
-    backgroundColor: PURPLE,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
